@@ -4,4 +4,7 @@ __pycache__/
 .pytest_cache/
 .node/
 .DS_Store
-agents/**/*.env
+conversational_app/**/*.env
+conversational_app/.env
+flights_search_app/**/*.env
+flights_search_app/.env
