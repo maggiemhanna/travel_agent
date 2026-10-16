@@ -8,63 +8,73 @@ It enables users to search for simulated flights and interactively refine result
 
 ## 🏗️ System Architecture
 
-The application is architected as a set of autonomous microservices coordinated by a central gateway and connected to an interactive frontend.
+The application is organized into two standalone backend applications (**`flights_search_app`** and **`conversational_app`**) plus an interactive React **`frontend`**.
 
 ![Architecture](architecture.png)
 
 ---
 
-> **Note on Branches:** This branch (`local`) is configured for **local development and testing**, where all microservices and frontend communicate over `localhost`. For production deployment to **Google Cloud Run**, please refer to the `main` branch.
+> **Note on Branches:** This branch (`local`) is configured for **local development and testing**, where all microservices and the frontend communicate over `localhost`. For production deployment to **Google Cloud Run**, please refer to the `main` branch.
 
 ---
 
-## 🤖 Microservices & Agents Overview
+## 🤖 Applications & Microservices Overview
 
-Each agent runs as an independent FastAPI microservice with its own dedicated documentation:
-
-| Service | Port | Model / Tech | Role & Description | Documentation |
+| Application / Service | Port | Model / Tech | Role & Description | Documentation |
 | :--- | :---: | :--- | :--- | :---: |
-| **Orchestrator** | `8005` | FastAPI / Python | **Central Coordinator**: Triages user requests via `engage` and delegates to appropriate expert agents. | [README](agents/orchestrator/README.md) |
-| **Engage Agent** | `8001` | Gemini 2.5 Pro | **Triage Specialist**: Analyzes user intent to route to `continue`, `filter`, `smart_filter`, or `inspiration_agent`. | [README](agents/engage/README.md) |
-| **Filter Agent** | `8002` | Gemini 2.5 Pro | **Filter Extraction**: Translates natural language into deterministic database parameters (`direct`, `max_price`, `max_stops`). | [README](agents/filter/README.md) |
-| **Smart Filter Agent** | `8003` | Gemini 2.5 Pro + Search | **Semantic Filter**: Evaluates qualitative amenities (WiFi, legroom, aircraft) via contextual reasoning and live Google Search. | [README](agents/filter_smart/README.md) |
-| **Inspiration Agent** | `8007` | Gemini 2.5 Pro | **Discovery Architect**: Suggests destinations and date ranges for open-ended travel requests (*"somewhere sunny in December"*). | [README](agents/inspiration/README.md) |
-| **Flights Search Agent** | `8006` | Gemini 2.5 Flash Lite | **Flight Simulator**: Generates 15 realistic, route-appropriate flight options obeying temporal and timezone logic. | [README](agents/flights_search/README.md) |
-| **JSON Parser Agent** | `8004` | Gemini 2.5 Pro | **Structure Corrector**: Repairs malformed JSON outputs and guarantees strict schema compliance. | [README](agents/json_parser/README.md) |
-| **Frontend** | `5173` | React / Vite | **User Interface**: Flight search exploration view with conversational ChatWidget. | [frontend/](frontend/) |
+| **Flights Search Agent** (`flights_search_app`) | `8000` | Gemini 2.5 Flash Lite | **Flight Simulator**: Generates 15 realistic, route-appropriate flight options obeying temporal and timezone logic. | [README](flights_search_app/README.md) |
+| **Orchestrator** (`conversational_app/app`) | `8001` | FastAPI / Python | **Central Coordinator**: Entrypoint for the conversational app; triages user requests via `engage` and delegates to sub-agents. | [README](conversational_app/README.md#1-orchestrator-entrypoint--port-8001) |
+| **Engage Sub-Agent** (`sub_agents/engage`) | `8002` | Gemini 2.5 Pro | **Triage Specialist**: Analyzes user intent to route to `continue`, `filter`, `smart_filter`, or `inspiration_agent`. | [README](conversational_app/README.md#2-engage-sub-agent-port-8002) |
+| **Filter Sub-Agent** (`sub_agents/filter`) | `8003` | Gemini 2.5 Pro | **Filter Extraction**: Translates natural language into deterministic parameters (`direct`, `max_price`, `max_stops`). | [README](conversational_app/README.md#3-filter-sub-agent-port-8003) |
+| **Smart Filter Sub-Agent** (`sub_agents/filter_smart`) | `8004` | Gemini 2.5 Pro + Search | **Semantic Filter**: Evaluates qualitative amenities (WiFi, legroom, aircraft) via contextual reasoning and live Google Search. | [README](conversational_app/README.md#4-smart-filter-sub-agent-port-8004) |
+| **Inspiration Sub-Agent** (`sub_agents/inspiration`) | `8005` | Gemini 2.5 Pro | **Discovery Architect**: Suggests destinations and date ranges for open-ended travel requests (*"somewhere sunny in December"*). | [README](conversational_app/README.md#5-inspiration-sub-agent-port-8005) |
+| **JSON Parser Sub-Agent** (`sub_agents/json_parser`) | `8006` | Gemini 2.5 Pro | **Structure Corrector**: Repairs malformed JSON outputs and guarantees strict schema compliance. | [README](conversational_app/README.md#6-json-parser-sub-agent-port-8006) |
+| **Frontend** (`frontend`) | `5173` | React / Vite | **User Interface**: Flight search exploration view with conversational ChatWidget. | [frontend/](frontend/) |
 
 ---
 
 ## 📁 Repository Structure
 
 ```text
-flights_search/
-├── agents/
-│   ├── engage/              # Intent triage and routing microservice (:8001)
-│   ├── filter/              # Deterministic parameter extraction microservice (:8002)
-│   ├── filter_smart/        # Semantic filtering + live Google Search microservice (:8003)
-│   ├── flights_search/      # Realistic flight search data simulation microservice (:8006)
-│   ├── inspiration/         # Open-ended travel discovery microservice (:8007)
-│   ├── json_parser/         # Self-healing JSON syntax & schema correction microservice (:8004)
-│   └── orchestrator/        # Central FastAPI gateway coordinating the agents (:8005)
-├── frontend/                # React + Vite frontend application & ChatWidget (:5173)
-├── tests/                   # Microservice integration and unit tests
-│   ├── engage/
-│   ├── filter/
-│   ├── filter_smart/
-│   ├── flights_search/
-│   ├── inspiration/
-│   ├── json_parser/
-│   └── orchestrator/
-├── utils/                   # Shared logging and formatting utilities
-└── requirements.txt         # Root Python dependencies
+travel_agent/
+├── flights_search_app/          # Standalone Flights Search ADK Application (:8000)
+│   ├── app/                     # Core ADK agent package (agent.py, main.py, prompt.py, schema.py)
+│   │   └── app_utils/           # Shared logging and formatting utilities
+│   ├── tests/                   # Unit, integration, and E2E test suites
+│   │   ├── fixtures/
+│   │   ├── unit/
+│   │   ├── integration/
+│   │   └── e2e/
+│   ├── .env                     # Environment variables for flights_search_app
+│   ├── pyproject.toml           # Project metadata and pytest configuration
+│   ├── requirements.txt         # Python dependencies for flights_search_app
+│   └── README.md                # Flights Search App documentation
+├── conversational_app/          # Conversational Multi-Agent Application (:8001–8006)
+│   ├── app/                     # Main Orchestrator entrypoint (:8001) (main.py, schema.py)
+│   │   ├── app_utils/           # Shared logging and formatting utilities
+│   │   └── sub_agents/          # Specialized ADK sub-agent services
+│   │       ├── engage/          # Intent triage and routing (:8002)
+│   │       ├── filter/          # Deterministic parameter extraction (:8003)
+│   │       ├── filter_smart/    # Semantic filtering + live Google Search (:8004)
+│   │       ├── inspiration/     # Open-ended travel discovery (:8005)
+│   │       └── json_parser/     # Self-healing JSON syntax & schema correction (:8006)
+│   ├── tests/                   # Unit, integration, and E2E test suites
+│   │   ├── fixtures/
+│   │   ├── unit/
+│   │   ├── integration/
+│   │   └── e2e/
+│   ├── .env                     # Environment variables for conversational_app
+│   ├── pyproject.toml           # Project metadata and pytest configuration
+│   ├── requirements.txt         # Python dependencies for conversational_app
+│   └── README.md                # Conversational App & Sub-Agents documentation
+└── frontend/                    # React + Vite frontend application & ChatWidget (:5173)
 ```
 
 ---
 
 ## 💻 Running the Application Locally
 
-In this branch, all microservices and the React frontend communicate locally over `127.0.0.1` on their designated ports.
+In this branch, all microservices and the React frontend communicate locally over `127.0.0.1` on their designated ports (`8000`–`8006` and `5173`).
 
 ### 1. Prerequisites & Environment Setup
 - **Python >= 3.11**
@@ -74,57 +84,59 @@ In this branch, all microservices and the React frontend communicate locally ove
 gcloud auth application-default login
 ```
 
-Create and activate a virtual environment, then install root dependencies:
+Create and activate a virtual environment, then install dependencies for both applications:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r flights_search_app/requirements.txt -r conversational_app/requirements.txt
 ```
 
-### 2. Configure Agent Environment Variables (`env.yaml`)
-Ensure that all `env.yaml` files for the agents are updated with your Google Cloud **Project ID** and **Location/Region**:
-- `agents/engage/env.yaml`
-- `agents/filter/env.yaml`
-- `agents/filter_smart/env.yaml`
-- `agents/flights_search/env.yaml`
-- `agents/inspiration/env.yaml`
-- `agents/json_parser/env.yaml`
+### 2. Configure Environment Variables (`.env`)
+Each backend application loads its configuration automatically via `python-dotenv` from its own `.env` file:
+- [`flights_search_app/.env`](flights_search_app/.env)
+- [`conversational_app/.env`](conversational_app/.env)
 
-Update the following keys in each file:
-```yaml
-GOOGLE_CLOUD_PROJECT: "<YOUR_GCP_PROJECT_ID>"
-GOOGLE_CLOUD_LOCATION: "<YOUR_GCP_LOCATION>" # e.g., europe-west9, us-central1
+Ensure both `.env` files are configured with your Google Cloud settings:
+```dotenv
+GOOGLE_CLOUD_PROJECT=travel-agent-511710
+GOOGLE_CLOUD_LOCATION=europe-west9
+GOOGLE_GENAI_USE_VERTEXAI=TRUE
 ```
-
-*(Note: For `agents/filter_smart/env.yaml` and `agents/flights_search/env.yaml`, provide your `SERPAPI_KEY` if live search is used).*
 
 ### 3. Start Backend Microservices (Local Uvicorn Servers)
-Run each agent in a separate terminal (or in background processes):
 
+#### Start `flights_search_app` (Port `8000`)
+From `flights_search_app/`:
 ```bash
-# Terminal 1: Engage Agent (Port 8001)
-python3 -m agents.engage.main
-
-# Terminal 2: Filter Agent (Port 8002)
-python3 -m agents.filter.main
-
-# Terminal 3: Smart Filter Agent (Port 8003)
-python3 -m agents.filter_smart.main
-
-# Terminal 4: JSON Parser Agent (Port 8004)
-python3 -m agents.json_parser.main
-
-# Terminal 5: Flights Search Simulator (Port 8006)
-python3 -m agents.flights_search.main
-
-# Terminal 6: Inspiration Agent (Port 8007)
-python3 -m agents.inspiration.main
-
-# Terminal 7: Central Orchestrator Gateway (Port 8005)
-python3 -m agents.orchestrator.main
+cd flights_search_app
+python3 -m app.main
 ```
 
-### 4. Start the Frontend
+#### Start `conversational_app` Orchestrator & Sub-Agents (Ports `8001`–`8006`)
+From `conversational_app/` (in separate terminals or background processes):
+```bash
+cd conversational_app
+
+# Terminal 1: Main Orchestrator Gateway (Port 8001)
+python3 -m app.main
+
+# Terminal 2: Engage Sub-Agent (Port 8002)
+python3 -m app.sub_agents.engage.main
+
+# Terminal 3: Filter Sub-Agent (Port 8003)
+python3 -m app.sub_agents.filter.main
+
+# Terminal 4: Smart Filter Sub-Agent (Port 8004)
+python3 -m app.sub_agents.filter_smart.main
+
+# Terminal 5: Inspiration Sub-Agent (Port 8005)
+python3 -m app.sub_agents.inspiration.main
+
+# Terminal 6: JSON Parser Sub-Agent (Port 8006)
+python3 -m app.sub_agents.json_parser.main
+```
+
+### 4. Start the Frontend (Port `5173`)
 In a new terminal:
 ```bash
 cd frontend
@@ -133,28 +145,37 @@ npm run dev
 ```
 Open **`http://localhost:5173`** in your browser to interact with the flight search engine and conversational chat widget.
 
-### 5. Running Tests Locally
-Tests can be run either in-memory or directly against the live local Uvicorn servers:
+---
 
+## 🧪 Running Tests Locally
+
+Both [`flights_search_app/tests/`](flights_search_app/tests/) and [`conversational_app/tests/`](conversational_app/tests/) are organized into three test tiers:
+- **`tests/unit/`**: Fast, offline tests with mocked LLM/HTTP dependencies (`FastAPI TestClient`).
+- **`tests/integration/`**: In-process tests hitting real Gemini/Vertex AI models via `FastAPI TestClient` (no running Uvicorn server required for single-agent tests).
+- **`tests/e2e/`**: Live HTTP client tests (`requests.post`) against running local Uvicorn servers (`localhost:8000`–`8006`).
+
+### Test `flights_search_app`
 ```bash
-# 1. In-memory unit tests (FastAPI TestClient)
-pytest
+cd flights_search_app
 
-# Or run individual in-memory tests:
-python -m tests.orchestrator.test
-python -m tests.engage.test
-python -m tests.filter.test
-python -m tests.filter_smart.test
-python -m tests.inspiration.test
-python -m tests.json_parser.test
-python -m tests.flights_search.test
+# Run all tiers (unit, integration, e2e)
+python3 -m pytest -v -s
 
-# 2. Live HTTP Microservice tests (requires local Uvicorn servers to be running)
-python -m tests.orchestrator.test_microservice
-python -m tests.engage.test_microservice
-python -m tests.filter.test_microservice
-python -m tests.filter_smart.test_microservice
-python -m tests.inspiration.test_microservice
-python -m tests.json_parser.test_microservice
-python -m tests.flights_search.test_microservice
+# Run a specific tier
+python3 -m pytest tests/unit -v -s
+python3 -m pytest tests/integration -v -s
+python3 -m pytest tests/e2e -v -s
+```
+
+### Test `conversational_app`
+```bash
+cd conversational_app
+
+# Run all tiers (unit, integration, e2e)
+python3 -m pytest -v -s
+
+# Run a specific tier
+python3 -m pytest tests/unit -v -s
+python3 -m pytest tests/integration -v -s
+python3 -m pytest tests/e2e -v -s
 ```
