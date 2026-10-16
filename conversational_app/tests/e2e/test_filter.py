@@ -1,12 +1,15 @@
+import json
+import os
 import sys
 import requests
 
-# Import the custom logger from your project utilities
-from utils.logging import setup_logging, format_dict_for_logs
+from app.app_utils.logging import format_dict_for_logs, setup_logging
 
 logger = setup_logging(name=__name__)
 
-BASE_URL = "http://127.0.0.1:8002"
+BASE_URL = "http://127.0.0.1:8003"
+FIXTURES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures", "filter.json")
+
 
 def test_root_endpoint():
     """Test the root health-check endpoint."""
@@ -14,56 +17,52 @@ def test_root_endpoint():
     assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
     assert response.json() == {"message": "Filter Agent Service is running. Use the /run-filter endpoint via POST."}
 
+
 def test_run_filter():
-    """Test the filter endpoint and validate the exact JSON structure."""
-    
-    import os
-    import json
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    tests = json.load(open(os.path.join(current_dir, "tests.json")))
+    """Test the filter microservice endpoint and validate the exact JSON structure."""
+    with open(FIXTURES_PATH) as f:
+        tests = json.load(f)
 
-    for test in tests:        
-
+    for test in tests:
         payload = {
             "user_message": test["user_message"],
-            "conversational_history": test["conversational_history"]
+            "conversational_history": test["conversational_history"],
         }
         logger.info(f"Payload:\n{format_dict_for_logs(payload)}")
-        
+
         # Issue the POST request to the deployed microservice endpoint
         response = requests.post(f"{BASE_URL}/run-filter", json=payload)
-    
+
         # Verify HTTP status code
         assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
-    
+
         # Parse JSON
         data = response.json()
         assert data["status"] == "success"
-    
+
         # Extract the actual agent results from the endpoint envelope
         results = data["results"][0]
-
         logger.info(f"Agent Response:\n{format_dict_for_logs(results)}")
 
         # --- User-Defined Assertions ---
-    
         assert isinstance(results, dict), "Expected 'results' to be a dict"
-        
+
         assert "filter_type" in results, "Expected 'filter_type' key in the first result"
         assert isinstance(results["filter_type"], str), "Expected 'filter_type' value to be a string."
-        assert results["filter_type"]==test["expected_filter_type"], f"Expected 'filter_type' value to be {test['expected_filter_type']}, got {results['filter_type']}"
+        assert results["filter_type"] == test["expected_filter_type"], f"Expected 'filter_type' value to be {test['expected_filter_type']}, got {results['filter_type']}"
 
         assert "filter_value" in results, "Missing 'filter_value'"
         assert isinstance(results["filter_value"], int), "Expected 'filter_value' value to be an int."
-        assert results["filter_value"]==test["expected_filter_value"], f"Expected 'filter_value' value to be {test['expected_filter_value']}, got {results['filter_value']}"
+        assert results["filter_value"] == test["expected_filter_value"], f"Expected 'filter_value' value to be {test['expected_filter_value']}, got {results['filter_value']}"
 
         assert "filter_response" in results, "Missing 'filter_response'"
         assert isinstance(results["filter_response"], str), "Expected 'filter_response' value to be a string"
 
+
 # --- Manual Execution Block ---
 if __name__ == "__main__":
-    logger.info(f"Running microservice tests against {BASE_URL}...")
-    
+    logger.info(f"Running e2e microservice tests against {BASE_URL}...")
+
     try:
         logger.info("Running test_root_endpoint...")
         test_root_endpoint()

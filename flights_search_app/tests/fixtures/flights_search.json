@@ -1,0 +1,13 @@
+[
+    {
+        "origin": "Paris",
+        "destination": "New York",
+        "departure_date": "2026-05-10",
+        "return_date": "2026-05-20",
+        "passengers": 1,
+        "filters": {
+            "max_price": 1000,
+            "max_stops": 1
+        }
+    }
+]

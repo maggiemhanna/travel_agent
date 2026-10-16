@@ -1,71 +1,66 @@
+import json
+import os
 import sys
 from fastapi.testclient import TestClient
 
-# Import the custom logger from your project utilities
-from utils.logging import setup_logging
+from app.app_utils.logging import format_dict_for_logs, setup_logging
+from app.sub_agents.filter_smart.main import api
 
 logger = setup_logging(name=__name__)
 
-# Import the FastAPI app from your main.py file.
-try:
-    from agents.filter_smart.main import api 
-except ImportError:
-    logger.error("Could not import 'api' from 'main.py'")
-    sys.exit(1)
+FIXTURES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures", "filter_smart.json")
+
 
 def test_root_endpoint():
     """Test the root health-check endpoint."""
-    client = TestClient(api) 
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.json() == {"message": "Filter Smart Agent Service is running. Use the /run-filter-smart endpoint via POST."}
+    with TestClient(api) as client:
+        response = client.get("/")
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
+        assert response.json() == {"message": "Filter Smart Agent Service is running. Use the /run-filter-smart endpoint via POST."}
+
 
 def test_run_filter_smart():
-    """Test the filter endpoint and validate the exact JSON structure."""
-    
-    import os
-    import json
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    tests=json.load(open(os.path.join(current_dir, "tests.json")))
+    """Test the filter smart endpoint in-process and validate the exact JSON structure."""
+    with open(FIXTURES_PATH) as f:
+        tests = json.load(f)
 
     with TestClient(api) as client:
-        for test in tests:        
-
+        for test in tests:
             payload = {
                 "user_message": test["user_message"],
                 "conversational_history": test["conversational_history"],
-                "flights_input": test["flights_input"]
-                }
+                "flights_input": test["flights_input"],
+            }
+            logger.info(f"Payload:\n{format_dict_for_logs(payload)}")
 
             # Issue the POST request to the endpoint
             response = client.post("/run-filter-smart", json=payload)
-        
+
             # Verify HTTP status code
             assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
-        
+
             # Parse JSON
             data = response.json()
             assert data["status"] == "success"
-        
+
             # Extract the actual agent results from the endpoint envelope
             results = data["results"][0]
+            logger.info(f"Agent Response:\n{format_dict_for_logs(results)}")
 
             # --- User-Defined Assertions ---
-        
             assert isinstance(results, dict), "Expected 'results' to be a dict"
-            
+
             assert "flights_output" in results, "Expected 'flights_output' key in the first result"
             assert isinstance(results["flights_output"], list), "Expected 'flights_output' value to be a list."
-            
+
             assert "filter_response" in results, "Missing 'filter_response'"
             assert isinstance(results["filter_response"], str), "Expected 'filter_response' value to be a string"
 
 
-
 # --- Manual Execution Block ---
 if __name__ == "__main__":
-    logger.info("Running tests manually without pytest...")
-    
+    logger.info("Running integration tests manually without pytest...")
+
     try:
         logger.info("Running test_root_endpoint...")
         test_root_endpoint()
