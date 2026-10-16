@@ -1,11 +1,11 @@
 # Copyright (c) 2024 Maggie Mhanna
 # All rights reserved.
 
-from google.adk.agents.llm_agent import Agent
-from google.adk.models.google_llm import Gemini
+from google.adk import Agent
+from google.adk.apps import App
+from google.adk.models import Gemini
 from google.adk.planners import BuiltInPlanner
 from google.genai.types import HttpRetryOptions, ThinkingConfig
-from google.adk.apps import App
 
 from app.prompt import system_instruction
 from app.schema import FlightsSearchInput, FlightsSearchOutput
@@ -19,7 +19,8 @@ APP_NAME = "app"
 # Create the agent
 flights_search = Agent(
     model=Gemini(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3.5-flash-lite",
+        client_kwargs={"location": "global"},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(
             attempts=5,
@@ -33,7 +34,7 @@ flights_search = Agent(
     description="""The Flight Search Agent: An expert flight search simulator. 
     This agent generates a list of flights based on the user's input.""",
     instruction=system_instruction,
-    input_schema=FlightsSearchInput,
+    state_schema=FlightsSearchInput,
     output_schema=FlightsSearchOutput,
     include_contents='none',
     planner=BuiltInPlanner(

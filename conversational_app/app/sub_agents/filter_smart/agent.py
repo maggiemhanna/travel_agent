@@ -1,12 +1,12 @@
 # Copyright (c) 2024 Maggie Mhanna
 # All rights reserved.
 
-from google.adk.agents.llm_agent import Agent
-from google.adk.models.google_llm import Gemini
-from google.adk.planners import BuiltInPlanner
-from google.genai.types import HttpRetryOptions, ThinkingConfig
+from google.adk import Agent
 from google.adk.apps import App
+from google.adk.models import Gemini
+from google.adk.planners import BuiltInPlanner
 from google.adk.tools import google_search
+from google.genai.types import HttpRetryOptions, ThinkingConfig
 
 from app.sub_agents.filter_smart.prompt import system_instruction
 from app.sub_agents.filter_smart.schema import FilterSmartInput, FilterSmartOutput
@@ -20,7 +20,8 @@ APP_NAME = "conversational_app"
 # Create the agent
 filter_smart = Agent(
     model=Gemini(
-        model="gemini-2.5-pro",
+        model="gemini-3.1-pro-preview",
+        client_kwargs={"location": "global"},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(
             attempts=5,
@@ -34,7 +35,7 @@ filter_smart = Agent(
     description="""The Filter Smart Agent: An expert at filtering the results of the flights search agent that are not based on existing filters.""",
     instruction=system_instruction,
     tools=[google_search],
-    input_schema=FilterSmartInput,
+    state_schema=FilterSmartInput,
     include_contents='none',
     #planner=BuiltInPlanner(
     #    thinking_config=ThinkingConfig(

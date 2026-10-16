@@ -1,11 +1,11 @@
 # Copyright (c) 2024 Maggie Mhanna
 # All rights reserved.
 
-from google.adk.agents.llm_agent import Agent
-from google.adk.models.google_llm import Gemini
+from google.adk import Agent
+from google.adk.apps import App
+from google.adk.models import Gemini
 from google.adk.planners import BuiltInPlanner
 from google.genai.types import HttpRetryOptions, ThinkingConfig
-from google.adk.apps import App
 
 from app.sub_agents.filter.prompt import system_instruction
 from app.sub_agents.filter.schema import FilterInput, FilterOutput
@@ -19,7 +19,8 @@ APP_NAME = "conversational_app"
 # Create the agent
 filter = Agent(
     model=Gemini(
-        model="gemini-2.5-pro",
+        model="gemini-3.1-pro-preview",
+        client_kwargs={"location": "global"},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(
             attempts=5,
@@ -32,7 +33,7 @@ filter = Agent(
     name="filter_agent",
     description="""The Filter Agent: An expert at filtering the results of the flights search agent based on existing filters.""",
     instruction=system_instruction,
-    input_schema=FilterInput,
+    state_schema=FilterInput,
     output_schema=FilterOutput,
     include_contents='none',
     #planner=BuiltInPlanner(

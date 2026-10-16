@@ -1,11 +1,11 @@
 # Copyright (c) 2024 Maggie Mhanna
 # All rights reserved.
 
-from google.adk.agents.llm_agent import Agent
-from google.adk.models.google_llm import Gemini
+from google.adk import Agent
+from google.adk.apps import App
+from google.adk.models import Gemini
 from google.adk.planners import BuiltInPlanner
 from google.genai.types import HttpRetryOptions, ThinkingConfig
-from google.adk.apps import App
 
 from app.sub_agents.json_parser.prompt import system_instruction
 from app.sub_agents.json_parser.schema import JSONParserInput, JSONParserOutput
@@ -19,7 +19,8 @@ APP_NAME = "conversational_app"
 # Create the agent
 json_parser = Agent(
     model=Gemini(
-        model="gemini-2.5-pro",
+        model="gemini-3.1-pro-preview",
+        client_kwargs={"location": "global"},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(
             attempts=5,
@@ -32,7 +33,7 @@ json_parser = Agent(
     name="json_parser_agent",
     description="""The JSON Parser Agent: An expert at parsing the results into JSON format.""",
     instruction=system_instruction,
-    input_schema=JSONParserInput,
+    state_schema=JSONParserInput,
     output_schema=JSONParserOutput,
     include_contents='none',
     #planner=BuiltInPlanner(
