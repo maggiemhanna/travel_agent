@@ -16,7 +16,7 @@ This skill enables the agent to design and implement a smart, sticky **Chatbot W
 -   **Framework:** **Vite + React (JavaScript)** — Continuing the existing stack.
 -   **State Management:** Extends the search state.
     -   The `Search Results` and `Chat Widget` share contextual state (e.g., Active Flights).
--   **API Integration:** Standard `fetch` API to `http://127.0.0.1:8004/run-orchestrator`.
+-   **API Integration:** Standard `fetch` API to `http://127.0.0.1:8004/run-conversational`.
 
 ---
 
@@ -47,7 +47,7 @@ const [conversationalHistory, setConversationalHistory] = useState([]);
 ```
 
 ### Step 2: Handle Orchestrator Webhook
-Bind submit events to trigger the `/run-orchestrator` endpoint.
+Bind submit events to trigger the `/run-conversational` endpoint.
 
 For the second round, third round, nth round etc of chat conversation, ensure the conversation is appended to the `conversation_history` variable (or `conversational_history` payload field) sent to the backend.
 
@@ -65,10 +65,10 @@ Update state based on orchestrator output:
 
 -   **Scenario 1: `agent_decision` == `"filter"` (Deterministic)**
     -   Read `filter_type` and `filter_value` to automatically apply the filters on the flights search simulator UI.
-    -   Display `filter_response` to the user as chatbot AI answer.
+    -   Display `agent_response` to the user as chatbot AI answer.
 -   **Scenario 2: `agent_decision` == `"filter_smart"` (Semantic)**
     -   Take into consideration the variable `flights_output` to have the new list of flights available and displayed to the user instead of the existing list.
-    -   Display `filter_response` to the user as chatbot AI answer.
+    -   Display `agent_response` to the user as chatbot AI answer.
 -   **Scenario 3: `agent_decision` == `"continue"` (Classic Chat)**
     -   Just append the `agent_response` to the chat bubbles feed!
 

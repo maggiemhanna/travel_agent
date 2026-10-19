@@ -1,6 +1,6 @@
 # 💬 Conversational Multi-Agent Application (`conversational_app`)
 
-The **Conversational Multi-Agent Application** powers the interactive **ChatWidget** in the Flights Search platform. Built with **Google ADK (Agent Development Kit)**, **Gemini 2.5 Pro**, and **FastAPI**, it coordinates a central **Orchestrator** entrypoint (`app/main.py` on port `8001`) alongside five specialized **Sub-Agents** (`app/sub_agents/*` on ports `8002`–`8006`).
+The **Conversational Multi-Agent Application** powers the interactive **ChatWidget** in the Flights Search platform. Built with **Google ADK (Agent Development Kit)**, **Gemini 3.1 Pro**, and **FastAPI**, it coordinates a central **Conversational** workflow entrypoint (`app/main.py` on port `8001`) alongside five specialized **Sub-Agents** (`app/sub_agents/*` on ports `8002`–`8006`).
 
 ---
 
@@ -8,23 +8,23 @@ The **Conversational Multi-Agent Application** powers the interactive **ChatWidg
 
 ```mermaid
 graph TD
-    Client([Frontend / ChatWidget]) -->|POST /run-orchestrator| Orch[Orchestrator Entrypoint :8001]
+    Client([Frontend / ChatWidget]) -->|POST /run-conversational| Conv[Conversational Entrypoint :8001]
     
-    Orch -->|1. Triage Intent| Engage[Engage Sub-Agent :8002]
-    Engage -->|agent_decision, agent_response| Orch
+    Conv -->|1. Triage Intent| Engage[Engage Sub-Agent :8002]
+    Engage -->|agent_decision, agent_response| Conv
     
-    Orch -->|decision: continue| ReturnClient[Unified Response to Frontend]
-    Orch -->|decision: filter| Filter[Filter Sub-Agent :8003]
-    Orch -->|decision: smart_filter| SmartFilter[Smart Filter Sub-Agent :8004]
-    Orch -->|decision: inspiration_agent| Inspiration[Inspiration Sub-Agent :8005]
+    Conv -->|decision: continue| ReturnClient[Unified Response to Frontend]
+    Conv -->|decision: filter| Filter[Filter Sub-Agent :8003]
+    Conv -->|decision: filter_smart| SmartFilter[Smart Filter Sub-Agent :8004]
+    Conv -->|decision: inspiration_agent| Inspiration[Inspiration Sub-Agent :8005]
     
     SmartFilter -.->|Fallback on malformed JSON| JSONParser[JSON Parser Sub-Agent :8006]
     
-    Filter -->|filter_type, filter_value, filter_response| Orch
-    SmartFilter -->|flights_output, filter_response| Orch
-    Inspiration -->|flights_search_output, inspiration_response| Orch
+    Filter -->|filter_type, filter_value, agent_response| Conv
+    SmartFilter -->|flights_output, agent_response| Conv
+    Inspiration -->|flights_search_output, agent_response| Conv
     
-    Orch --> ReturnClient
+    Conv --> ReturnClient
 ```
 
 ---
@@ -33,10 +33,11 @@ graph TD
 
 ```text
 conversational_app/
-├── app/                         # Main Orchestrator Entrypoint (:8001)
+├── app/                         # Main Conversational Entrypoint (:8001)
 │   ├── __init__.py
-│   ├── main.py                  # Orchestrator FastAPI gateway & routing logic
-│   ├── schema.py                # OrchestratorInput & OrchestratorOutput schemas
+│   ├── agent.py                 # ADK v2 Workflow definition (conversational)
+│   ├── main.py                  # Conversational FastAPI gateway
+│   ├── schema.py                # ConversationalInput, ConversationalOutput & ConversationalState schemas
 │   ├── app_utils/               # Shared logging and formatting utilities
 │   └── sub_agents/              # Specialized ADK Sub-Agent Services
 │       ├── engage/              # Intent triage & routing (:8002)
@@ -62,25 +63,25 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
 
 ---
 
-## 🤖 Orchestrator & Sub-Agents Reference
+## 🤖 Conversational Workflow & Sub-Agents Reference
 
-### 1. Orchestrator (Entrypoint — Port `8001`)
-- **Location:** [`app/main.py`](app/main.py), [`app/schema.py`](app/schema.py)
-- **Endpoint:** `POST /run-orchestrator`
-- **Role:** Central FastAPI gateway sitting behind the React ChatWidget.
+### 1. Conversational Workflow (Entrypoint — Port `8001`)
+- **Location:** [`app/agent.py`](app/agent.py), [`app/main.py`](app/main.py), [`app/schema.py`](app/schema.py)
+- **Endpoint:** `POST /run-conversational`
+- **Role:** Central ADK v2 `Workflow` gateway sitting behind the React ChatWidget.
 - **Execution Pipeline:**
-  1. Calls **Engage (`:8002`)** with `user_message` and `conversational_history` to classify intent (`agent_decision`).
+  1. Executes **Engage** with `user_message` and `conversational_history` to classify intent (`agent_decision`).
   2. Routes dynamically based on `agent_decision`:
      - **`continue`**: Returns `agent_response` directly to the user.
-     - **`filter`**: Calls **Filter (`:8003`)** to extract deterministic parameters (`direct`, `max_price`, `max_stops`).
-     - **`smart_filter`**: Calls **Smart Filter (`:8004`)** with `flights_input` to filter flights using qualitative reasoning and live Google Search.
-     - **`inspiration_agent`**: Calls **Inspiration (`:8005`)** with `flights_search_input` to suggest a new destination and dates.
-  3. Packages all outputs into a unified `OrchestratorOutput` envelope.
+     - **`filter`**: Executes **Filter** to extract deterministic parameters (`direct`, `max_price`, `max_stops`).
+     - **`filter_smart`**: Executes **Smart Filter** with `flights_input` to filter flights using qualitative reasoning and live Google Search (with automatic fallback to **JSON Parser** on malformed JSON).
+     - **`inspiration_agent`**: Executes **Inspiration** with `flights_search_input` to suggest a new destination and dates.
+  3. Packages all outputs into a unified `ConversationalOutput` envelope.
 
 <details>
-<summary><b>Orchestrator Schemas (<code>OrchestratorInput</code> / <code>OrchestratorOutput</code>)</b></summary>
+<summary><b>Conversational Schemas (<code>ConversationalInput</code> / <code>ConversationalOutput</code>)</b></summary>
 
-**Request (`OrchestratorInput`):**
+**Request (`ConversationalInput`):**
 ```json
 {
   "user_message": "Show me flights with good WiFi departing in the morning",
@@ -115,14 +116,13 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
 }
 ```
 
-**Response (`OrchestratorOutput`):**
+**Response (`ConversationalOutput`):**
 ```json
 {
   "status": "success",
   "results": {
-    "agent_response": "I'm filtering the flights to find morning options with high-speed WiFi.",
-    "agent_decision": "smart_filter",
-    "filter_response": "Filtered out afternoon flights. Verified that Air France AF006 offers satellite WiFi.",
+    "agent_response": "Filtered out afternoon flights. Verified that Air France AF006 offers satellite WiFi.",
+    "agent_decision": "filter_smart",
     "flights_output": [
       {
         "origin": "Paris (CDG)",
@@ -154,7 +154,7 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
 - **Role:** Receptionist & Triage Specialist. Classifies user intent into one of four hierarchical routing decisions:
   1. **`inspiration_agent`**: Open-ended destination requests, broad regions, or vague timeframes (*"somewhere sunny in December"*, *"take me to Europe"*).
   2. **`filter`**: Hard database filters only—`max_price` (*"under $500"*), `max_stops` (*"at most 1 stop"*), or `direct` (*"direct flights only"*).
-  3. **`smart_filter`**: Qualitative or soft filters—specific airlines (*"Air France only"*), time-of-day (*"morning departures"*), aircraft types (*"A350"*), or amenities (*"good WiFi"*, *"extra legroom"*).
+  3. **`filter_smart`**: Qualitative or soft filters—specific airlines (*"Air France only"*), time-of-day (*"morning departures"*), aircraft types (*"A350"*), or amenities (*"good WiFi"*, *"extra legroom"*).
   4. **`continue`**: Greetings, general questions, or ambiguous inputs needing clarification.
 
 <details>
@@ -213,7 +213,7 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
   "status": "success",
   "results": [
     {
-      "filter_response": "Searching for direct flights only.",
+      "agent_response": "Searching for direct flights only.",
       "filter_type": "direct",
       "filter_value": 1
     }
@@ -265,7 +265,7 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
   "status": "success",
   "results": [
     {
-      "filter_response": "Filtered out afternoon flights to match your morning preference (06:00-12:00). Researched in-flight connectivity and confirmed British Airways BA178 offers high-speed satellite WiFi.",
+      "agent_response": "Filtered out afternoon flights to match your morning preference (06:00-12:00). Researched in-flight connectivity and confirmed British Airways BA178 offers high-speed satellite WiFi.",
       "flights_output": [
         {
           "origin": "London (LHR)",
@@ -295,7 +295,7 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
 - **Location:** [`app/sub_agents/inspiration/`](app/sub_agents/inspiration/)
 - **Endpoint:** `POST /run-inspiration`
 - **Model:** `gemini-2.5-pro`
-- **Role:** Travel Discovery Architect. Transforms open-ended travel aspirations (*"somewhere sunny in December"*, *"a trip to Europe in May"*) into concrete, searchable flight parameters (`origin`, `destination`, `departure_date`, `return_date`, `passengers`) along with a tailored `inspiration_response` pitch.
+- **Role:** Travel Discovery Architect. Transforms open-ended travel aspirations (*"somewhere sunny in December"*, *"a trip to Europe in May"*) into concrete, searchable flight parameters (`flights_search_output`) along with a tailored `agent_response` pitch.
 
 <details>
 <summary><b>Inspiration Schemas (<code>InspirationInput</code> / <code>InspirationOutput</code>)</b></summary>
@@ -303,13 +303,15 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
 **Request (`InspirationInput`):**
 ```json
 {
-  "origin": "Paris",
-  "destination": "New York",
-  "departure_date": "2026-05-10",
-  "return_date": "2026-05-20",
-  "passengers": 1,
   "user_message": "I want to go somewhere sunny and warm in December instead.",
-  "conversational_history": []
+  "conversational_history": [],
+  "flights_search_input": {
+    "origin": "Paris",
+    "destination": "New York",
+    "departure_date": "2026-05-10",
+    "return_date": "2026-05-20",
+    "passengers": 1
+  }
 }
 ```
 
@@ -319,12 +321,14 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
   "status": "success",
   "results": [
     {
-      "origin": "Paris",
-      "destination": "Cancun",
-      "departure_date": "2026-12-05",
-      "return_date": "2026-12-15",
-      "passengers": 1,
-      "inspiration_response": "How about swapping the chilly winter for tropical beaches in Cancun? December is prime season for warm weather and clear skies in the Caribbean!"
+      "agent_response": "How about swapping the chilly winter for tropical beaches in Cancun? December is prime season for warm weather and clear skies in the Caribbean!",
+      "flights_search_output": {
+        "origin": "Paris",
+        "destination": "Cancun",
+        "departure_date": "2026-12-05",
+        "return_date": "2026-12-15",
+        "passengers": 1
+      }
     }
   ]
 }
@@ -337,7 +341,7 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
 - **Location:** [`app/sub_agents/json_parser/`](app/sub_agents/json_parser/)
 - **Endpoint:** `POST /run-json-parser`
 - **Model:** `gemini-2.5-pro`
-- **Role:** Self-Healing JSON Structure Corrector. Repairs malformed or unescaped JSON text from upstream agents (such as `filter_smart`) and enforces strict schema compliance (`filter_response` and `flights_output`) without mutating or hallucinating flight attributes.
+- **Role:** Self-Healing JSON Structure Corrector. Repairs malformed or unescaped JSON text from upstream agents (such as `filter_smart`) and enforces strict schema compliance (`agent_response` and `flights_output`) without mutating or hallucinating flight attributes.
 
 <details>
 <summary><b>JSON Parser Schemas (<code>JSONParserInput</code> / <code>JSONParserOutput</code>)</b></summary>
@@ -345,7 +349,7 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
 **Request (`JSONParserInput`):**
 ```json
 {
-  "response_text": "Here are the flights:\n{'filter_response': 'Filtered for high-speed WiFi.', 'flights_output': []}"
+  "agent_response": "Here are the flights:\n{'agent_response': 'Filtered for high-speed WiFi.', 'flights_output': []}"
 }
 ```
 
@@ -355,7 +359,7 @@ Each sub-agent directory under `app/sub_agents/<name>/` follows a consistent str
   "status": "success",
   "results": [
     {
-      "filter_response": "Filtered for high-speed WiFi.",
+      "agent_response": "Filtered for high-speed WiFi.",
       "flights_output": []
     }
   ]
@@ -385,7 +389,7 @@ pip install -r requirements.txt
 Run from `conversational_app/` (in separate terminals or background processes):
 
 ```bash
-# Main Orchestrator Gateway (Port 8001)
+# Main Conversational Gateway (Port 8001)
 python3 -m app.main
 
 # Engage Sub-Agent (Port 8002)
@@ -416,7 +420,7 @@ python3 -m pytest -v -s
 
 # 1. Unit tests (offline, mocked LLM / HTTP calls)
 python3 -m pytest tests/unit -v -s
-python3 -m tests.unit.test_orchestrator
+python3 -m tests.unit.test_conversational
 python3 -m tests.unit.test_engage
 python3 -m tests.unit.test_filter
 python3 -m tests.unit.test_filter_smart
@@ -430,11 +434,11 @@ python3 -m tests.integration.test_filter
 python3 -m tests.integration.test_filter_smart
 python3 -m tests.integration.test_inspiration
 python3 -m tests.integration.test_json_parser
-python3 -m tests.integration.test_orchestrator  # Note: orchestrator integration calls downstream sub-agents
+python3 -m tests.integration.test_conversational
 
 # 3. End-to-End tests (live HTTP requests against running servers on ports 8001–8006)
 python3 -m pytest tests/e2e -v -s
-python3 -m tests.e2e.test_orchestrator
+python3 -m tests.e2e.test_conversational
 python3 -m tests.e2e.test_engage
 python3 -m tests.e2e.test_filter
 python3 -m tests.e2e.test_filter_smart

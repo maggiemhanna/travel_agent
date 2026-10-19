@@ -22,13 +22,13 @@ The application is organized into two standalone backend applications (**`flight
 
 | Application / Service | Port | Model / Tech | Role & Description | Documentation |
 | :--- | :---: | :--- | :--- | :---: |
-| **Flights Search Agent** (`flights_search_app`) | `8000` | Gemini 2.5 Flash Lite | **Flight Simulator**: Generates 15 realistic, route-appropriate flight options obeying temporal and timezone logic. | [README](flights_search_app/README.md) |
-| **Orchestrator** (`conversational_app/app`) | `8001` | FastAPI / Python | **Central Coordinator**: Entrypoint for the conversational app; triages user requests via `engage` and delegates to sub-agents. | [README](conversational_app/README.md#1-orchestrator-entrypoint--port-8001) |
-| **Engage Sub-Agent** (`sub_agents/engage`) | `8002` | Gemini 2.5 Pro | **Triage Specialist**: Analyzes user intent to route to `continue`, `filter`, `smart_filter`, or `inspiration_agent`. | [README](conversational_app/README.md#2-engage-sub-agent-port-8002) |
-| **Filter Sub-Agent** (`sub_agents/filter`) | `8003` | Gemini 2.5 Pro | **Filter Extraction**: Translates natural language into deterministic parameters (`direct`, `max_price`, `max_stops`). | [README](conversational_app/README.md#3-filter-sub-agent-port-8003) |
-| **Smart Filter Sub-Agent** (`sub_agents/filter_smart`) | `8004` | Gemini 2.5 Pro + Search | **Semantic Filter**: Evaluates qualitative amenities (WiFi, legroom, aircraft) via contextual reasoning and live Google Search. | [README](conversational_app/README.md#4-smart-filter-sub-agent-port-8004) |
-| **Inspiration Sub-Agent** (`sub_agents/inspiration`) | `8005` | Gemini 2.5 Pro | **Discovery Architect**: Suggests destinations and date ranges for open-ended travel requests (*"somewhere sunny in December"*). | [README](conversational_app/README.md#5-inspiration-sub-agent-port-8005) |
-| **JSON Parser Sub-Agent** (`sub_agents/json_parser`) | `8006` | Gemini 2.5 Pro | **Structure Corrector**: Repairs malformed JSON outputs and guarantees strict schema compliance. | [README](conversational_app/README.md#6-json-parser-sub-agent-port-8006) |
+| **Flights Search Agent** (`flights_search_app`) | `8000` | Gemini 3.5 Flash Lite | **Flight Simulator**: Generates 15 realistic, route-appropriate flight options obeying temporal and timezone logic. | [README](flights_search_app/README.md) |
+| **Conversational Agent** (`conversational_app/app`) | `8001` | ADK v2 Workflow / FastAPI | **Conversational Workflow**: Entrypoint for the conversational app; triages user requests via `engage` and routes to sub-agents. | [README](conversational_app/README.md#1-conversational-workflow-entrypoint--port-8001) |
+| **Engage Sub-Agent** (`sub_agents/engage`) | `8002` | Gemini 3.1 Pro | **Triage Specialist**: Analyzes user intent to route to `continue`, `filter`, `filter_smart`, or `inspiration_agent`. | [README](conversational_app/README.md#2-engage-sub-agent-port-8002) |
+| **Filter Sub-Agent** (`sub_agents/filter`) | `8003` | Gemini 3.1 Pro | **Filter Extraction**: Translates natural language into deterministic parameters (`direct`, `max_price`, `max_stops`). | [README](conversational_app/README.md#3-filter-sub-agent-port-8003) |
+| **Smart Filter Sub-Agent** (`sub_agents/filter_smart`) | `8004` | Gemini 3.1 Pro + Search | **Semantic Filter**: Evaluates qualitative amenities (WiFi, legroom, aircraft) via contextual reasoning and live Google Search. | [README](conversational_app/README.md#4-smart-filter-sub-agent-port-8004) |
+| **Inspiration Sub-Agent** (`sub_agents/inspiration`) | `8005` | Gemini 3.1 Pro | **Discovery Architect**: Suggests destinations and date ranges for open-ended travel requests (*"somewhere sunny in December"*). | [README](conversational_app/README.md#5-inspiration-sub-agent-port-8005) |
+| **JSON Parser Sub-Agent** (`sub_agents/json_parser`) | `8006` | Gemini 3.1 Pro | **Structure Corrector**: Repairs malformed JSON outputs and guarantees strict schema compliance. | [README](conversational_app/README.md#6-json-parser-sub-agent-port-8006) |
 | **Frontend** (`frontend`) | `5173` | React / Vite | **User Interface**: Flight search exploration view with conversational ChatWidget. | [frontend/](frontend/) |
 
 ---
@@ -50,7 +50,7 @@ travel_agent/
 │   ├── requirements.txt         # Python dependencies for flights_search_app
 │   └── README.md                # Flights Search App documentation
 ├── conversational_app/          # Conversational Multi-Agent Application (:8001–8006)
-│   ├── app/                     # Main Orchestrator entrypoint (:8001) (main.py, schema.py)
+│   ├── app/                     # Main Conversational entrypoint (:8001) (agent.py, main.py, schema.py)
 │   │   ├── app_utils/           # Shared logging and formatting utilities
 │   │   └── sub_agents/          # Specialized ADK sub-agent services
 │   │       ├── engage/          # Intent triage and routing (:8002)
