@@ -8,6 +8,6 @@ class FilterInput(BaseModel):
 
 class FilterOutput(BaseModel):
     """Output schema for the Filter Agent."""
-    filter_response: str = Field(..., description="The response from the agent.")
+    agent_response: str = Field(..., description="The response from the agent.")
     filter_type: Literal["direct", "max_price", "max_stops"] = Field(..., description="The type of filter to apply.")
     filter_value: int = Field(..., description="The value of the filter.")

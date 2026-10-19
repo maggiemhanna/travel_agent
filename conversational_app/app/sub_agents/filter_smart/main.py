@@ -108,7 +108,7 @@ async def execute_agent_run(user_input: FilterSmartInput) -> List[Dict[str, Any]
             except json.JSONDecodeError:
                 logger.warning("Agent response text was not valid JSON. Calling JSON Parser Agent.")
                 json_parser_state = {
-                    "response_text": text_content,
+                    "agent_response": text_content,
                 }
                 json_parser_response = call_json_parser_api(json_parser_state) 
                 logger.info(f"--- JSON Parser Response ---\n{format_dict_for_logs(json_parser_response, max_len=1000)}")

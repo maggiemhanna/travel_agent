@@ -9,4 +9,4 @@ class EngageInput(BaseModel):
 class EngageOutput(BaseModel):
     """Output schema for the Engage Agent."""
     agent_response: str = Field(..., description="The response from the agent.")
-    agent_decision: Literal["continue", "filter", "smart_filter", "inspiration_agent"] = Field(..., description="The decision from the agent to continue the conversation or direct to another agent filter, smart_filter, inspiration_agent.")
+    agent_decision: Literal["continue", "filter", "filter_smart", "inspiration_agent"] = Field(..., description="The decision from the agent to continue the conversation or direct to another agent filter, filter_smart, inspiration_agent.")

@@ -63,5 +63,5 @@ class FilterSmartInput(BaseModel):
 
 class FilterSmartOutput(BaseModel):
     """Output schema for the Filter Agent."""
-    filter_response: str = Field(..., description="The response from the agent.")
+    agent_response: str = Field(..., description="The response from the agent.")
     flights_output: List[Flight] = Field(..., description="The flights to filter.")

@@ -26,28 +26,28 @@ system_instruction = """
   <EXAMPLES>
       - USER: "Show me only non-stop flights."
         JSON: {
-          "filter_response": "Searching for direct flights only.",
+          "agent_response": "Searching for direct flights only.",
           "filter_type": "direct",
           "filter_value": 1
         }
 
       - USER: "I can't spend more than five hundred dollars."
         JSON: {
-          "filter_response": "Adjusting results to show flights under $500.",
+          "agent_response": "Adjusting results to show flights under $500.",
           "filter_type": "max_price",
           "filter_value": 500
         }
 
       - USER: "I don't mind a layover, but keep it to one stop maximum."
         JSON: {
-          "filter_response": "Filtering for flights with a maximum of 1 stop.",
+          "agent_response": "Filtering for flights with a maximum of 1 stop.",
           "filter_type": "max_stops",
           "filter_value": 1
         }
 
       - USER: "I want to fly with one stop maximum."
         JSON: {
-          "filter_response": "Filtering for flights with a maximum of 1 stop.",
+          "agent_response": "Filtering for flights with a maximum of 1 stop.",
           "filter_type": "max_stops",
           "filter_value": 1
         }
@@ -60,7 +60,7 @@ system_instruction = """
 
   <OUTPUT_SCHEMA>
     {
-      "filter_response": "String",
+      "agent_response": "String",
       "filter_type": "Literal['direct', 'max_price', 'max_stops']",
       "filter_value": "int"
     }

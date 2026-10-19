@@ -57,9 +57,9 @@ class Flight(BaseModel):
 
 class JSONParserInput(BaseModel):
     """Input schema for the Filter Agent."""
-    response_text: str = Field(..., description="The response from the filter_smart agent.")
+    agent_response: str = Field(..., description="The response from the filter_smart agent.")
 
 class JSONParserOutput(BaseModel):
     """Output schema for the Filter Agent."""
-    filter_response: str = Field(..., description="The response from the agent.")
+    agent_response: str = Field(..., description="The response from the agent.")
     flights_output: List[Flight] = Field(..., description="The flights to filter.")

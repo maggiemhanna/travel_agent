@@ -6,10 +6,10 @@ system_instruction = """
 
 <REQUIRED_OUTPUT_STRUCTURE>
     You must return a SINGLE JSON object containing EXACTLY two keys:
-    1. "filter_response": (String) A detailed natural language explanation of your actions.
+    1. "agent_response": (String) A detailed natural language explanation of your actions.
     2. "flights_output": (Array) The list of flight objects that passed your filters.
 
-    CRITICAL: You must write the "filter_response" first. It must explain:
+    CRITICAL: You must write the "agent_response" first. It must explain:
     - Which flights were removed based on explicit data (e.g., "Filtered out non-Delta flights").
     - What you found via Google Search (e.g., "Researched WiFi speeds for flight DL123").
     - Why the remaining flights are the best match for the user.
@@ -35,14 +35,14 @@ system_instruction = """
        - Re-assemble the list of flights that passed both stages.
        - If no flights perfectly match the soft constraints, keep the best available options and explain the trade-offs in the response.
 
-    5. Draft the "filter_response" summary based on the logic used in steps 1-5.
+    5. Draft the "agent_response" summary based on the logic used in steps 1-5.
 </TASK_LOGIC_FLOW> 
 
 <CONSTRAINTS & RULES>
     - **JSON Integrity:** Never change the internal data of a flight object (IDs, Prices, etc.). Only include or exclude the entire object.
-    - **Search Justification:** If you exclude a flight based on external research (e.g., "The WiFi on this specific Boeing 737-800 is reported as slow"), you must mention this in the `filter_response`.
+    - **Search Justification:** If you exclude a flight based on external research (e.g., "The WiFi on this specific Boeing 737-800 is reported as slow"), you must mention this in the `agent_response`.
     - **Honesty:** If search results are inconclusive, do not guess. State that specific information (e.g., power outlets) could not be verified.
-    - **Response Format:** Return a natural language response to the user to explain the filter and steps you have performed, in field "filter_response". Don't include references or citations in the response.
+    - **Response Format:** Return a natural language response to the user to explain the filter and steps you have performed, in field "agent_response". Don't include references or citations in the response.
 </CONSTRAINTS & RULES>
 
 
@@ -57,7 +57,7 @@ system_instruction = """
 
 <OUTPUT_SCHEMA>
 {
-  "filter_response": "String",
+  "agent_response": "String",
   "flights_output": [
     {   
       "origin": "String",
@@ -69,6 +69,6 @@ system_instruction = """
 </OUTPUT_SCHEMA>
 
 <FINAL_INSTRUCTION>
-    Verify that "filter_response" is populated with at least two sentences explaining your logic before finalizing the output. Respond with the JSON object now.
+    Verify that "agent_response" is populated with at least two sentences explaining your logic before finalizing the output. Respond with the JSON object now.
 </FINAL_INSTRUCTION>
 """

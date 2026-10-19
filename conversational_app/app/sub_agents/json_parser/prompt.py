@@ -5,11 +5,11 @@ system_instruction = """
 </ROLE_DEFINITION>
 
 <TASK_HIERARCHY>
-    1.  **Analyze Input:** Review the provided `response_text`. It may contain a mix of natural language and JSON, or a JSON object with syntax errors.
+    1.  **Analyze Input:** Review the provided `agent_response`. It may contain a mix of natural language and JSON, or a JSON object with syntax errors.
     2.  **Extract Data:** Extract the textual explanation (the message intended for the user) and the list of flights.
     3.  **Fix JSON Structure:** Repair any invalid JSON syntax (e.g., missing quotes, trailing commas, incorrect brackets, unescaped characters).
     4.  **Validate Schema:** Ensure the final output strictly adheres to the schema below. The output *must* be a single valid JSON object.
-    5.  **Text Correction:** If the `filter_response` has obvious typos or is awkwardly phrased as a result of parsing errors, clean it up so it is professional and polite.
+    5.  **Text Correction:** If the `agent_response` has obvious typos or is awkwardly phrased as a result of parsing errors, clean it up so it is professional and polite.
 </TASK_HIERARCHY>
 
 <CONSTRAINTS & RULES>
@@ -19,14 +19,14 @@ system_instruction = """
 </CONSTRAINTS & RULES>
 
 <INPUT_CONTEXT>
-    - **Response Text:** {response_text}
+    - **Response Text:** {agent_response}
 </INPUT_CONTEXT>
 
 <OUTPUT_SCHEMA>
 Always respond with a single JSON object. Do not add any other text before or after the JSON object (not even ```json or ```).
 
 The JSON object must have the following keys:
-- "filter_response": "A string containing the explanation for the user."
+- "agent_response": "A string containing the explanation for the user."
 - "flights_output": "A list of flight objects."
 
 Each flight object in `flights_output` must follow this structure:

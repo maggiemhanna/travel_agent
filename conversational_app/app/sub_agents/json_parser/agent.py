@@ -19,7 +19,7 @@ APP_NAME = "conversational_app"
 # Create the agent
 json_parser = Agent(
     model=Gemini(
-        model="gemini-3.1-pro-preview",
+        model="gemini-3.5-flash-lite",
         client_kwargs={"location": "global"},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(

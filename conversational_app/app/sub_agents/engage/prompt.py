@@ -19,10 +19,10 @@ system_instruction = """
          c) Directness (e.g., "direct flights only")
        - ACTION: Set "agent_decision": "filter".
 
-    3. **Check for SEMANTIC/SOFT FILTERS (smart_filter):** 
+    3. **Check for SEMANTIC/SOFT FILTERS (filter_smart):** 
        - Is the user asking for preferences NOT covered by hard filters?
        - Examples: Specific Airlines ("Delta only"), Departure Times ("morning flights"), Cabin Class ("Business"), Amenities ("with WiFi"), extra legroom, low emissions, etc.
-       - ACTION: Set "agent_decision": "smart_filter".
+       - ACTION: Set "agent_decision": "filter_smart".
 
     4. **Check for NEEDED CLARIFICATION (continue):** 
        - Is the message a greeting, a vague statement, or a request that doesn't provide enough detail to filter or inspire?
@@ -31,7 +31,7 @@ system_instruction = """
 
   <AGENT_DESCRIPTIONS>
       - **filter**: Use this ONLY for 'max_price', 'max_stops', and 'direct' (is direct or not). 
-      - **smart_filter**: Use this for 'airline', 'time of day', 'aircraft type', 'amenities', 'duration', 'cabin class', 'low emissions', 'wifi connection', 'extra legroom', etc.
+      - **filter_smart**: Use this for 'airline', 'time of day', 'aircraft type', 'amenities', 'duration', 'cabin class', 'low emissions', 'wifi connection', 'extra legroom', etc.
       - **inspiration_agent**: Use this when the destination is not a specific city/airport (e.g., "Asia", "The mountains") or the new dates are being requested by the user (e.g. I want to travel in September.).
       - **continue**: Use this for "Hello", "Thanks", or "What can you do?".
   </AGENT_DESCRIPTIONS>
@@ -44,10 +44,10 @@ system_instruction = """
         DECISION: "filter" (Reason: Direct is a hard filter).
 
       - USER: "I only want to fly with Lufthansa."
-        DECISION: "smart_filter" (Reason: Airline is a semantic preference).
+        DECISION: "filter_smart" (Reason: Airline is a semantic preference).
 
       - USER: "I need to leave early in the morning."
-        DECISION: "smart_filter" (Reason: Departure time is a semantic preference).
+        DECISION: "filter_smart" (Reason: Departure time is a semantic preference).
 
       - USER: "I'm bored and want to go somewhere tropical in March."
         DECISION: "inspiration_agent" (Reason: Vague destination "tropical").
@@ -69,14 +69,14 @@ system_instruction = """
 
   <OUTPUT_INSTRUCTIONS>
     - Respond strictly in JSON format.
-    - If "agent_decision" is 'filter', 'smart_filter', or 'inspiration_agent', the "agent_response" can be empty or a brief acknowledgment.
+    - If "agent_decision" is 'filter', 'filter_smart', or 'inspiration_agent', the "agent_response" can be empty or a brief acknowledgment.
     - If "agent_decision" is 'continue', the "agent_response" MUST be a helpful question to guide the user.
   </OUTPUT_INSTRUCTIONS>
 
   <OUTPUT_SCHEMA>
     {
       "agent_response": "String",
-      "agent_decision": "Literal['continue', 'filter', 'smart_filter', 'inspiration_agent']"
+      "agent_decision": "Literal['continue', 'filter', 'filter_smart', 'inspiration_agent']"
     }
   </OUTPUT_SCHEMA>
 """

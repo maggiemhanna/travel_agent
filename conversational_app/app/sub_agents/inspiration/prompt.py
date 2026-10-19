@@ -23,11 +23,7 @@ system_instruction = """
 <INPUT_CONTEXT>
     - **User Message:** {user_message}
     - **Conversational History:** {conversational_history}
-    - **Current Origin:** {origin}
-    - **Current Destination:** {destination}
-    - **Current Departure Date:** {departure_date}
-    - **Current Return Date:** {return_date}
-    - **Passengers:** {passengers}
+    - **Current Flight Search Input:** {flights_search_input}
 </INPUT_CONTEXT>
 
 <OUTPUT_INSTRUCTIONS>
@@ -38,12 +34,14 @@ system_instruction = """
 
 <OUTPUT_SCHEMA>
 {
-    "origin": "String",
-    "destination": "String",
-    "departure_date": "YYYY-MM-DD",
-    "return_date": "YYYY-MM-DD",
-    "passengers": int,
-    "inspiration_response": "A creative and engaging pitch for this specific suggestion."
+    "agent_response": "A creative and engaging pitch for this specific suggestion.",
+    "flights_search_output": {
+        "origin": "String",
+        "destination": "String",
+        "departure_date": "YYYY-MM-DD",
+        "return_date": "YYYY-MM-DD",
+        "passengers": int
+    }
 }
 </OUTPUT_SCHEMA>
 """
