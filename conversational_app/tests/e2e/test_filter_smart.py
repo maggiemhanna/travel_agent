@@ -51,8 +51,8 @@ def test_run_filter_smart():
         assert "flights_output" in results, "Expected 'flights_output' key in the first result"
         assert isinstance(results["flights_output"], list), "Expected 'flights_output' value to be a list."
 
-        assert "filter_response" in results, "Missing 'filter_response'"
-        assert isinstance(results["filter_response"], str), "Expected 'filter_response' value to be a string"
+        assert "agent_response" in results, "Missing 'agent_response'"
+        assert isinstance(results["agent_response"], str), "Expected 'agent_response' value to be a string"
 
 
 # --- Manual Execution Block ---

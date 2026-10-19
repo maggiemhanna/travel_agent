@@ -8,7 +8,7 @@ from app.main import api
 
 logger = setup_logging(name=__name__)
 
-FIXTURES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures", "orchestrator.json")
+FIXTURES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures", "conversational.json")
 
 
 def test_root_endpoint():
@@ -16,11 +16,11 @@ def test_root_endpoint():
     with TestClient(api) as client:
         response = client.get("/")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
-        assert response.json() == {"message": "Orchestrator Agent Service is running. Use the /run-orchestrator endpoint via POST."}
+        assert response.json() == {"message": "Conversational Agent Service is running. Use the /run-conversational endpoint via POST."}
 
 
-def test_run_orchestrator():
-    """Test the orchestrator endpoint in-process and validate the exact JSON structure."""
+def test_run_conversational():
+    """Test the conversational endpoint in-process and validate the exact JSON structure."""
     with open(FIXTURES_PATH) as f:
         tests = json.load(f)
 
@@ -35,7 +35,7 @@ def test_run_orchestrator():
             logger.info(f"Payload:\n{format_dict_for_logs(payload)}")
 
             # Issue the POST request to the endpoint
-            response = client.post("/run-orchestrator", json=payload)
+            response = client.post("/run-conversational", json=payload)
 
             # Verify HTTP status code
             assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
@@ -61,10 +61,10 @@ if __name__ == "__main__":
         test_root_endpoint()
         logger.info("✅ test_root_endpoint passed!")
 
-        logger.info("Running test_run_orchestrator...")
+        logger.info("Running test_run_conversational...")
         # Note: If this hits a real LLM, it might take a few seconds to return.
-        test_run_orchestrator()
-        logger.info("✅ test_run_orchestrator passed!")
+        test_run_conversational()
+        logger.info("✅ test_run_conversational passed!")
 
         logger.info("🎉 All tests completed successfully!")
 

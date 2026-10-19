@@ -25,13 +25,9 @@ def test_run_inspiration():
 
     for test in tests:
         payload = {
-            "origin": test["origin"],
-            "destination": test["destination"],
-            "departure_date": test["departure_date"],
-            "return_date": test["return_date"],
-            "passengers": test["passengers"],
             "user_message": test["user_message"],
             "conversational_history": test["conversational_history"],
+            "flights_search_input": test["flights_search_input"],
         }
         logger.info(f"Payload:\n{format_dict_for_logs(payload)}")
 
@@ -51,11 +47,17 @@ def test_run_inspiration():
 
         # --- User-Defined Assertions ---
         assert isinstance(results, dict), "Expected 'results' to be a dict"
-        assert "origin" in results, "Expected 'origin' key in the first result"
-        assert isinstance(results["origin"], str), "Expected 'origin' value to be a string"
+        assert "agent_response" in results, "Expected 'agent_response' key in the first result"
+        assert isinstance(results["agent_response"], str), "Expected 'agent_response' value to be a string"
 
-        assert "destination" in results, "Expected 'destination' key in the first result"
-        assert isinstance(results["destination"], str), "Expected 'destination' value to be a string"
+        assert "flights_search_output" in results, "Expected 'flights_search_output' key in the first result"
+        flights_search_output = results["flights_search_output"]
+        assert isinstance(flights_search_output, dict), "Expected 'flights_search_output' value to be a dict"
+        assert "origin" in flights_search_output, "Expected 'origin' key in flights_search_output"
+        assert isinstance(flights_search_output["origin"], str), "Expected 'origin' value to be a string"
+
+        assert "destination" in flights_search_output, "Expected 'destination' key in flights_search_output"
+        assert isinstance(flights_search_output["destination"], str), "Expected 'destination' value to be a string"
 
 
 # --- Manual Execution Block ---

@@ -10,7 +10,7 @@
     {
         "user_message": "I want to fly with Delta",
         "conversational_history": [],
-        "expected_agent_decision": "smart_filter"
+        "expected_agent_decision": "filter_smart"
     },
     {
         "user_message": "I want to go on a sunny vacation but I don't know where",
@@ -26,6 +26,6 @@
             "user: Hello",
             "bot: Hello, how can I help you?"
         ],
-        "expected_agent_decision": "smart_filter"
+        "expected_agent_decision": "filter_smart"
     }
 ]

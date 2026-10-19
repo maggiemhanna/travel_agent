@@ -28,12 +28,12 @@ def test_json_parser_schema():
     with TestClient(api) as client:
         for test in tests:
             payload = {
-                "response_text": test["response_text"],
+                "agent_response": test["agent_response"],
             }
             logger.info(f"Validating Payload:\n{format_dict_for_logs(payload)}")
 
             validated = JSONParserInput(**payload)
-            assert validated.response_text == test["response_text"]
+            assert validated.agent_response == test["agent_response"]
 
         # Verify invalid empty payload is rejected with 422 Unprocessable Entity
         invalid_response = client.post("/run-json-parser", json={})

@@ -8,18 +8,18 @@ from app.app_utils.logging import format_dict_for_logs, setup_logging
 logger = setup_logging(name=__name__)
 
 BASE_URL = "http://127.0.0.1:8001"
-FIXTURES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures", "orchestrator.json")
+FIXTURES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures", "conversational.json")
 
 
 def test_root_endpoint():
     """Test the root health-check endpoint."""
     response = requests.get(f"{BASE_URL}/")
     assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
-    assert response.json() == {"message": "Orchestrator Agent Service is running. Use the /run-orchestrator endpoint via POST."}
+    assert response.json() == {"message": "Conversational Agent Service is running. Use the /run-conversational endpoint via POST."}
 
 
-def test_run_orchestrator():
-    """Test the orchestrator microservice endpoint and validate the exact JSON structure."""
+def test_run_conversational():
+    """Test the conversational microservice endpoint and validate the exact JSON structure."""
     with open(FIXTURES_PATH) as f:
         tests = json.load(f)
 
@@ -33,7 +33,7 @@ def test_run_orchestrator():
         logger.info(f"Payload:\n{format_dict_for_logs(payload)}")
 
         # Issue the POST request to the deployed microservice endpoint
-        response = requests.post(f"{BASE_URL}/run-orchestrator", json=payload)
+        response = requests.post(f"{BASE_URL}/run-conversational", json=payload)
 
         # Verify HTTP status code
         assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
@@ -59,10 +59,10 @@ if __name__ == "__main__":
         test_root_endpoint()
         logger.info("✅ test_root_endpoint passed!")
 
-        logger.info("Running test_run_orchestrator...")
+        logger.info("Running test_run_conversational...")
         # Note: If this hits a real LLM, it might take a few seconds to return.
-        test_run_orchestrator()
-        logger.info("✅ test_run_orchestrator passed!")
+        test_run_conversational()
+        logger.info("✅ test_run_conversational passed!")
 
         logger.info("🎉 All tests completed successfully!")
 

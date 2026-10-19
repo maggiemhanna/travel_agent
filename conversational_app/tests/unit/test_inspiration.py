@@ -28,19 +28,15 @@ def test_inspiration_schema():
     with TestClient(api) as client:
         for test in tests:
             payload = {
-                "origin": test["origin"],
-                "destination": test["destination"],
-                "departure_date": test["departure_date"],
-                "return_date": test["return_date"],
-                "passengers": test["passengers"],
                 "user_message": test["user_message"],
                 "conversational_history": test["conversational_history"],
+                "flights_search_input": test["flights_search_input"],
             }
             logger.info(f"Validating Payload:\n{format_dict_for_logs(payload)}")
 
             validated = InspirationInput(**payload)
-            assert validated.origin == test["origin"]
-            assert validated.destination == test["destination"]
+            assert validated.flights_search_input.origin == test["flights_search_input"]["origin"]
+            assert validated.flights_search_input.destination == test["flights_search_input"]["destination"]
             assert validated.user_message == test["user_message"]
 
         # Verify invalid empty payload is rejected with 422 Unprocessable Entity

@@ -57,8 +57,8 @@ def test_run_filter():
             assert isinstance(results["filter_value"], int), "Expected 'filter_value' value to be an int."
             assert results["filter_value"] == test["expected_filter_value"], f"Expected 'filter_value' value to be {test['expected_filter_value']}, got {results['filter_value']}"
 
-            assert "filter_response" in results, "Missing 'filter_response'"
-            assert isinstance(results["filter_response"], str), "Expected 'filter_response' value to be a string"
+            assert "agent_response" in results, "Missing 'agent_response'"
+            assert isinstance(results["agent_response"], str), "Expected 'agent_response' value to be a string"
 
 
 # --- Manual Execution Block ---

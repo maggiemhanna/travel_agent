@@ -27,7 +27,7 @@ def test_run_json_parser():
     with TestClient(api) as client:
         for test in tests:
             payload = {
-                "response_text": test["response_text"],
+                "agent_response": test["agent_response"],
             }
             logger.info(f"Payload:\n{format_dict_for_logs(payload)}")
 
@@ -48,8 +48,8 @@ def test_run_json_parser():
             # --- User-Defined Assertions ---
             assert isinstance(results, dict), "Expected 'results' to be a dict"
 
-            assert "filter_response" in results, "Missing 'filter_response'"
-            assert isinstance(results["filter_response"], str), "Expected 'filter_response' value to be a string"
+            assert "agent_response" in results, "Missing 'agent_response'"
+            assert isinstance(results["agent_response"], str), "Expected 'agent_response' value to be a string"
             assert "flights_output" in results, "Expected 'flights_output' key in the first result"
             assert isinstance(results["flights_output"], list), "Expected 'flights_output' value to be a list"
 
