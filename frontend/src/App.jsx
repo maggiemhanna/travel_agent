@@ -21,8 +21,8 @@ function App() {
   const [searchParams, setSearchParams] = useState({
     origin: 'Paris',
     destination: 'New York',
-    departure_date: '2026-07-10',
-    return_date: '2026-07-20',
+    departure_date: '2027-03-10',
+    return_date: '2027-03-20',
     passengers: 1,
     direct: false,
     max_price: '',

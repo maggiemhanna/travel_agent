@@ -36,7 +36,7 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
     };
 
     try {
-      const response = await fetch('http://127.0.0.1:8001/run-orchestrator', {
+      const response = await fetch('http://127.0.0.1:8001/run-conversational', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
       });
 
       if (!response.ok) {
-        throw new Error(`Orchestrator error! status: ${response.status}`);
+        throw new Error(`Conversational agent error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -65,9 +65,9 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
           }
         }
 
-        if (decision === 'filter' || decision === 'smart_filter' || decision === 'filter_smart') {
-          // Display filter_response if available
-          const botResponse = result.filter_response || result.agent_response || "Filters applied!";
+        if (decision === 'filter' || decision === 'filter_smart') {
+          // Display agent_response if available
+          const botResponse = result.agent_response || "Filters applied!";
           setMessages((prev) => [...prev, { sender: 'bot', text: botResponse }]);
 
           if (decision === 'filter') {
@@ -95,17 +95,12 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
               setFlights(filtered);
               setCurrentPage(1);
             }
-          } else if ((decision === 'smart_filter' || decision === 'filter_smart') && result.flights_output) {
+          } else if (decision === 'filter_smart' && result.flights_output) {
             setFlights(result.flights_output);
             setCurrentPage(1);
           }
         } else if (decision === 'continue' || decision === 'inspiration_agent') {
-          let botResponse;
-          if (decision === 'inspiration_agent') {
-            botResponse = result.inspiration_response || "Here is a new suggestion!";
-          } else {
-            botResponse = result.agent_response || "I see.";
-          }
+          const botResponse = result.agent_response || (decision === 'inspiration_agent' ? "Here is a new suggestion!" : "I see.");
           setMessages((prev) => [...prev, { sender: 'bot', text: botResponse }]);
         }
       } else {
