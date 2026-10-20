@@ -74,11 +74,16 @@ bootstrap_project() {
       "roles/artifactregistry.admin" \
       "roles/storage.admin" \
       "roles/logging.logWriter"; do
-      gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
-        --member="serviceAccount:${SA}" \
-        --role="${ROLE}" \
-        --condition=None \
-        --quiet >/dev/null || true
+      for attempt in 1 2 3; do
+        if gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+          --member="serviceAccount:${SA}" \
+          --role="${ROLE}" \
+          --condition=None \
+          --quiet >/dev/null 2>&1; then
+          break
+        fi
+        sleep 2
+      done
     done
   done
 

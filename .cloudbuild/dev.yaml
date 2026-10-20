@@ -44,7 +44,7 @@ steps:
           -backend-config="bucket=${PROJECT_ID}-tfstate" \
           -backend-config="prefix=travel-agent/${_ENV}"
 
-        terraform apply -auto-approve \
+        terraform apply -auto-approve -lock-timeout=5m \
           -var-file="envs/${_ENV}.tfvars" \
           -var="project_id=${PROJECT_ID}" \
           -var="region=${_REGION}" \
@@ -136,7 +136,7 @@ steps:
       - '-c'
       - |
         set -eu
-        terraform apply -auto-approve \
+        terraform apply -auto-approve -lock-timeout=5m \
           -var-file="envs/${_ENV}.tfvars" \
           -var="project_id=${PROJECT_ID}" \
           -var="region=${_REGION}" \
