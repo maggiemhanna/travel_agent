@@ -2,7 +2,9 @@ import { useState } from 'react';
 import ChatWidget from './ChatWidget';
 
 const FLIGHTS_SEARCH_API_URL = (
-  import.meta.env.VITE_FLIGHTS_SEARCH_API_URL || 'http://127.0.0.1:8000'
+  window.__ENV__?.VITE_FLIGHTS_SEARCH_API_URL ||
+  import.meta.env.VITE_FLIGHTS_SEARCH_API_URL ||
+  'http://127.0.0.1:8000'
 ).replace(/\/$/, '');
 
 const MAJOR_CITIES = [

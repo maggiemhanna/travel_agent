@@ -1,7 +1,9 @@
 import { useState } from 'react';
 
 const CONVERSATIONAL_API_URL = (
-  import.meta.env.VITE_CONVERSATIONAL_API_URL || 'http://127.0.0.1:8001'
+  window.__ENV__?.VITE_CONVERSATIONAL_API_URL ||
+  import.meta.env.VITE_CONVERSATIONAL_API_URL ||
+  'http://127.0.0.1:8001'
 ).replace(/\/$/, '');
 
 function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchFlights, setCurrentPage }) {
