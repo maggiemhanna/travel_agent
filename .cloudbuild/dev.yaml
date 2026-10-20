@@ -50,7 +50,13 @@ steps:
           -var="region=${_REGION}" \
           -var="repository_id=${_REPOSITORY_ID}" \
           -var="image_tag=${_IMAGE_TAG}" \
-          -var="deploy_cloud_run_services=false"
+          -target=google_project_service.required_apis \
+          -target=google_artifact_registry_repository.docker_repo \
+          -target=google_service_account.agent_runtime \
+          -target=google_project_iam_member.agent_runtime_roles \
+          -target=google_service_account.cicd_runner \
+          -target=google_project_iam_member.cicd_runner_roles \
+          -target=google_service_account_iam_member.cicd_act_as_runtime
 
   # ----------------------------------------------------------------------------
   # Step 3a: Build & Push flights-search-app Image

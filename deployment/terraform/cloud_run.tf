@@ -8,6 +8,7 @@ resource "google_cloud_run_v2_service" "flights_search" {
   location             = var.region
   ingress              = "INGRESS_TRAFFIC_ALL"
   invoker_iam_disabled = var.allow_public_access
+  deletion_protection  = var.environment == "prod"
 
   template {
     service_account = google_service_account.agent_runtime.email
@@ -77,6 +78,7 @@ resource "google_cloud_run_v2_service" "conversational" {
   location             = var.region
   ingress              = "INGRESS_TRAFFIC_ALL"
   invoker_iam_disabled = var.allow_public_access
+  deletion_protection  = var.environment == "prod"
 
   template {
     service_account = google_service_account.agent_runtime.email
@@ -146,6 +148,7 @@ resource "google_cloud_run_v2_service" "frontend" {
   location             = var.region
   ingress              = "INGRESS_TRAFFIC_ALL"
   invoker_iam_disabled = var.allow_public_access
+  deletion_protection  = var.environment == "prod"
 
   template {
     scaling {
