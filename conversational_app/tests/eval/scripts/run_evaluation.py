@@ -546,11 +546,37 @@ def extract_agent_config_snapshot(workflow: Workflow) -> Dict[str, Any]:
     return snapshot
 
 
+def find_latest_baseline_dir(
+    results_dir: str,
+    exclude_run_id: Optional[str] = None,
+) -> Optional[str]:
+    """Finds the most recent timestamped run directory marked with is_baseline=True."""
+    if not os.path.isdir(results_dir):
+        return None
+    for entry in sorted(os.listdir(results_dir), reverse=True):
+        if entry == exclude_run_id:
+            continue
+        candidate_dir = os.path.join(results_dir, entry)
+        if not os.path.isdir(candidate_dir):
+            continue
+        meta_path = os.path.join(candidate_dir, METADATA_FILENAME)
+        results_path = os.path.join(candidate_dir, RESULTS_FILENAME)
+        if os.path.isfile(meta_path) and os.path.isfile(results_path):
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                if meta.get("is_baseline"):
+                    return candidate_dir
+            except Exception:
+                continue
+    return None
+
+
 def resolve_traces_source_path(
     reuse_run: Optional[str],
     skip_inference: bool,
     results_dir: str,
-    baseline_dir: str,
+    exclude_run_id: Optional[str] = None,
 ) -> Optional[str]:
     """Resolves the path to an existing eval_dataset_with_traces.json when reusing traces."""
     if reuse_run:
@@ -568,25 +594,26 @@ def resolve_traces_source_path(
         )
 
     if skip_inference:
-        baseline_traces = os.path.join(baseline_dir, TRACES_FILENAME)
-        if os.path.isfile(baseline_traces):
-            return baseline_traces
-        legacy_traces = os.path.join(results_dir, TRACES_FILENAME)
-        if os.path.isfile(legacy_traces):
-            return legacy_traces
+        latest_base_dir = find_latest_baseline_dir(
+            results_dir=results_dir, exclude_run_id=exclude_run_id
+        )
+        if latest_base_dir:
+            baseline_traces = os.path.join(latest_base_dir, TRACES_FILENAME)
+            if os.path.isfile(baseline_traces):
+                return baseline_traces
         raise FileNotFoundError(
-            f"--skip-inference was set, but no baseline traces found at {baseline_traces}"
+            f"--skip-inference was set, but no baseline traces found in {results_dir}"
         )
 
     return None
 
 
 def load_reference_baseline(
-    baseline_dir: str,
     baseline_run: Optional[str],
     results_dir: str,
+    exclude_run_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Loads the reference baseline eval_results.json if available."""
+    """Loads the reference baseline eval_results.json from --baseline-run or the latest baseline folder."""
     if baseline_run:
         if os.path.isfile(baseline_run):
             target_path = baseline_run
@@ -600,10 +627,14 @@ def load_reference_baseline(
         logger.warning(f"Reference baseline not found at {target_path}")
         return None
 
-    default_baseline_results = os.path.join(baseline_dir, RESULTS_FILENAME)
-    if os.path.isfile(default_baseline_results):
-        with open(default_baseline_results, "r", encoding="utf-8") as f:
-            return json.load(f)
+    latest_base_dir = find_latest_baseline_dir(
+        results_dir=results_dir, exclude_run_id=exclude_run_id
+    )
+    if latest_base_dir:
+        default_baseline_results = os.path.join(latest_base_dir, RESULTS_FILENAME)
+        if os.path.isfile(default_baseline_results):
+            with open(default_baseline_results, "r", encoding="utf-8") as f:
+                return json.load(f)
     return None
 
 
@@ -999,7 +1030,6 @@ def run_evaluation(
     run_id = f"{timestamp_slug}_{safe_name}"
 
     run_dir = os.path.join(results_dir, run_id)
-    baseline_dir = os.path.join(results_dir, "baseline")
     os.makedirs(run_dir, exist_ok=True)
 
     traces_output_path = os.path.join(run_dir, TRACES_FILENAME)
@@ -1014,7 +1044,7 @@ def run_evaluation(
         reuse_run=reuse_run,
         skip_inference=skip_inference,
         results_dir=results_dir,
-        baseline_dir=baseline_dir,
+        exclude_run_id=run_id,
     )
 
     if traces_source:
@@ -1050,15 +1080,19 @@ def run_evaluation(
         f"Saved {len(traced_records)} execution trace(s) to {traces_output_path}"
     )
 
-    baseline_exists = os.path.isfile(os.path.join(baseline_dir, RESULTS_FILENAME))
-    become_baseline = set_baseline or (not baseline_exists and baseline_run is None)
+    existing_baseline_dir = find_latest_baseline_dir(
+        results_dir=results_dir, exclude_run_id=run_id
+    )
+    become_baseline = set_baseline or (
+        existing_baseline_dir is None and baseline_run is None
+    )
 
     baseline_report = None
     if not set_baseline or baseline_run is not None:
         baseline_report = load_reference_baseline(
-            baseline_dir=baseline_dir,
             baseline_run=baseline_run,
             results_dir=results_dir,
+            exclude_run_id=run_id,
         )
 
     run_metadata: Dict[str, Any] = {
@@ -1133,19 +1167,8 @@ def run_evaluation(
     )
 
     if become_baseline:
-        os.makedirs(baseline_dir, exist_ok=True)
-        for fname in (
-            METADATA_FILENAME,
-            TRACES_FILENAME,
-            RESULTS_FILENAME,
-            SUMMARY_FILENAME,
-        ):
-            shutil.copy2(
-                os.path.join(run_dir, fname),
-                os.path.join(baseline_dir, fname),
-            )
         logger.info(
-            f"Pinned run '{run_id}' as the active reference baseline in {baseline_dir}"
+            f"Marked run '{run_id}' as the active reference baseline (is_baseline=True in {metadata_output_path})"
         )
 
     append_to_experiments_history(
@@ -1173,12 +1196,12 @@ def main() -> None:
     parser.add_argument(
         "--set-baseline",
         action="store_true",
-        help="Pin this run as the new reference baseline in tests/eval/results/baseline/",
+        help="Mark this run as the active reference baseline for subsequent delta comparisons",
     )
     parser.add_argument(
         "--baseline-run",
         default=None,
-        help="Optional run ID or directory to compare against instead of results/baseline/",
+        help="Optional run ID or directory to compare against instead of the latest baseline run",
     )
     parser.add_argument(
         "--reuse-run",

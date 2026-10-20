@@ -25,19 +25,6 @@
       "description": "Custom LLM-as-a-Judge metric evaluating external google_search tool usage on filter_smart without confusing workflow sub-agents with tools."
     },
     {
-      "name": "grounding_v1",
-      "type": "predefined",
-      "threshold": 0.8,
-      "description": "Faithfulness / Grounding metric verifying that flights, prices, and claims are grounded in session_input context."
-    },
-    {
-      "name": "instruction_following_v1",
-      "type": "predefined_rubric",
-      "rubric_metric": "INSTRUCTION_FOLLOWING",
-      "threshold": 0.8,
-      "description": "Relevance / Instruction Following metric evaluating whether the response directly addresses user constraints."
-    },
-    {
       "name": "coherence",
       "type": "predefined_rubric",
       "rubric_metric": "COHERENCE",
