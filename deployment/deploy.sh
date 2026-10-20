@@ -16,7 +16,7 @@ REGION="${REGION:-europe-west9}"
 get_project_id() {
   case "$1" in
     dev)     echo "travel-agent-511710" ;;
-    staging) echo "travel-agent-staging-51221" ;;
+    staging) echo "travel-agent-staging-512211" ;;
     prod)    echo "travel-agent-prod-512211" ;;
     *)
       echo "❌ Unknown environment: $1 (expected: dev | staging | prod)" >&2
@@ -30,6 +30,7 @@ ACTION="${1:-dev}"
 if [[ "${ACTION}" == "pr-check" ]]; then
   ENV_NAME="${2:-dev}"
   PROJECT_ID="$(get_project_id "${ENV_NAME}")"
+  "${SCRIPT_DIR}/bootstrap.sh" "${ENV_NAME}"
   echo "🧪 Running CI PR Checks in project ${PROJECT_ID}..."
   gcloud builds submit "${REPO_ROOT}" \
     --project="${PROJECT_ID}" \

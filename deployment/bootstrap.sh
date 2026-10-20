@@ -14,7 +14,7 @@ REGION="${REGION:-europe-west9}"
 get_project_id() {
   case "$1" in
     dev)     echo "travel-agent-511710" ;;
-    staging) echo "travel-agent-staging-51221" ;;
+    staging) echo "travel-agent-staging-512211" ;;
     prod)    echo "travel-agent-prod-512211" ;;
     *)
       echo "❌ Unknown environment: $1 (expected: dev | staging | prod | all)" >&2

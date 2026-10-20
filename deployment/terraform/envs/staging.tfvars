@@ -1,4 +1,4 @@
-project_id          = "travel-agent-staging-51221"
+project_id          = "travel-agent-staging-512211"
 environment         = "staging"
 region              = "europe-west9"
 repository_id       = "travel-agent"
