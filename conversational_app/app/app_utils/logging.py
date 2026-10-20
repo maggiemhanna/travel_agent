@@ -6,8 +6,9 @@ import coloredlogs
 
 import sys
 import json
-from typing import Optional, Any
+from typing import Optional, Any, List, Sequence
 from copy import deepcopy
+from tabulate import tabulate
 
 # Define the constants for the log format
 # We use the same format string as before, coloredlogs handles the coloring automatically.
@@ -84,4 +85,19 @@ def format_dict_for_logs(state_dict: Any, max_len: int = 100) -> str:
     truncated_dict = truncate_recursive(truncated_dict)
 
     # 5. Pretty print the resulting dictionary as JSON
-    return json.dumps(truncated_dict, indent=4)
+    return json.dumps(truncated_dict, indent=4, default=str, ensure_ascii=False)
+
+
+def format_table_for_logs(
+    title: str,
+    rows: Sequence[Sequence[Any]],
+    headers: Sequence[str],
+    tablefmt: str = "github",
+    width: int = 95,
+) -> str:
+    """
+    Formats a tabular summary with a bordered title banner for structured logging.
+    """
+    separator = "=" * width
+    table_str = tabulate(rows, headers=headers, tablefmt=tablefmt)
+    return f"\n{separator}\n{title}\n{separator}\n{table_str}\n{separator}"

@@ -30,7 +30,7 @@ json_parser = Agent(
             http_status_codes=[408, 429, 500, 502, 503, 504],
         ),
     ),
-    name="json_parser_agent",
+    name="json_parser",
     description="""The JSON Parser Agent: An expert at parsing the results into JSON format.""",
     instruction=system_instruction,
     state_schema=JSONParserInput,

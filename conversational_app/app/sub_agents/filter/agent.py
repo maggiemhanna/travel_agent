@@ -30,7 +30,7 @@ filter = Agent(
             http_status_codes=[408, 429, 500, 502, 503, 504],
         ),
     ),
-    name="filter_agent",
+    name="filter",
     description="""The Filter Agent: An expert at filtering the results of the flights search agent based on existing filters.""",
     instruction=system_instruction,
     state_schema=FilterInput,

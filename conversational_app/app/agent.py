@@ -13,10 +13,10 @@ from app.app_utils.logging import format_dict_for_logs, setup_logging
 from app.schema import ConversationalOutput, ConversationalState
 from app.sub_agents.engage.agent import engage
 from app.sub_agents.engage.schema import EngageOutput
-from app.sub_agents.filter.agent import filter as filter_agent
-from app.sub_agents.filter_smart.agent import filter_smart as filter_smart_agent
-from app.sub_agents.inspiration.agent import inspiration as inspiration_agent
-from app.sub_agents.json_parser.agent import json_parser as json_parser_agent
+from app.sub_agents.filter.agent import filter
+from app.sub_agents.filter_smart.agent import filter_smart
+from app.sub_agents.inspiration.agent import inspiration
+from app.sub_agents.json_parser.agent import json_parser
 
 logger = setup_logging(name=__name__)
 
@@ -47,13 +47,13 @@ def route_engage(ctx: Context, node_input: EngageOutput) -> Event:
 
 @node(name="parse_filter_smart")
 def parse_filter_smart(ctx: Context, node_input: str) -> Event:
-    """Parses the Filter Smart Agent's text response, falling back to json_parser_agent on invalid JSON."""
+    """Parses the Filter Smart Agent's text response, falling back to json_parser on invalid JSON."""
     try:
         parsed = load_json_with_markdown(node_input)
         return Event(route="parsed", output=parsed)
     except json.JSONDecodeError:
         logger.warning(
-            "Filter Smart response was not valid JSON. Routing to json_parser_agent."
+            "Filter Smart response was not valid JSON. Routing to json_parser."
         )
         return Event(
             route="repair_json",
@@ -97,22 +97,22 @@ conversational = Workflow(
             route_engage,
             {
                 "continue": finalize_output,
-                "filter": filter_agent,
-                "filter_smart": filter_smart_agent,
-                "inspiration_agent": inspiration_agent,
+                "filter": filter,
+                "filter_smart": filter_smart,
+                "inspiration_agent": inspiration,
             },
         ),
-        (filter_agent, finalize_output),
-        (filter_smart_agent, parse_filter_smart),
+        (filter, finalize_output),
+        (filter_smart, parse_filter_smart),
         (
             parse_filter_smart,
             {
                 "parsed": finalize_output,
-                "repair_json": json_parser_agent,
+                "repair_json": json_parser,
             },
         ),
-        (json_parser_agent, finalize_output),
-        (inspiration_agent, finalize_output),
+        (json_parser, finalize_output),
+        (inspiration, finalize_output),
     ],
 )
 

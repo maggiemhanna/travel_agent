@@ -31,7 +31,7 @@ filter_smart = Agent(
             http_status_codes=[408, 429, 500, 502, 503, 504],
         ),
     ),
-    name="filter_smart_agent",
+    name="filter_smart",
     description="""The Filter Smart Agent: An expert at filtering the results of the flights search agent that are not based on existing filters.""",
     instruction=system_instruction,
     tools=[google_search],
