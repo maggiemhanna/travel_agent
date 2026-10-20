@@ -45,7 +45,9 @@ bootstrap_project() {
     --project="${PROJECT_ID}"
 
   echo "2️⃣  Ensuring Terraform remote state bucket gs://${TF_STATE_BUCKET} exists..."
+  local IS_FIRST_BOOTSTRAP=false
   if ! gcloud storage buckets describe "gs://${TF_STATE_BUCKET}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
+    IS_FIRST_BOOTSTRAP=true
     gcloud storage buckets create "gs://${TF_STATE_BUCKET}" \
       --project="${PROJECT_ID}" \
       --location="${REGION}" \
@@ -86,6 +88,11 @@ bootstrap_project() {
       done
     done
   done
+
+  if [[ "${IS_FIRST_BOOTSTRAP}" == "true" ]]; then
+    echo "⏳ Waiting 15s for initial IAM bindings to propagate on newly bootstrapped project..."
+    sleep 15
+  fi
 
   echo "✅ Bootstrap complete for [${ENV_NAME}] (${PROJECT_ID})!"
   echo
