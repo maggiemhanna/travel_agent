@@ -1,0 +1,12 @@
+project_id          = "travel-agent-prod-512211"
+environment         = "prod"
+region              = "europe-west9"
+repository_id       = "travel-agent"
+min_instances       = 1
+max_instances       = 20
+backend_cpu         = "2"
+backend_memory      = "2Gi"
+frontend_cpu        = "1"
+frontend_memory     = "512Mi"
+allow_public_access = true
+allowed_origins     = "*"
