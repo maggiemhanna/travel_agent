@@ -41,6 +41,7 @@ bootstrap_project() {
     cloudresourcemanager.googleapis.com \
     storage.googleapis.com \
     cloudbuild.googleapis.com \
+    compute.googleapis.com \
     --project="${PROJECT_ID}"
 
   echo "2️⃣  Ensuring Terraform remote state bucket gs://${TF_STATE_BUCKET} exists..."

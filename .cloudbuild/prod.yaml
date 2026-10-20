@@ -43,10 +43,10 @@ steps:
         TAG="${TAG_NAME:-${SHORT_SHA:-${_IMAGE_TAG}}}"
         terraform init -reconfigure \
           -backend-config="bucket=${PROJECT_ID}-tfstate" \
-          -backend-config="prefix=travel-agent/prod"
+          -backend-config="prefix=travel-agent/${_ENV}"
 
         terraform apply -auto-approve \
-          -var-file="envs/prod.tfvars" \
+          -var-file="envs/${_ENV}.tfvars" \
           -var="project_id=${PROJECT_ID}" \
           -var="region=${_REGION}" \
           -var="repository_id=${_REPOSITORY_ID}" \
@@ -142,7 +142,7 @@ steps:
         set -eu
         TAG="${TAG_NAME:-${SHORT_SHA:-${_IMAGE_TAG}}}"
         terraform apply -auto-approve \
-          -var-file="envs/prod.tfvars" \
+          -var-file="envs/${_ENV}.tfvars" \
           -var="project_id=${PROJECT_ID}" \
           -var="region=${_REGION}" \
           -var="repository_id=${_REPOSITORY_ID}" \
