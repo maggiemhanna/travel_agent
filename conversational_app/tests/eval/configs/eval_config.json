@@ -1,0 +1,68 @@
+{
+  "eval_set_id": "conversational_synthetic",
+  "judge_model": "gemini-2.5-flash",
+  "evaluation_service_qps": 5.0,
+  "inference_concurrency": 4,
+  "metrics": [
+    {
+      "name": "multi_turn_task_success_v1",
+      "type": "predefined_rubric",
+      "rubric_metric": "MULTI_TURN_TASK_SUCCESS",
+      "threshold": 0.8,
+      "description": "Predefined adaptive rubric metric evaluating end-to-end 1-turn goal completion."
+    },
+    {
+      "name": "multi_turn_trajectory_quality_v1",
+      "type": "predefined_rubric",
+      "rubric_metric": "MULTI_TURN_TRAJECTORY_QUALITY",
+      "threshold": 0.8,
+      "description": "Predefined adaptive rubric metric evaluating sub-agent routing trajectory (engage -> specialist)."
+    },
+    {
+      "name": "tool_use_quality",
+      "type": "custom_llm",
+      "threshold": 0.8,
+      "description": "Custom LLM-as-a-Judge metric evaluating external google_search tool usage on filter_smart without confusing workflow sub-agents with tools."
+    },
+    {
+      "name": "grounding_v1",
+      "type": "predefined",
+      "threshold": 0.8,
+      "description": "Faithfulness / Grounding metric verifying that flights, prices, and claims are grounded in session_input context."
+    },
+    {
+      "name": "instruction_following_v1",
+      "type": "predefined_rubric",
+      "rubric_metric": "INSTRUCTION_FOLLOWING",
+      "threshold": 0.8,
+      "description": "Relevance / Instruction Following metric evaluating whether the response directly addresses user constraints."
+    },
+    {
+      "name": "coherence",
+      "type": "predefined_rubric",
+      "rubric_metric": "COHERENCE",
+      "threshold": 0.8,
+      "description": "Coherence metric evaluating logical flow, clarity, and organization of the response."
+    },
+    {
+      "name": "schema_and_contract_valid",
+      "type": "custom_python",
+      "threshold": 0.95,
+      "description": "Deterministic Python metric validating ConversationalOutput Pydantic schema, decision-field invariants, and non-hallucinated flight subsets."
+    },
+    {
+      "name": "conversation_plan_alignment",
+      "type": "custom_llm",
+      "threshold": 0.8,
+      "description": "Custom LLM-as-a-Judge metric grading whether the ConversationalOutput JSON matches the expected ground truth in conversation_plan."
+    },
+    {
+      "name": "latency_seconds",
+      "type": "custom_python",
+      "direction": "lower_is_better",
+      "unit": "s",
+      "threshold": 15.0,
+      "description": "End-to-end 1-turn application response latency in seconds (lower is better; threshold is max acceptable latency in seconds)."
+    }
+  ]
+}

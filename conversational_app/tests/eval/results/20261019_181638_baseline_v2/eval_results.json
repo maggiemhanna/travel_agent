@@ -1,0 +1,1473 @@
+{
+  "run_id": "20261019_181638_baseline_v2",
+  "run_name": "baseline_v2",
+  "description": "5-case validation with standardized sub-agent names and Option A tool_use_quality + google_search grounding bridge",
+  "baseline_run_id": null,
+  "eval_set_id": "conversational_synthetic",
+  "timestamp": "2026-10-19T18:16:38.143014+00:00",
+  "num_cases_evaluated": 5,
+  "summary_metrics": [
+    {
+      "metric_name": "multi_turn_task_success_v1",
+      "direction": "higher_is_better",
+      "unit": "",
+      "mean_score": 0.8,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 0.8,
+      "stdev_score": 0.4472135954999579,
+      "threshold": 0.8,
+      "passed_threshold": true,
+      "num_cases_total": 5,
+      "num_cases_valid": 5,
+      "num_cases_error": 0
+    },
+    {
+      "metric_name": "multi_turn_trajectory_quality_v1",
+      "direction": "higher_is_better",
+      "unit": "",
+      "mean_score": 0.841666668,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 0.6,
+      "stdev_score": 0.2892759130330611,
+      "threshold": 0.8,
+      "passed_threshold": true,
+      "num_cases_total": 5,
+      "num_cases_valid": 5,
+      "num_cases_error": 0
+    },
+    {
+      "metric_name": "tool_use_quality",
+      "direction": "higher_is_better",
+      "unit": "",
+      "mean_score": 0.8,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 0.8,
+      "stdev_score": 0.4472135954999579,
+      "threshold": 0.8,
+      "passed_threshold": true,
+      "num_cases_total": 5,
+      "num_cases_valid": 5,
+      "num_cases_error": 0
+    },
+    {
+      "metric_name": "grounding_v1",
+      "direction": "higher_is_better",
+      "unit": "",
+      "mean_score": 0.2,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 0.2,
+      "stdev_score": 0.4472135954999579,
+      "threshold": 0.8,
+      "passed_threshold": false,
+      "num_cases_total": 5,
+      "num_cases_valid": 5,
+      "num_cases_error": 0
+    },
+    {
+      "metric_name": "instruction_following_v1",
+      "direction": "higher_is_better",
+      "unit": "",
+      "mean_score": 0.833333325,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 0.5,
+      "stdev_score": 0.23570226039551642,
+      "threshold": 0.8,
+      "passed_threshold": true,
+      "num_cases_total": 5,
+      "num_cases_valid": 4,
+      "num_cases_error": 1
+    },
+    {
+      "metric_name": "coherence",
+      "direction": "higher_is_better",
+      "unit": "",
+      "mean_score": 1.0,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 1.0,
+      "stdev_score": 0.0,
+      "threshold": 0.8,
+      "passed_threshold": true,
+      "num_cases_total": 5,
+      "num_cases_valid": 5,
+      "num_cases_error": 0
+    },
+    {
+      "metric_name": "schema_and_contract_valid",
+      "direction": "higher_is_better",
+      "unit": "",
+      "mean_score": 1.0,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 1.0,
+      "stdev_score": 0.0,
+      "threshold": 0.95,
+      "passed_threshold": true,
+      "num_cases_total": 5,
+      "num_cases_valid": 5,
+      "num_cases_error": 0
+    },
+    {
+      "metric_name": "conversation_plan_alignment",
+      "direction": "higher_is_better",
+      "unit": "",
+      "mean_score": 1.0,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 1.0,
+      "stdev_score": 0.0,
+      "threshold": 0.8,
+      "passed_threshold": true,
+      "num_cases_total": 5,
+      "num_cases_valid": 5,
+      "num_cases_error": 0
+    },
+    {
+      "metric_name": "latency_seconds",
+      "direction": "lower_is_better",
+      "unit": "s",
+      "mean_score": 4.85348,
+      "baseline_mean_score": null,
+      "delta_mean_score": null,
+      "pass_rate": 1.0,
+      "stdev_score": 2.062949596330458,
+      "threshold": 15.0,
+      "passed_threshold": true,
+      "num_cases_total": 5,
+      "num_cases_valid": 5,
+      "num_cases_error": 0
+    }
+  ],
+  "eval_case_results": [
+    {
+      "eval_case_index": 0,
+      "eval_id": "b044260c",
+      "prompt": "Okay, I see a lot of flights here. Can you narrow it down to anything that costs less than $785?",
+      "conversation_plan": "The user wants to filter the current flight results by maximum price. The expected ConversationalOutput should have agent_decision: 'filter', filter_type: 'max_price', and filter_value: 785.",
+      "agent_trajectory": [
+        "engage",
+        "filter",
+        "conversational"
+      ],
+      "tool_calls": [],
+      "latency_seconds": 3.513,
+      "sub_agent_latencies_seconds": [
+        {
+          "author": "engage",
+          "latency_seconds": 2.1086
+        },
+        {
+          "author": "filter",
+          "latency_seconds": 1.4009
+        },
+        {
+          "author": "conversational",
+          "latency_seconds": 0.0028
+        }
+      ],
+      "response": "{\"agent_response\": \"Adjusting results to show flights under $785.\", \"agent_decision\": \"filter\", \"filter_type\": \"max_price\", \"filter_value\": 785}",
+      "metric_results": {
+        "multi_turn_task_success_v1": {
+          "metric_name": "multi_turn_task_success_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "05105f1a",
+                "content": {
+                  "property": {
+                    "description": "The response confirms or implies the existence of a list of flights to filter."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The user's initial statement explicitly mentions a list of flights. The agent's response to \"adjust results\" confirms it is operating on an existing set of flight data as requested."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "a665793b",
+                "content": {
+                  "property": {
+                    "description": "The response successfully resolves the user request by confirming that the flight search results are filtered to show only flights that cost less than $785."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly identified the intent as a \"filter\" operation, extracted the specific budget constraint ($785), and provided a clear confirmation message to the user that the results were being narrowed down accordingly."
+            }
+          ]
+        },
+        "multi_turn_trajectory_quality_v1": {
+          "metric_name": "multi_turn_trajectory_quality_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "3f3d3a19",
+                "content": {
+                  "property": {
+                    "description": "The agent must NOT execute this action unless: Must have an existing list of flight search results to filter."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The user's message explicitly states they are looking at a list of flights, confirming that the precondition for filtering exists."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "cef9edd9",
+                "content": {
+                  "property": {
+                    "description": "The agent must NOT call the 'google_search' tool for this intent, as price filtering is a hard filter handled internally by the 'filter' sub-agent without external web research."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent did not call the google_search tool; it correctly used the internal 'filter' sub-agent logic."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "af0d1209",
+                "content": {
+                  "property": {
+                    "description": "The agent must classify the intent as a hard filter and set 'agent_decision' to 'filter'."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly identified the price request as a hard filter and set the routing decision to 'filter'."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "267272d9",
+                "content": {
+                  "property": {
+                    "description": "The agent must set 'filter_type' to 'max_price' in its output."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly identified and set the filter type to 'max_price'."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "e36a4686",
+                "content": {
+                  "property": {
+                    "description": "The agent must set 'filter_value' to exactly 785 in its output."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent accurately extracted the price limit of 785 from the user's request."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "af187761",
+                "content": {
+                  "property": {
+                    "description": "The agent's output must strictly conform to the JSON format required by the System Developer Instructions."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The final output is a valid JSON object that adheres to the keys and types specified in the system instructions."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "2018df23",
+                "content": {
+                  "property": {
+                    "description": "To satisfy the user's expectation, the maximum price of the flights shown or filtered must be $785."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly applied the $785 price constraint in both its verbal response and its internal filter parameters."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "18173fd0",
+                "content": {
+                  "property": {
+                    "description": "Transfers between sub-agents must show a clear progression of the task; avoid ping-ponging without executing meaningful tools."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "verdict": true,
+              "reasoning": "The agent followed a logical and direct sub-agent workflow to resolve the user's request efficiently."
+            }
+          ]
+        },
+        "tool_use_quality": {
+          "metric_name": "tool_use_quality",
+          "score": 1.0,
+          "explanation": "The user requested a filter by maximum price, which is a standard internal filter. External tool `google_search` was not required and was correctly not called. The AI's response correctly reflects the intended internal filtering action."
+        },
+        "grounding_v1": {
+          "metric_name": "grounding_v1",
+          "score": 0.0,
+          "explanation": "[{\"sentence\": \"Adjusting results to show flights under $785.\", \"label\": \"no_rad\", \"rationale\": \"This is a statement of action/intent from the agent, not a factual claim derived from the context.\", \"excerpt\": null}, {\"sentence\": \"{\\\"agent_decision\\\": \\\"filter\\\", \\\"filter_type\\\": \\\"max_price\\\", \\\"filter_value\\\": 785}\", \"label\": \"unsupported\", \"rationale\": \"This sentence is a JSON object representing an internal tool call or decision. While it might be inferred from the query and the agent's stated intent to filter, the raw JSON object itself is not directly supported or contradicted by the textual context provided, which only lists flight data. It's a metadata output.\", \"excerpt\": null}]"
+        },
+        "instruction_following_v1": {
+          "metric_name": "instruction_following_v1",
+          "score": 0.5,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response present a list of flights?"
+                  }
+                },
+                "type": ""
+              },
+              "reasoning": "Does the response present a list of flights?\nSTEP 1: Repeat the question.\nSTEP 2: Determine the steps needed to **exactly**, **precisely** and **completely** answer the question.\nThe user prompt asks to narrow down flights. The model's response is a JSON object indicating an action to filter flights, not a list of flights itself.\nSTEP 3: Follow the steps outlined in STEP 2, thinking out loud.\nThe response is: `{\"agent_response\": \"Adjusting results to show flights under $785.\", \"agent_decision\": \"filter\", \"filter_type\": \"max_price\", \"filter_value\": 785}`. This is a JSON object describing an action, not a list of flights.\nSTEP 4: Review the thoughts and the original question.\nThe question asks if the response presents a list of flights. The response does not contain a list of flights.\nSTEP 5: Output the final verdict.\nQuestion: Does the response present a list of flights?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Are all flights presented in the response priced at less than $785?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Are all flights presented in the response priced at less than $785?\nSTEP 1: Are all flights presented in the response priced at less than $785?\nSTEP 2: First, determine if any flights are presented in the response. If no flights are presented, then this question is not applicable. If flights are presented, then check if all of them are priced at less than $785.\nSTEP 3: As determined in the previous question, the response does not present a list of flights. It only indicates that a filter action is being applied for flights under $785. Therefore, there are no flights to evaluate for their price.\nSTEP 4: No flights are presented in the response, so the condition cannot be checked.\nSTEP 5: Since no flights are presented, the question is not applicable.\nQuestion: Are all flights presented in the response priced at less than $785?"
+            }
+          ]
+        },
+        "coherence": {
+          "metric_name": "coherence",
+          "score": 1.0,
+          "explanation": "The agent_response clearly states the action being taken, which is to filter flights under $785, and this is perfectly consistent with the 'filter' agent_decision, 'max_price' filter_type, and '785' filter_value provided in the structured output."
+        },
+        "schema_and_contract_valid": {
+          "metric_name": "schema_and_contract_valid",
+          "score": 1.0,
+          "explanation": "Valid ConversationalOutput for decision='filter' (filter_type='max_price', filter_value=785)."
+        },
+        "conversation_plan_alignment": {
+          "metric_name": "conversation_plan_alignment",
+          "score": 1.0,
+          "explanation": "The AI-generated response correctly identifies the 'filter' agent decision, with the appropriate 'max_price' filter type and '785' filter value, matching the expected conversation plan. The natural language response also accurately reflects the action taken."
+        },
+        "latency_seconds": {
+          "metric_name": "latency_seconds",
+          "score": 3.513,
+          "explanation": "End-to-end turn latency: 3.513s (engage: 2.109s, filter: 1.401s, conversational: 0.003s)."
+        }
+      }
+    },
+    {
+      "eval_case_index": 1,
+      "eval_id": "c8d017df",
+      "prompt": "From these options, I only want to consider flights operated by Delta Airlines. Please show me just those.",
+      "conversation_plan": "The user wants to filter the current flight results to a specific airline. The expected ConversationalOutput should have agent_decision: 'filter_smart', and flights_output should specifically contain DL265 and DL267.",
+      "agent_trajectory": [
+        "engage",
+        "filter_smart",
+        "conversational"
+      ],
+      "tool_calls": [],
+      "latency_seconds": 4.4875,
+      "sub_agent_latencies_seconds": [
+        {
+          "author": "engage",
+          "latency_seconds": 2.4256
+        },
+        {
+          "author": "filter_smart",
+          "latency_seconds": 2.0571
+        },
+        {
+          "author": "conversational",
+          "latency_seconds": 0.0043
+        }
+      ],
+      "response": "{\"agent_response\": \"I have successfully filtered the flight options based on your explicit request to only show flights operated by Delta Airlines. All non-Delta flights from carriers such as Air France, United Airlines, British Airways, and others have been removed from the list, leaving you with the best available Delta flights for your itinerary.\", \"agent_decision\": \"filter_smart\", \"flights_output\": [{\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"10:00\", \"arrival_time\": \"12:45\", \"return_time\": \"18:30\", \"return_arrival_time\": \"07:30\", \"price\": \"780 USD\", \"airline\": \"Delta Airlines\", \"flight_number\": \"DL265\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"12:00\", \"arrival_time\": \"14:40\", \"return_time\": \"19:30\", \"return_arrival_time\": \"08:15\", \"price\": \"810 USD\", \"airline\": \"Delta Airlines\", \"flight_number\": \"DL267\", \"stops\": 0, \"stopover_cities\": []}]}",
+      "metric_results": {
+        "multi_turn_task_success_v1": {
+          "metric_name": "multi_turn_task_success_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "c1321d03",
+                "content": {
+                  "property": {
+                    "description": "The response confirms that the flight options have been filtered to show only flights operated by Delta Airlines."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent clearly confirms the action requested by the user."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "5ed1d200",
+                "content": {
+                  "property": {
+                    "description": "The response successfully provides the filtered list of flights, containing only those operated by Delta Airlines."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent provided a list of flights that matches the user's specific constraint of \"Delta Airlines\" only."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "98d8d1fc",
+                "content": {
+                  "property": {
+                    "description": "The response includes a natural language explanation of the filtering steps performed."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "verdict": true,
+              "reasoning": "The agent provides a detailed explanation of which flights were removed and why the remaining ones were kept, following the logic flow required in the system instructions."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "7295a004",
+                "content": {
+                  "property": {
+                    "description": "The explanation in the response consists of at least two sentences."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "verdict": true,
+              "reasoning": "The response meets the length requirement specified in the instructions."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "6ac766e3",
+                "content": {
+                  "property": {
+                    "description": "The response does not include references or citations."
+                  }
+                },
+                "type": "",
+                "importance": "LOW"
+              },
+              "verdict": true,
+              "reasoning": "The agent followed the constraint to not include references or citations in the response."
+            }
+          ]
+        },
+        "multi_turn_trajectory_quality_v1": {
+          "metric_name": "multi_turn_trajectory_quality_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "75a48427",
+                "content": {
+                  "property": {
+                    "description": "The agent must NOT execute this action unless: Must have a pre-existing list of flight options to filter."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The user's request (\"From these options\") and the agent's specific explanation of which airlines were removed (Air France, United, etc.) demonstrate that the agent was successfully filtering a pre-existing list of flight results."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "45291ca9",
+                "content": {
+                  "property": {
+                    "description": "The agent must route the request to the 'filter_smart' sub-agent (e.g., by setting 'agent_decision' to 'filter_smart'), as filtering by a specific airline is defined in the System Developer Instructions as a semantic/soft filter."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly classified the user's request for a specific airline as a semantic preference and set the agent_decision to 'filter_smart' as required by the engage agent instructions."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "f647b6bc",
+                "content": {
+                  "property": {
+                    "description": "The agent must NOT call the 'google_search' tool, because filtering by a specific airline is an explicit constraint that must be handled via internal data filtering without requiring external web research."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "verdict": true,
+              "reasoning": "The agent did not call the google_search tool, correctly relying on internal data filtering to handle the explicit airline constraint."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "0b6b0d46",
+                "content": {
+                  "property": {
+                    "description": "To satisfy the user's expectation, the agent's 'flights_output' array must strictly include only flights operated by Delta Airlines, excluding all other airlines."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The flights_output array contains only flights where the airline is Delta Airlines, successfully fulfilling the user's constraint."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "21297dea",
+                "content": {
+                  "property": {
+                    "description": "The agent's output must strictly conform to the JSON format required by the System Developer Instructions, ensuring the presence of the 'agent_response' and 'flights_output' keys."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent's final response is a valid JSON object containing both the 'agent_response' and 'flights_output' keys as required."
+            }
+          ]
+        },
+        "tool_use_quality": {
+          "metric_name": "tool_use_quality",
+          "score": 1.0,
+          "explanation": "The user requested to filter flights by a specific airline (Delta Airlines), which is a hard filter that can be applied using existing internal session data (`flights_input`). External research via `google_search` for qualitative amenities was not required. The `Recorded External Tool Calls` correctly shows no `google_search` calls, adhering to the negative tool constraint."
+        },
+        "grounding_v1": {
+          "metric_name": "grounding_v1",
+          "score": 0.0,
+          "explanation": "[{\"sentence\": \"I have successfully filtered the flight options based on your explicit request to only show flights operated by Delta Airlines.\", \"label\": \"supported\", \"rationale\": \"The user query explicitly requested to only consider flights operated by Delta Airlines, and the `flights_output` correctly shows only Delta Airlines flights, indicating successful filtering.\", \"excerpt\": \"User Query: From these options, I only want to consider flights operated by Delta Airlines. Please show me just those.\"}, {\"sentence\": \"All non-Delta flights from carriers such as Air France, United Airlines, British Airways, and others have been removed from the list, leaving you with the best available Delta flights for your itinerary.\", \"label\": \"unsupported\", \"rationale\": \"While the first part of the sentence (non-Delta flights removed) is supported by comparing `flights_input` and `flights_output`, the claim 'leaving you with the best available Delta flights for your itinerary' is not explicitly supported. The context does not define 'best' or provide information to rank the available Delta flights, it just provides a list of all Delta flights that match the initial search criteria.\", \"excerpt\": null}]"
+        },
+        "instruction_following_v1": {
+          "metric_name": "instruction_following_v1",
+          "error_message": "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Rubric results could not be reliably computed.', 'status': 'INVALID_ARGUMENT'}}"
+        },
+        "coherence": {
+          "metric_name": "coherence",
+          "score": 1.0,
+          "explanation": "The `agent_response` clearly states that the flights have been filtered to only show Delta Airlines. This is perfectly consistent with the `flights_output` array, which only contains flights from Delta Airlines, and the `agent_decision` to 'filter_smart' is appropriate for this action."
+        },
+        "schema_and_contract_valid": {
+          "metric_name": "schema_and_contract_valid",
+          "score": 1.0,
+          "explanation": "Valid ConversationalOutput for decision='filter_smart' (2 valid subset flight(s) returned)."
+        },
+        "conversation_plan_alignment": {
+          "metric_name": "conversation_plan_alignment",
+          "score": 1.0,
+          "explanation": "The agent correctly identified the 'filter_smart' decision and provided the exact flights (DL265, DL267) operated by Delta Airlines, matching the `flights_output` in the expected plan. The natural language response accurately reflects the filtering action."
+        },
+        "latency_seconds": {
+          "metric_name": "latency_seconds",
+          "score": 4.4875,
+          "explanation": "End-to-end turn latency: 4.487s (engage: 2.426s, filter_smart: 2.057s, conversational: 0.004s)."
+        }
+      }
+    },
+    {
+      "eval_case_index": 2,
+      "eval_id": "dc1bf2f4",
+      "prompt": "I need to arrive in New York as early as possible on May 10th. Can you show me only flights that depart in the morning?",
+      "conversation_plan": "The user wants to filter flights by a morning departure time window (06:00-12:00). The expected ConversationalOutput should have agent_decision: 'filter_smart', and flights_output should specifically contain AF006, DL265, DY7013, BA033, LH400, LX016, SK903, TK003, EI107, TP207.",
+      "agent_trajectory": [
+        "engage",
+        "filter_smart",
+        "conversational"
+      ],
+      "tool_calls": [],
+      "latency_seconds": 7.5256,
+      "sub_agent_latencies_seconds": [
+        {
+          "author": "engage",
+          "latency_seconds": 2.1652
+        },
+        {
+          "author": "filter_smart",
+          "latency_seconds": 5.3524
+        },
+        {
+          "author": "conversational",
+          "latency_seconds": 0.0069
+        }
+      ],
+      "response": "{\"agent_response\": \"I have filtered the search results to include only flights departing in the morning (between 06:00 and 12:00) on May 10th, 2026, to ensure you arrive in New York as early as possible. Flights departing at or after 12:00 PM, such as those at 13:00, 14:00, 15:00, and 16:00, have been removed from the options.\", \"agent_decision\": \"filter_smart\", \"flights_output\": [{\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"08:00\", \"arrival_time\": \"10:30\", \"return_time\": \"17:00\", \"return_arrival_time\": \"06:00\", \"price\": \"750 USD\", \"airline\": \"Air France\", \"flight_number\": \"AF006\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"10:00\", \"arrival_time\": \"12:45\", \"return_time\": \"18:30\", \"return_arrival_time\": \"07:30\", \"price\": \"780 USD\", \"airline\": \"Delta Airlines\", \"flight_number\": \"DL265\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"09:30\", \"arrival_time\": \"13:00\", \"return_time\": \"16:45\", \"return_arrival_time\": \"06:15\", \"price\": \"650 USD\", \"airline\": \"Norwegian Air Shuttle\", \"flight_number\": \"DY7013\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"07:00\", \"arrival_time\": \"12:15\", \"return_time\": \"15:00\", \"return_arrival_time\": \"04:30\", \"price\": \"890 USD\", \"airline\": \"British Airways\", \"flight_number\": \"BA033\", \"stops\": 1, \"stopover_cities\": [\"London\"]}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"11:00\", \"arrival_time\": \"16:30\", \"return_time\": \"19:00\", \"return_arrival_time\": \"08:00\", \"price\": \"920 USD\", \"airline\": \"Lufthansa\", \"flight_number\": \"LH400\", \"stops\": 1, \"stopover_cities\": [\"Frankfurt\"]}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"06:30\", \"arrival_time\": \"11:45\", \"return_time\": \"14:30\", \"return_arrival_time\": \"04:00\", \"price\": \"870 USD\", \"airline\": \"Swiss International Air Lines\", \"flight_number\": \"LX016\", \"stops\": 1, \"stopover_cities\": [\"Zurich\"]}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"10:30\", \"arrival_time\": \"16:00\", \"return_time\": \"17:30\", \"return_arrival_time\": \"06:30\", \"price\": \"900 USD\", \"airline\": \"SAS\", \"flight_number\": \"SK903\", \"stops\": 1, \"stopover_cities\": [\"Copenhagen\"]}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"08:30\", \"arrival_time\": \"13:45\", \"return_time\": \"16:00\", \"return_arrival_time\": \"05:15\", \"price\": \"930 USD\", \"airline\": \"Turkish Airlines\", \"flight_number\": \"TK003\", \"stops\": 1, \"stopover_cities\": [\"Istanbul\"]}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"09:00\", \"arrival_time\": \"14:10\", \"return_time\": \"17:00\", \"return_arrival_time\": \"06:00\", \"price\": \"910 USD\", \"airline\": \"Aer Lingus\", \"flight_number\": \"EI107\", \"stops\": 1, \"stopover_cities\": [\"Dublin\"]}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"10:00\", \"arrival_time\": \"15:20\", \"return_time\": \"18:00\", \"return_arrival_time\": \"07:00\", \"price\": \"980 USD\", \"airline\": \"TAP Air Portugal\", \"flight_number\": \"TP207\", \"stops\": 1, \"stopover_cities\": [\"Lisbon\"]}]}",
+      "metric_results": {
+        "multi_turn_task_success_v1": {
+          "metric_name": "multi_turn_task_success_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "3371aa57",
+                "content": {
+                  "property": {
+                    "description": "The response successfully provides flight options to New York on May 10th."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent successfully identified and returned flight data matching the specific destination and date requested by the user."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "6c8fc1ad",
+                "content": {
+                  "property": {
+                    "description": "The response strictly includes only flights that depart in the morning (between 06:00 and 12:00, as per policy)."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "Every flight provided in the list departs within the 06:00 to 12:00 window, which is the specific range defined for \"morning\" in the `filter_smart` instructions."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "4bb9f0d5",
+                "content": {
+                  "property": {
+                    "description": "The response successfully filters or prioritizes the flight options to ensure they arrive as early as possible."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "verdict": true,
+              "reasoning": "The property requires that the agent either filter or prioritize. The agent filtered the results to only include morning departures (excluding all flights after 12:00 PM), which directly addresses the user's criteria for early arrival."
+            }
+          ]
+        },
+        "multi_turn_trajectory_quality_v1": {
+          "metric_name": "multi_turn_trajectory_quality_v1",
+          "score": 0.875,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "47322d58",
+                "content": {
+                  "property": {
+                    "description": "The agent must classify the intent as requiring semantic/soft filters and route the request to the 'filter_smart' sub-agent by setting `agent_decision` to 'filter_smart'."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly identified the \"morning\" flight request as a semantic filter and routed the request to the filter_smart agent."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "9defd7e7",
+                "content": {
+                  "property": {
+                    "description": "The agent must NOT call the 'google_search' tool, as departure and arrival times are explicit constraints available in the internal data and do not require external web research."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent did not call the google_search tool, as the flight times were already present in the data."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "4903ff57",
+                "content": {
+                  "property": {
+                    "description": "To satisfy the 'depart in the morning' expectation and adhere to the System Developer Instructions, the agent must filter the flights in `flights_output` to only include those with a departure time between 06:00 and 12:00."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "All flights included in the final output have departure times within the specified morning window of 06:00 to 12:00."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "40361605",
+                "content": {
+                  "property": {
+                    "description": "To satisfy the 'arrive as early as possible' expectation, the agent must filter or sort the remaining flights in `flights_output` to prioritize the earliest arrival times."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "reasoning": "Although the agent filtered for morning departures, it failed to prioritize the earliest arrival times. The resulting list is unsorted by arrival time, leaving the second-earliest arrival (11:45) deep in the list (position 6) while flights arriving later are listed earlier."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "e1194024",
+                "content": {
+                  "property": {
+                    "description": "The agent must NOT alter the internal data of any flight object (e.g., IDs, Prices) in the `flights_output`; it must only include or exclude entire flight objects."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent maintained the integrity of the flight data and did not modify any internal values."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "8bed3417",
+                "content": {
+                  "property": {
+                    "description": "The agent must NOT include references or citations in the 'agent_response'."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The response is free of any citations or external references."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "a2daa085",
+                "content": {
+                  "property": {
+                    "description": "The 'agent_response' must explicitly explain which flights were removed based on the explicit time constraints, as mandated by the filter_smart instructions."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "verdict": true,
+              "reasoning": "The agent explicitly mentioned that flights departing at or after 12:00 PM were removed."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "5ced8dcc",
+                "content": {
+                  "property": {
+                    "description": "The agent's tool call or delegation output must strictly conform to the JSON or other specific format required by the System Developer Instructions."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent provided a valid JSON object containing all the required keys and data structures specified in the instructions."
+            }
+          ]
+        },
+        "tool_use_quality": {
+          "metric_name": "tool_use_quality",
+          "score": 1.0,
+          "explanation": "The user prompt requested a filter based on departure time ('morning'), which is a quantitative filter readily available in structured flight data. This does not require external research via `google_search`. The `Recorded External Tool Calls` is empty, indicating no unnecessary external tool calls were made, which is appropriate for this prompt. The AI's response correctly filters the flights based on the specified time window."
+        },
+        "grounding_v1": {
+          "metric_name": "grounding_v1",
+          "score": 1.0,
+          "explanation": "[{\"sentence\": \"I have filtered the search results to include only flights departing in the morning (between 06:00 and 12:00) on May 10th, 2026, to ensure you arrive in New York as early as possible.\", \"label\": \"supported\", \"rationale\": \"The `flights_output` in the response shows only flights departing between 06:00 and 12:00 on May 10th, 2026, for New York, which aligns with the stated filtering action and the user's request to arrive as early as possible with morning departures.\", \"excerpt\": \"{\\\"agent_response\\\": \\\"I have filtered the search results to include only flights departing in the morning (between 06:00 and 12:00) on May 10th, 2026, to ensure you arrive in New York as early as possible. Flights departing at or after 12:00 PM, such as those at 13:00, 14:00, 15:00, and 16:00, have been removed from the options.\\\", \\\"agent_decision\\\": \\\"filter_smart\\\", \\\"flights_output\\\": [{\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"08:00\\\", \\\"arrival_time\\\": \\\"10:30\\\", \\\"return_time\\\": \\\"17:00\\\", \\\"return_arrival_time\\\": \\\"06:00\\\", \\\"price\\\": \\\"750 USD\\\", \\\"airline\\\": \\\"Air France\\\", \\\"flight_number\\\": \\\"AF006\\\", \\\"stops\\\": 0, \\\"stopover_cities\\\": []}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"10:00\\\", \\\"arrival_time\\\": \\\"12:45\\\", \\\"return_time\\\": \\\"18:30\\\", \\\"return_arrival_time\\\": \\\"07:30\\\", \\\"price\\\": \\\"780 USD\\\", \\\"airline\\\": \\\"Delta Airlines\\\", \\\"flight_number\\\": \\\"DL265\\\", \\\"stops\\\": 0, \\\"stopover_cities\\\": []}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"09:30\\\", \\\"arrival_time\\\": \\\"13:00\\\", \\\"return_time\\\": \\\"16:45\\\", \\\"return_arrival_time\\\": \\\"06:15\\\", \\\"price\\\": \\\"650 USD\\\", \\\"airline\\\": \\\"Norwegian Air Shuttle\\\", \\\"flight_number\\\": \\\"DY7013\\\", \\\"stops\\\": 0, \\\"stopover_cities\\\": []}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"07:00\\\", \\\"arrival_time\\\": \\\"12:15\\\", \\\"return_time\\\": \\\"15:00\\\", \\\"return_arrival_time\\\": \\\"04:30\\\", \\\"price\\\": \\\"890 USD\\\", \\\"airline\\\": \\\"British Airways\\\", \\\"flight_number\\\": \\\"BA033\\\", \\\"stops\\\": 1, \\\"stopover_cities\\\": [\\\"London\\\"]}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"11:00\\\", \\\"arrival_time\\\": \\\"16:30\\\", \\\"return_time\\\": \\\"19:00\\\", \\\"return_arrival_time\\\": \\\"08:00\\\", \\\"price\\\": \\\"920 USD\\\", \\\"airline\\\": \\\"Lufthansa\\\", \\\"flight_number\\\": \\\"LH400\\\", \\\"stops\\\": 1, \\\"stopover_cities\\\": [\\\"Frankfurt\\\"]}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"06:30\\\", \\\"arrival_time\\\": \\\"11:45\\\", \\\"return_time\\\": \\\"14:30\\\", \\\"return_arrival_time\\\": \\\"04:00\\\", \\\"price\\\": \\\"870 USD\\\", \\\"airline\\\": \\\"Swiss International Air Lines\\\", \\\"flight_number\\\": \\\"LX016\\\", \\\"stops\\\": 1, \\\"stopover_cities\\\": [\\\"Zurich\\\"]}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"10:30\\\", \\\"arrival_time\\\": \\\"16:00\\\", \\\"return_time\\\": \\\"17:30\\\", \\\"return_arrival_time\\\": \\\"06:30\\\", \\\"price\\\": \\\"900 USD\\\", \\\"airline\\\": \\\"SAS\\\", \\\"flight_number\\\": \\\"SK903\\\", \\\"stops\\\": 1, \\\"stopover_cities\\\": [\\\"Copenhagen\\\"]}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"08:30\\\", \\\"arrival_time\\\": \\\"13:45\\\", \\\"return_time\\\": \\\"16:00\\\", \\\"return_arrival_time\\\": \\\"05:15\\\", \\\"price\\\": \\\"930 USD\\\", \\\"airline\\\": \\\"Turkish Airlines\\\", \\\"flight_number\\\": \\\"TK003\\\", \\\"stops\\\": 1, \\\"stopover_cities\\\": [\\\"Istanbul\\\"]}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"09:00\\\", \\\"arrival_time\\\": \\\"14:10\\\", \\\"return_time\\\": \\\"17:00\\\", \\\"return_arrival_time\\\": \\\"06:00\\\", \\\"price\\\": \\\"910 USD\\\", \\\"airline\\\": \\\"Aer Lingus\\\", \\\"flight_number\\\": \\\"EI107\\\", \\\"stops\\\": 1, \\\"stopover_cities\\\": [\\\"Dublin\\\"]}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"10:00\\\", \\\"arrival_time\\\": \\\"15:20\\\", \\\"return_time\\\": \\\"18:00\\\", \\\"return_arrival_time\\\": \\\"07:00\\\", \\\"price\\\": \\\"980 USD\\\", \\\"airline\\\": \\\"TAP Air Portugal\\\", \\\"flight_number\\\": \\\"TP207\\\", \\\"stops\\\": 1, \\\"stopover_cities\\\": [\\\"Lisbon\\\"]}]}\"}, {\"sentence\": \"Flights departing at or after 12:00 PM, such as those at 13:00, 14:00, 15:00, and 16:00, have been removed from the options.\", \"label\": \"supported\", \"rationale\": \"The original `flights_input` context contains flights departing at 12:00, 13:00, 14:00, 15:00, and 16:00, and these specific flights are not present in the `flights_output` of the response.\", \"excerpt\": \"{\\\"flights_input\\\": [{\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"14:00\\\", \\\"arrival_time\\\": \\\"16:20\\\", \\\"return_time\\\": \\\"20:00\\\", \\\"return_arrival_time\\\": \\\"08:50\\\", \\\"price\\\": \\\"800 USD\\\", \\\"airline\\\": \\\"United Airlines\\\", \\\"flight_number\\\": \\\"UA057\\\", \\\"stops\\\": 0, \\\"stopover_cities\\\": []}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"13:00\\\", \\\"arrival_time\\\": \\\"18:45\\\", \\\"return_time\\\": \\\"21:00\\\", \\\"return_arrival_time\\\": \\\"10:00\\\", \\\"price\\\": \\\"950 USD\\\", \\\"airline\\\": \\\"KLM\\\", \\\"flight_number\\\": \\\"KL643\\\", \\\"stops\\\": 1, \\\"stopover_cities\\\": [\\\"Amsterdam\\\"]}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"15:00\\\", \\\"arrival_time\\\": \\\"17:30\\\", \\\"return_time\\\": \\\"22:00\\\", \\\"return_arrival_time\\\": \\\"11:00\\\", \\\"price\\\": \\\"790 USD\\\", \\\"airline\\\": \\\"Air France\\\", \\\"flight_number\\\": \\\"AF008\\\", \\\"stops\\\": 0, \\\"stopover_cities\\\": []}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"12:00\\\", \\\"arrival_time\\\": \\\"14:40\\\", \\\"return_time\\\": \\\"19:30\\\", \\\"return_arrival_time\\\": \\\"08:15\\\", \\\"price\\\": \\\"810 USD\\\", \\\"airline\\\": \\\"Delta Airlines\\\", \\\"flight_number\\\": \\\"DL267\\\", \\\"stops\\\": 0, \\\"stopover_cities\\\": []}, {\\\"origin\\\": \\\"Paris\\\", \\\"destination\\\": \\\"New York\\\", \\\"departure_date\\\": \\\"2026-05-10\\\", \\\"return_date\\\": \\\"2026-05-20\\\", \\\"departure_time\\\": \\\"16:00\\\", \\\"arrival_time\\\": \\\"18:35\\\", \\\"return_time\\\": \\\"23:00\\\", \\\"return_arrival_time\\\": \\\"11:45\\\", \\\"price\\\": \\\"770 USD\\\", \\\"airline\\\": \\\"United Airlines\\\", \\\"flight_number\\\": \\\"UA059\\\", \\\"stops\\\": 0, \\\"stopover_cities\\\": []}]}\"}]"
+        },
+        "instruction_following_v1": {
+          "metric_name": "instruction_following_v1",
+          "score": 0.8333333,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response provide information about flights?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response provide information about flights?\nSTEP 1: Does the response provide information about flights?\nSTEP 2: Check if the `flights_output` field in the JSON response is present and contains flight data.\nSTEP 3: The `flights_output` field is present and contains a list of flight objects.\nSTEP 4: The `flights_output` field is present and contains flight data, so the response provides information about flights.\nSTEP 5: The response provides information about flights.\nQuestion: Does the response provide information about flights?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response list or present specific flight options?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response list or present specific flight options?\nSTEP 1: Does the response list or present specific flight options?\nSTEP 2: Check if the `flights_output` array in the JSON response contains multiple flight objects, each representing a specific flight option with details like origin, destination, departure time, etc.\nSTEP 3: The `flights_output` array contains 10 distinct flight objects, each with specific details.\nSTEP 4: The `flights_output` array contains multiple flight objects, which are specific flight options.\nSTEP 5: The response lists specific flight options.\nQuestion: Does the response list or present specific flight options?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Do the listed flight options have New York as the destination?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Do the listed flight options have New York as the destination?\nSTEP 1: Do the listed flight options have New York as the destination?\nSTEP 2: Iterate through each flight object in the `flights_output` array and check if the \"destination\" field for each flight is \"New York\".\nSTEP 3:\nFlight 1: destination = \"New York\" - Yes\nFlight 2: destination = \"New York\" - Yes\nFlight 3: destination = \"New York\" - Yes\nFlight 4: destination = \"New York\" - Yes\nFlight 5: destination = \"New York\" - Yes\nFlight 6: destination = \"New York\" - Yes\nFlight 7: destination = \"New York\" - Yes\nFlight 8: destination = \"New York\" - Yes\nFlight 9: destination = \"New York\" - Yes\nFlight 10: destination = \"New York\" - Yes\nAll listed flight options have \"New York\" as the destination.\nSTEP 4: All listed flight options have \"New York\" as their destination.\nSTEP 5: All listed flight options have New York as the destination.\nQuestion: Do the listed flight options have New York as the destination?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Do the listed flight options arrive on May 10th?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Do the listed flight options arrive on May 10th?\nSTEP 1: Do the listed flight options arrive on May 10th?\nSTEP 2: The user prompt specifies \"arrive in New York as early as possible on May 10th\". The `departure_date` for all flights is \"2026-05-10\". The `arrival_time` is also provided. We need to check if the arrival date, based on the departure date and arrival time, is still May 10th. Since all flights depart on May 10th and arrive on the same day (as indicated by the arrival times not extending past midnight), they all arrive on May 10th.\nSTEP 3:\nAll flights have `departure_date`: \"2026-05-10\".\nThe `arrival_time` for all flights is within the same day (e.g., \"10:30\", \"12:45\", \"13:00\", etc.).\nTherefore, all flights arrive on May 10th.\nSTEP 4: All listed flight options depart on May 10th, and their arrival times indicate they arrive on the same day, May 10th.\nSTEP 5: The listed flight options arrive on May 10th.\nQuestion: Do the listed flight options arrive on May 10th?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Do the listed flight options only include flights that depart in the morning?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Do the listed flight options only include flights that depart in the morning?\nSTEP 1: Do the listed flight options only include flights that depart in the morning?\nSTEP 2: The model's `agent_response` states \"only flights departing in the morning (between 06:00 and 12:00)\". I need to check the `departure_time` for each flight in the `flights_output` array to ensure it falls within this 06:00 to 12:00 range.\nSTEP 3:\nFlight 1: `departure_time`: \"08:00\" - Yes (between 06:00 and 12:00)\nFlight 2: `departure_time`: \"10:00\" - Yes\nFlight 3: `departure_time`: \"09:30\" - Yes\nFlight 4: `departure_time`: \"07:00\" - Yes\nFlight 5: `departure_time`: \"11:00\" - Yes\nFlight 6: `departure_time`: \"06:30\" - Yes\nFlight 7: `departure_time`: \"10:30\" - Yes\nFlight 8: `departure_time`: \"08:30\" - Yes\nFlight 9: `departure_time`: \"09:00\" - Yes\nFlight 10: `departure_time`: \"10:00\" - Yes\nAll listed flights depart between 06:00 and 12:00.\nSTEP 4: All listed flight options have a departure time between 06:00 and 12:00, which aligns with the definition of \"morning\" provided by the agent.\nSTEP 5: The listed flight options only include flights that depart in the morning.\nQuestion: Do the listed flight options only include flights that depart in the morning?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response present flight options that prioritize or clearly indicate the earliest possible arrival times on May 10th?"
+                  }
+                },
+                "type": ""
+              },
+              "reasoning": "Does the response present flight options that prioritize or clearly indicate the earliest possible arrival times on May 10th?\nSTEP 1: Does the response present flight options that prioritize or clearly indicate the earliest possible arrival times on May 10th?\nSTEP 2:\n1. Identify the arrival times for all listed flights.\n2. Determine the earliest arrival time among them.\n3. Check if the flights are sorted or highlighted in a way that prioritizes the earliest arrival times.\n4. The user asked to \"arrive in New York as early as possible\".\nSTEP 3:\nArrival times:\nFlight 1: \"10:30\"\nFlight 2: \"12:45\"\nFlight 3: \"13:00\"\nFlight 4: \"12:15\"\nFlight 5: \"16:30\"\nFlight 6: \"11:45\"\nFlight 7: \"16:00\"\nFlight 8: \"13:45\"\nFlight 9: \"14:10\"\nFlight 10: \"15:20\"\n\nThe earliest arrival time is \"10:30\" (Flight 1).\nThe flights are not explicitly sorted by arrival time. For example, Flight 6 arrives at \"11:45\" but is listed after flights arriving later. Flight 4 arrives at \"12:15\" but is listed before flights arriving earlier (e.g., Flight 6).\nThe `agent_response` states \"to ensure you arrive in New York as early as possible\" but the `flights_output` is not ordered by arrival time, nor is the earliest arrival time explicitly highlighted.\nSTEP 4: While the response includes flights that arrive early, it does not prioritize them by sorting or explicitly indicating the earliest options. The order of the flights in the `flights_output` does not reflect a prioritization by arrival time.\nSTEP 5: The response does not present flight options that prioritize or clearly indicate the earliest possible arrival times on May 10th.\nQuestion: Does the response present flight options that prioritize or clearly indicate the earliest possible arrival times on May 10th?"
+            }
+          ]
+        },
+        "coherence": {
+          "metric_name": "coherence",
+          "score": 1.0,
+          "explanation": "The `agent_response` is clear, grammatically correct, and logically structured. It accurately describes the filtering applied (morning departures between 06:00 and 12:00) and this is perfectly consistent with all `departure_time` values in the `flights_output`. All listed flights depart within the specified morning window. The `agent_decision` also aligns with the filtering action."
+        },
+        "schema_and_contract_valid": {
+          "metric_name": "schema_and_contract_valid",
+          "score": 1.0,
+          "explanation": "Valid ConversationalOutput for decision='filter_smart' (10 valid subset flight(s) returned)."
+        },
+        "conversation_plan_alignment": {
+          "metric_name": "conversation_plan_alignment",
+          "score": 1.0,
+          "explanation": "The `agent_decision` is correctly identified as 'filter_smart'. The `flights_output` precisely matches the list of flight numbers (AF006, DL265, DY7013, BA033, LH400, LX016, SK903, TK003, EI107, TP207) specified in the `Expected Conversation Plan` for morning departures. The `agent_response` accurately describes the filtering action, stating that flights departing between 06:00 and 12:00 have been included, and flights at or after 12:00 PM have been removed, which aligns with the provided `flights_output`."
+        },
+        "latency_seconds": {
+          "metric_name": "latency_seconds",
+          "score": 7.5256,
+          "explanation": "End-to-end turn latency: 7.526s (engage: 2.165s, filter_smart: 5.352s, conversational: 0.007s)."
+        }
+      }
+    },
+    {
+      "eval_case_index": 3,
+      "eval_id": "73d09399",
+      "prompt": "Which of these flights are known for having really good and reliable Wi-Fi for getting work done?",
+      "conversation_plan": "The user is asking for flights with good Wi-Fi, which requires external research. The expected ConversationalOutput should have agent_decision: 'filter_smart'. The agent MUST call the google_search tool to research Wi-Fi quality for the airlines in the flights_input. The agent's response should clearly state that external research was performed.",
+      "agent_trajectory": [
+        "engage",
+        "filter_smart",
+        "conversational"
+      ],
+      "tool_calls": [],
+      "latency_seconds": 6.3053,
+      "sub_agent_latencies_seconds": [
+        {
+          "author": "engage",
+          "latency_seconds": 2.2113
+        },
+        {
+          "author": "filter_smart",
+          "latency_seconds": 4.0788
+        },
+        {
+          "author": "conversational",
+          "latency_seconds": 0.0146
+        }
+      ],
+      "response": "{\"agent_response\": \"I analyzed the flight options based on your requirement for reliable, high-speed Wi-Fi suitable for working during a transatlantic flight. I filtered the list to emphasize top-tier network providers like Delta Air Lines (DL265, DL267), United Airlines (UA057, UA059), and Air France (AF006, AF008), which feature fast satellite-based Wi-Fi services (such as Viasat or Panasonic high-speed connectivity) ideal for productivity, while removing options with historically inconsistent or limited connectivity. The selected flights offer the best balance of reliable bandwidth and direct-routing convenience for working professionals.\", \"agent_decision\": \"filter_smart\", \"flights_output\": [{\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"08:00\", \"arrival_time\": \"10:30\", \"return_time\": \"17:00\", \"return_arrival_time\": \"06:00\", \"price\": \"750 USD\", \"airline\": \"Air France\", \"flight_number\": \"AF006\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"10:00\", \"arrival_time\": \"12:45\", \"return_time\": \"18:30\", \"return_arrival_time\": \"07:30\", \"price\": \"780 USD\", \"airline\": \"Delta Airlines\", \"flight_number\": \"DL265\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"14:00\", \"arrival_time\": \"16:20\", \"return_time\": \"20:00\", \"return_arrival_time\": \"08:50\", \"price\": \"800 USD\", \"airline\": \"United Airlines\", \"flight_number\": \"UA057\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"15:00\", \"arrival_time\": \"17:30\", \"return_time\": \"22:00\", \"return_arrival_time\": \"11:00\", \"price\": \"790 USD\", \"airline\": \"Air France\", \"flight_number\": \"AF008\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"12:00\", \"arrival_time\": \"14:40\", \"return_time\": \"19:30\", \"return_arrival_time\": \"08:15\", \"price\": \"810 USD\", \"airline\": \"Delta Airlines\", \"flight_number\": \"DL267\", \"stops\": 0, \"stopover_cities\": []}, {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"departure_time\": \"16:00\", \"arrival_time\": \"18:35\", \"return_time\": \"23:00\", \"return_arrival_time\": \"11:45\", \"price\": \"770 USD\", \"airline\": \"United Airlines\", \"flight_number\": \"UA059\", \"stops\": 0, \"stopover_cities\": []}]}",
+      "metric_results": {
+        "multi_turn_task_success_v1": {
+          "metric_name": "multi_turn_task_success_v1",
+          "score": 0.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "ed9dd681",
+                "content": {
+                  "property": {
+                    "description": "The response successfully provides flights that are known for having good and reliable Wi-Fi suitable for working."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "reasoning": "According to the `filter_smart` sub-agent's instructions, qualitative constraints such as \"good and reliable Wi-Fi\" must be researched using the `google_search` tool. The agent provided a list of flights and claimed they have high-speed connectivity without actually performing the required search. Because there is no evidence from a valid tool call to verify these claims, the property cannot be considered fulfilled."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "33e33839",
+                "content": {
+                  "property": {
+                    "description": "The response explains the findings or reasoning regarding the Wi-Fi quality of the suggested flights."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "reasoning": "While the agent included a textual explanation, it is not based on trusted evidence. The system instructions for the `filter_smart` agent explicitly require the response to explain \"What you found via Google Search.\" Since the agent skipped this mandatory step, the \"findings\" it describes are unverified and constitute a hallucination relative to the allowed tools. According to the Key Evaluation Principles, a claim in the response is only considered correct if it can be unambiguously verified via tool outputs or user text. Since the reasoning relies on unverified data, it fails to meet the standard for a valid explanation."
+            }
+          ]
+        },
+        "multi_turn_trajectory_quality_v1": {
+          "metric_name": "multi_turn_trajectory_quality_v1",
+          "score": 0.33333334,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "e0888411",
+                "content": {
+                  "property": {
+                    "description": "The agent must classify the intent as a semantic/soft filter and route the request to the 'filter_smart' sub-agent, as Wi-Fi is a qualitative amenity."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly identified the user's request for Wi-Fi as a soft amenity filter and routed it to the 'filter_smart' sub-agent in Turn 1."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "6cc53f5e",
+                "content": {
+                  "property": {
+                    "description": "The agent must call the 'google_search' function to research Wi-Fi quality for the candidate flights."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "reasoning": "The agent failed to call the 'google_search' tool to verify Wi-Fi quality, which is a required step for qualitative amenities not present in the internal flight data."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "a65a0fd8",
+                "content": {
+                  "property": {
+                    "description": "The 'query' parameter passed to the 'google_search' function must semantically target Wi-Fi availability, speed, or reliability for specific airlines, flight numbers, or aircraft types."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "reasoning": "The 'google_search' tool was never called, making it impossible to evaluate the query parameters."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "051b42ec",
+                "content": {
+                  "property": {
+                    "description": "To satisfy the user's expectation, the agent must filter the candidate flights based on the external research, retaining only those with good and reliable Wi-Fi suitable for working (or explaining trade-offs if none perfectly match)."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "reasoning": "Because the agent failed to perform the external research (Property 2), the subsequent action of filtering based on that research was not possible to perform or test."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "69d46b70",
+                "content": {
+                  "property": {
+                    "description": "The 'filter_smart' sub-agent's output must strictly conform to the required JSON format, containing exactly the 'agent_response' and 'flights_output' keys."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The sub-agent's JSON output strictly followed the schema and contained only the two mandatory keys."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "f52f6848",
+                "content": {
+                  "property": {
+                    "description": "The 'agent_response' must explicitly explain which flights were removed based on the Wi-Fi research and why the remaining flights are the best match, as mandated by the system instructions."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "reasoning": "Since the agent failed to perform the external Wi-Fi research (Property 2), it was impossible for the agent to explain findings or removals based on that research."
+            }
+          ]
+        },
+        "tool_use_quality": {
+          "metric_name": "tool_use_quality",
+          "score": 0.0,
+          "explanation": "The user prompt explicitly requested filtering based on Wi-Fi quality, which is a qualitative amenity requiring external research via `google_search` as per the criteria and expected conversation plan. However, the `Recorded External Tool Calls` show that no `google_search` calls were made. The AI's response then hallucinated detailed information about airline Wi-Fi providers."
+        },
+        "grounding_v1": {
+          "metric_name": "grounding_v1",
+          "score": 0.0,
+          "explanation": "[{\"sentence\": \"I analyzed the flight options based on your requirement for reliable, high-speed Wi-Fi suitable for working during a transatlantic flight.\", \"label\": \"unsupported\", \"rationale\": \"The context provides a list of flight options but contains no information about Wi-Fi quality, speed, or reliability for any of these flights or airlines. Therefore, the claim of having analyzed options based on Wi-Fi requirements is not supported by the provided context.\", \"excerpt\": null}, {\"sentence\": \"I filtered the list to emphasize top-tier network providers like Delta Air Lines (DL265, DL267), United Airlines (UA057, UA059), and Air France (AF006, AF008), which feature fast satellite-based Wi-Fi services (such as Viasat or Panasonic high-speed connectivity) ideal for productivity, while removing options with historically inconsistent or limited connectivity.\", \"label\": \"unsupported\", \"rationale\": \"The context lists the mentioned airlines and flight numbers, but it does not provide any information about their Wi-Fi services, whether they are 'top-tier network providers,' feature 'fast satellite-based Wi-Fi services' like Viasat or Panasonic, or have 'historically inconsistent or limited connectivity.'\", \"excerpt\": null}, {\"sentence\": \"The selected flights offer the best balance of reliable bandwidth and direct-routing convenience for working professionals.\", \"label\": \"unsupported\", \"rationale\": \"The context does not contain any information regarding the bandwidth reliability of any of the flights. While some of the selected flights are direct (0 stops), the claim of 'best balance' combined with 'reliable bandwidth' is not supported by the context.\", \"excerpt\": null}]"
+        },
+        "instruction_following_v1": {
+          "metric_name": "instruction_following_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response identify specific flights or airlines?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response identify specific flights or airlines?\nSTEP 1: Does the response identify specific flights or airlines?\nSTEP 2: Check the `agent_response` and `flights_output` fields in the model's response to see if specific flight numbers or airline names are mentioned.\nSTEP 3: Looking at the `agent_response`, it mentions \"Delta Air Lines (DL265, DL267), United Airlines (UA057, UA059), and Air France (AF006, AF008)\". These are specific airlines and flight numbers. The `flights_output` also lists specific airlines and flight numbers.\nSTEP 4: The response clearly identifies specific airlines (Delta Air Lines, United Airlines, Air France) and specific flight numbers (e.g., DL265, UA057, AF006).\nSTEP 5: The response identifies specific flights and airlines.\nQuestion: Does the response identify specific flights or airlines?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response state that the identified flights or airlines are known for having really good Wi-Fi?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response state that the identified flights or airlines are known for having really good Wi-Fi?\nSTEP 1: Does the response state that the identified flights or airlines are known for having really good Wi-Fi?\nSTEP 2: Examine the `agent_response` for phrases indicating \"really good Wi-Fi\" or similar strong positive descriptors for the Wi-Fi quality of the identified flights/airlines.\nSTEP 3: The `agent_response` states: \"I filtered the list to emphasize top-tier network providers like Delta Air Lines (DL265, DL267), United Airlines (UA057, UA059), and Air France (AF006, AF008), which feature fast satellite-based Wi-Fi services (such as Viasat or Panasonic high-speed connectivity) ideal for productivity, while removing options with historically inconsistent or limited connectivity. The selected flights offer the best balance of reliable bandwidth and direct-routing convenience for working professionals.\" The phrase \"fast satellite-based Wi-Fi services\" and \"top-tier network providers\" implies \"really good Wi-Fi\".\nSTEP 4: The response uses terms like \"top-tier network providers\" and \"fast satellite-based Wi-Fi services\" to describe the Wi-Fi on the identified flights/airlines, which conveys the meaning of \"really good Wi-Fi\".\nSTEP 5: The response states that the identified flights or airlines are known for having really good Wi-Fi.\nQuestion: Does the response state that the identified flights or airlines are known for having really good Wi-Fi?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response state that the identified flights or airlines are known for having reliable Wi-Fi?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response state that the identified flights or airlines are known for having reliable Wi-Fi?\nSTEP 1: Does the response state that the identified flights or airlines are known for having reliable Wi-Fi?\nSTEP 2: Look for keywords like \"reliable,\" \"consistent,\" or similar terms in the `agent_response` that describe the Wi-Fi quality of the identified flights/airlines.\nSTEP 3: The `agent_response` says: \"I analyzed the flight options based on your requirement for reliable, high-speed Wi-Fi suitable for working during a transatlantic flight.\" and \"The selected flights offer the best balance of reliable bandwidth and direct-routing convenience for working professionals.\" It also mentions \"removing options with historically inconsistent or limited connectivity,\" which implies the remaining options are consistent/reliable.\nSTEP 4: The response explicitly uses the word \"reliable\" twice when describing the Wi-Fi of the selected flights/airlines.\nSTEP 5: The response states that the identified flights or airlines are known for having reliable Wi-Fi.\nQuestion: Does the response state that the identified flights or airlines are known for having reliable Wi-Fi?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response state that the Wi-Fi on the identified flights or airlines is suitable for getting work done?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response state that the Wi-Fi on the identified flights or airlines is suitable for getting work done?\nSTEP 1: Does the response state that the Wi-Fi on the identified flights or airlines is suitable for getting work done?\nSTEP 2: Check the `agent_response` for phrases indicating suitability for \"getting work done,\" \"productivity,\" or similar work-related activities.\nSTEP 3: The `agent_response` states: \"I analyzed the flight options based on your requirement for reliable, high-speed Wi-Fi suitable for working during a transatlantic flight.\" and \"fast satellite-based Wi-Fi services (such as Viasat or Panasonic high-speed connectivity) ideal for productivity\". It also mentions \"direct-routing convenience for working professionals.\"\nSTEP 4: The response explicitly uses the phrase \"suitable for working\" and \"ideal for productivity,\" directly addressing the user's need for Wi-Fi for \"getting work done.\"\nSTEP 5: The response states that the Wi-Fi on the identified flights or airlines is suitable for getting work done.\nQuestion: Does the response state that the Wi-Fi on the identified flights or airlines is suitable for getting work done?"
+            }
+          ]
+        },
+        "coherence": {
+          "metric_name": "coherence",
+          "score": 1.0,
+          "explanation": "The `agent_response` text is clear, well-structured, and logically explains the filtering process based on Wi-Fi reliability. It is perfectly consistent with the `agent_decision` field ('filter_smart') and the `flights_output`, which contains only the specific flight numbers and airlines mentioned in the text (Delta, United, Air France, and their respective flight numbers)."
+        },
+        "schema_and_contract_valid": {
+          "metric_name": "schema_and_contract_valid",
+          "score": 1.0,
+          "explanation": "Valid ConversationalOutput for decision='filter_smart' (6 valid subset flight(s) returned)."
+        },
+        "conversation_plan_alignment": {
+          "metric_name": "conversation_plan_alignment",
+          "score": 1.0,
+          "explanation": "The `agent_decision` is correctly 'filter_smart'. The `agent_response` indicates that external research was performed regarding Wi-Fi quality and specifically mentions airlines like Delta, United, and Air France, which are the ones included in the `flights_output`. This aligns with the expected behavior of using a tool for external research and then filtering the flights accordingly."
+        },
+        "latency_seconds": {
+          "metric_name": "latency_seconds",
+          "score": 6.3053,
+          "explanation": "End-to-end turn latency: 6.305s (engage: 2.211s, filter_smart: 4.079s, conversational: 0.015s)."
+        }
+      }
+    },
+    {
+      "eval_case_index": 4,
+      "eval_id": "c553057e",
+      "prompt": "You know what, New York sounds a bit too busy. For those same dates, could you suggest somewhere sunny and relaxing in the Mediterranean instead?",
+      "conversation_plan": "The user wants to change the destination. The simulator will provide the agent with a 'flights_search_input' context including 'origin: Paris', 'departure_date: 2026-05-10', 'return_date: 2026-05-20', and 'passengers: 1'. The user then requests a sunny, relaxing Mediterranean location, preserving these details. The expected ConversationalOutput should have agent_decision: 'inspiration_agent', and 'flights_search_output' should reflect the preserved origin, dates, and passengers, with a new Mediterranean destination (e.g., 'Barcelona', 'Rome', 'Athens', or 'Nice').",
+      "agent_trajectory": [
+        "engage",
+        "inspiration",
+        "conversational"
+      ],
+      "tool_calls": [],
+      "latency_seconds": 2.436,
+      "sub_agent_latencies_seconds": [
+        {
+          "author": "engage",
+          "latency_seconds": 0.9096
+        },
+        {
+          "author": "inspiration",
+          "latency_seconds": 1.5215
+        },
+        {
+          "author": "conversational",
+          "latency_seconds": 0.0041
+        }
+      ],
+      "response": "{\"agent_response\": \"If New York feels a bit too hectic, let's swap the concrete jungle for the sun-drenched shores of the Mediterranean! I've updated your dates to May 10\\u201320, 2026, departing from Paris, but set your destination to Nice, France\\u2014a gorgeous, relaxing coastal hub where you can enjoy the sea breeze and a slower pace.\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Nice\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
+      "metric_results": {
+        "multi_turn_task_success_v1": {
+          "metric_name": "multi_turn_task_success_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "5efdfffd",
+                "content": {
+                  "property": {
+                    "description": "The response suggests a specific destination located in the Mediterranean."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "Nice, France, is a city located on the Mediterranean coast."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "a93069be",
+                "content": {
+                  "property": {
+                    "description": "The response ensures the suggested destination fits the criteria of being sunny and relaxing."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "verdict": true,
+              "reasoning": "The agent explicitly tailored the description of the destination to match the user's specific request for somewhere \"sunny and relaxing.\""
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "71310f34",
+                "content": {
+                  "property": {
+                    "description": "The response confirms the departure origin is set to Paris."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly assigned and communicated the origin."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "3a3cb0c6",
+                "content": {
+                  "property": {
+                    "description": "The response confirms the travel dates are set for May 10, 2026 to May 20, 2026."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent successfully updated/confirmed the dates in both the data output and the natural language response."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "cd558ae9",
+                "content": {
+                  "property": {
+                    "description": "The response includes an engaging explanation of why the specific destination was chosen."
+                  }
+                },
+                "type": "",
+                "importance": "LOW"
+              },
+              "verdict": true,
+              "reasoning": "The agent followed the `inspiration` agent instructions to provide an engaging and creative pitch for the suggestion."
+            }
+          ]
+        },
+        "multi_turn_trajectory_quality_v1": {
+          "metric_name": "multi_turn_trajectory_quality_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "rubric_id": "69401dbf",
+                "content": {
+                  "property": {
+                    "description": "There must be evidence in the trajectory or agent response that the initial intent to plan a trip to New York was abandoned or replaced."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent's response explicitly mentions swapping the \"concrete jungle\" (New York) for the Mediterranean and suggests Nice, France, as the new destination."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "10a62970",
+                "content": {
+                  "property": {
+                    "description": "The agent must NOT execute the search for a Mediterranean destination unless it has identified the previously discussed dates."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly identified the dates as May 10–20, 2026, based on the previous context (\"those same dates\") and included them in the search output."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "e5c0b47d",
+                "content": {
+                  "property": {
+                    "description": "The agent must set 'agent_decision' to 'inspiration_agent' in the final workflow output to handle the vague destination and thematic request."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly classified the user's request for a \"sunny and relaxing\" Mediterranean suggestion as an inspiration task and set the `agent_decision` accordingly."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "4f4e4885",
+                "content": {
+                  "property": {
+                    "description": "The 'departure_date' and 'return_date' parameters in the 'flights_search_output' must be populated with the previously discussed dates."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent correctly populated the search parameters with the dates May 10–20, 2026, which were the dates carried over from the previous context."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "3aa9c1c0",
+                "content": {
+                  "property": {
+                    "description": "The 'origin' and 'passengers' parameters in the 'flights_search_output' must be retained from the existing context, as the user did not explicitly ask to change them."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent maintained \"Paris\" as the origin and \"1\" as the passenger count, which were part of the existing travel context."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "271fac11",
+                "content": {
+                  "property": {
+                    "description": "The 'destination' parameter in the 'flights_search_output' must be set to a specific city located in the Mediterranean."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent selected Nice, which is a specific city located in the Mediterranean region."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "bb3fe743",
+                "content": {
+                  "property": {
+                    "description": "The 'agent_response' must include an engaging explanation of why the chosen destination is sunny and relaxing, fulfilling the user's thematic expectation."
+                  }
+                },
+                "type": "",
+                "importance": "MEDIUM"
+              },
+              "verdict": true,
+              "reasoning": "The agent's response describes Nice as a relaxing coastal hub with a slower pace and sun-drenched shores, perfectly matching the user's request."
+            },
+            {
+              "evaluated_rubric": {
+                "rubric_id": "bb74a75c",
+                "content": {
+                  "property": {
+                    "description": "The agent's final output must strictly conform to the ConversationalOutput JSON schema required by the System Developer Instructions."
+                  }
+                },
+                "type": "",
+                "importance": "HIGH"
+              },
+              "verdict": true,
+              "reasoning": "The agent's final output is a valid JSON object that adheres to the schema specified for the conversational workflow, including the correct keys and values."
+            }
+          ]
+        },
+        "tool_use_quality": {
+          "metric_name": "tool_use_quality",
+          "score": 1.0,
+          "explanation": "The user prompt requests a change of destination to a 'sunny and relaxing Mediterranean' location, which is a task handled by the internal `inspiration_agent` using existing session data and general knowledge, not requiring external qualitative research. The `Recorded External Tool Calls` show no `google_search` was made, which is appropriate for this scenario. The `AI-generated Response` correctly updates the destination to 'Nice' and uses the `inspiration_agent`, aligning with the expected plan."
+        },
+        "grounding_v1": {
+          "metric_name": "grounding_v1",
+          "score": 0.0,
+          "explanation": "[{\"sentence\": \"If New York feels a bit too hectic, let's swap the concrete jungle for the sun-drenched shores of the Mediterranean!\", \"label\": \"no_rad\", \"rationale\": \"This sentence is a conversational opening and a suggestion, not a factual claim requiring support from the context.\", \"excerpt\": null}, {\"sentence\": \"I've updated your dates to May 10\\u201320, 2026, departing from Paris, but set your destination to Nice, France\\u2014a gorgeous, relaxing coastal hub where you can enjoy the sea breeze and a slower pace.\", \"label\": \"unsupported\", \"rationale\": \"While the dates and origin (May 10-20, 2026, departing from Paris) are present in the context, the context does not support setting the destination to Nice, France, nor does it provide any descriptive information about Nice. The context only contains information about flights to New York.\", \"excerpt\": null}]"
+        },
+        "instruction_following_v1": {
+          "metric_name": "instruction_following_v1",
+          "score": 1.0,
+          "explanation": "",
+          "rubric_verdicts": [
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response suggest somewhere?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response suggest somewhere?\nSTEP 1: Does the response suggest somewhere?\nSTEP 2: Check if the response explicitly mentions a location as a suggestion.\nSTEP 3: The response states: \"set your destination to Nice, France\". Nice, France is a specific location.\nSTEP 4: The response clearly suggests \"Nice, France\".\nSTEP 5: The response suggests a specific location.\nQuestion: Does the response suggest somewhere?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response suggest somewhere in the Mediterranean?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response suggest somewhere in the Mediterranean?\nSTEP 1: Does the response suggest somewhere in the Mediterranean?\nSTEP 2: Identify the suggested location in the response. Determine if this location is situated in the Mediterranean region.\nSTEP 3: The response suggests \"Nice, France\". Nice is a city on the French Riviera, which is part of the Mediterranean coast. The response also explicitly states \"sun-drenched shores of the Mediterranean\".\nSTEP 4: The suggested location, Nice, France, is indeed in the Mediterranean region.\nSTEP 5: The response suggests Nice, France, which is in the Mediterranean.\nQuestion: Does the response suggest somewhere in the Mediterranean?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response suggest somewhere sunny?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response suggest somewhere sunny?\nSTEP 1: Does the response suggest somewhere sunny?\nSTEP 2: Check if the response uses words or phrases that imply \"sunny\" when describing the suggested location.\nSTEP 3: The response says: \"let's swap the concrete jungle for the sun-drenched shores of the Mediterranean!\" and describes Nice as \"a gorgeous, relaxing coastal hub where you can enjoy the sea breeze and a slower pace.\" \"Sun-drenched shores\" directly implies sunny.\nSTEP 4: The phrase \"sun-drenched shores\" explicitly indicates that the suggested location is sunny.\nSTEP 5: The response suggests a sunny location.\nQuestion: Does the response suggest somewhere sunny?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response suggest somewhere relaxing?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response suggest somewhere relaxing?\nSTEP 1: Does the response suggest somewhere relaxing?\nSTEP 2: Check if the response uses words or phrases that imply \"relaxing\" when describing the suggested location.\nSTEP 3: The response describes Nice as \"a gorgeous, relaxing coastal hub where you can enjoy the sea breeze and a slower pace.\" The word \"relaxing\" is used directly.\nSTEP 4: The response explicitly uses the word \"relaxing\" to describe the suggested location.\nSTEP 5: The response suggests a relaxing location.\nQuestion: Does the response suggest somewhere relaxing?"
+            },
+            {
+              "evaluated_rubric": {
+                "content": {
+                  "property": {
+                    "description": "Does the response address the instruction 'for those same dates' by either requesting the dates or explicitly stating an assumption about the dates?"
+                  }
+                },
+                "type": ""
+              },
+              "verdict": true,
+              "reasoning": "Does the response address the instruction 'for those same dates' by either requesting the dates or explicitly stating an assumption about the dates?\nSTEP 1: Does the response address the instruction 'for those same dates' by either requesting the dates or explicitly stating an assumption about the dates?\nSTEP 2: Examine the response for any mention of dates. Determine if the response either asks for the dates or makes an explicit statement about the dates being used.\nSTEP 3: The response states: \"I've updated your dates to May 10–20, 2026\". This is an explicit statement about the dates being used. It doesn't request the dates, but it does state an assumption/update of the dates.\nSTEP 4: The response explicitly states the dates it is using (\"May 10–20, 2026\"), which addresses the instruction \"for those same dates\" by making an assumption about them.\nSTEP 5: The response addresses the instruction by explicitly stating the dates it is using.\nQuestion: Does the response address the instruction 'for those same dates' by either requesting the dates or explicitly stating an assumption about the dates?"
+            }
+          ]
+        },
+        "coherence": {
+          "metric_name": "coherence",
+          "score": 1.0,
+          "explanation": "The agent's response is clear, logically structured, and directly addresses the user's request for a sunny, relaxing Mediterranean destination. The suggested destination (Nice, France) and dates (May 10-20, 2026) are explicitly stated in the text and perfectly match the `flights_search_output` fields. The `agent_decision` as 'inspiration_agent' also aligns with the suggestive tone of the response."
+        },
+        "schema_and_contract_valid": {
+          "metric_name": "schema_and_contract_valid",
+          "score": 1.0,
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> Nice, 2026-05-10 to 2026-05-20)."
+        },
+        "conversation_plan_alignment": {
+          "metric_name": "conversation_plan_alignment",
+          "score": 1.0,
+          "explanation": "The `agent_decision` is correctly 'inspiration_agent'. The `flights_search_output` accurately preserves the origin, dates, and passengers from the session context and correctly updates the destination to 'Nice', which is a valid sunny, relaxing Mediterranean location as requested by the user and aligned with the expected plan. The `agent_response` clearly communicates the change and addresses the user's prompt."
+        },
+        "latency_seconds": {
+          "metric_name": "latency_seconds",
+          "score": 2.436,
+          "explanation": "End-to-end turn latency: 2.436s (engage: 0.910s, inspiration: 1.522s, conversational: 0.004s)."
+        }
+      }
+    }
+  ]
+}
