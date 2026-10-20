@@ -1,0 +1,186 @@
+# ==============================================================================
+# End-to-End CI/CD + Terraform + Cloud Run Deployment Pipeline
+# Supports dev (travel-agent-511710), staging (travel-agent-staging-51221),
+# and prod (travel-agent-prod-512211) with full environment parity.
+# ==============================================================================
+substitutions:
+  _ENV: 'dev'
+  _REGION: 'europe-west9'
+  _REPOSITORY_ID: 'travel-agent'
+  _IMAGE_TAG: 'latest'
+
+steps:
+  # ----------------------------------------------------------------------------
+  # Step 1: Run Backend Unit Tests (CI Gate)
+  # ----------------------------------------------------------------------------
+  - id: 'ci-unit-tests'
+    name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        pip install --no-cache-dir \
+          -r flights_search_app/requirements.txt \
+          -r conversational_app/requirements.txt \
+          pytest==9.0.2 \
+          httpx==0.28.1
+        (cd flights_search_app && pytest tests/unit -q)
+        (cd conversational_app && pytest tests/unit -q)
+
+  # ----------------------------------------------------------------------------
+  # Step 2: Terraform Bootstrap Infrastructure (APIs, IAM, Artifact Registry)
+  # ----------------------------------------------------------------------------
+  - id: 'terraform-bootstrap-infra'
+    name: 'hashicorp/terraform:1.9.8'
+    dir: 'deployment/terraform'
+    waitFor: ['ci-unit-tests']
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -eu
+        terraform init -reconfigure \
+          -backend-config="bucket=${PROJECT_ID}-tfstate" \
+          -backend-config="prefix=travel-agent/${_ENV}"
+
+        terraform apply -auto-approve \
+          -var-file="envs/${_ENV}.tfvars" \
+          -var="project_id=${PROJECT_ID}" \
+          -var="region=${_REGION}" \
+          -var="repository_id=${_REPOSITORY_ID}" \
+          -var="image_tag=${_IMAGE_TAG}" \
+          -var="deploy_cloud_run_services=false"
+
+  # ----------------------------------------------------------------------------
+  # Step 3a: Build & Push flights-search-app Image
+  # ----------------------------------------------------------------------------
+  - id: 'build-push-flights-search'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['terraform-bootstrap-infra']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        IMAGE_URI="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/flights-search-app"
+        docker pull "$${IMAGE_URI}:latest" || true
+        docker build \
+          --cache-from "$${IMAGE_URI}:latest" \
+          -t "$${IMAGE_URI}:${_IMAGE_TAG}" \
+          -t "$${IMAGE_URI}:latest" \
+          flights_search_app/
+        docker push "$${IMAGE_URI}:${_IMAGE_TAG}"
+        docker push "$${IMAGE_URI}:latest"
+
+  # ----------------------------------------------------------------------------
+  # Step 3b: Build & Push conversational-app Image
+  # ----------------------------------------------------------------------------
+  - id: 'build-push-conversational'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['terraform-bootstrap-infra']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        IMAGE_URI="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/conversational-app"
+        docker pull "$${IMAGE_URI}:latest" || true
+        docker build \
+          --cache-from "$${IMAGE_URI}:latest" \
+          -t "$${IMAGE_URI}:${_IMAGE_TAG}" \
+          -t "$${IMAGE_URI}:latest" \
+          conversational_app/
+        docker push "$${IMAGE_URI}:${_IMAGE_TAG}"
+        docker push "$${IMAGE_URI}:latest"
+
+  # ----------------------------------------------------------------------------
+  # Step 3c: Build & Push frontend Image
+  # ----------------------------------------------------------------------------
+  - id: 'build-push-frontend'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['terraform-bootstrap-infra']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        IMAGE_URI="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/frontend"
+        docker pull "$${IMAGE_URI}:latest" || true
+        docker build \
+          --cache-from "$${IMAGE_URI}:latest" \
+          -t "$${IMAGE_URI}:${_IMAGE_TAG}" \
+          -t "$${IMAGE_URI}:latest" \
+          frontend/
+        docker push "$${IMAGE_URI}:${_IMAGE_TAG}"
+        docker push "$${IMAGE_URI}:latest"
+
+  # ----------------------------------------------------------------------------
+  # Step 4: Terraform Apply Cloud Run Services & Output Live Service URLs
+  # ----------------------------------------------------------------------------
+  - id: 'terraform-deploy-cloud-run'
+    name: 'hashicorp/terraform:1.9.8'
+    dir: 'deployment/terraform'
+    waitFor:
+      - 'build-push-flights-search'
+      - 'build-push-conversational'
+      - 'build-push-frontend'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -eu
+        terraform apply -auto-approve \
+          -var-file="envs/${_ENV}.tfvars" \
+          -var="project_id=${PROJECT_ID}" \
+          -var="region=${_REGION}" \
+          -var="repository_id=${_REPOSITORY_ID}" \
+          -var="image_tag=${_IMAGE_TAG}" \
+          -var="deploy_cloud_run_services=true"
+
+        FLIGHTS_URL=$$(terraform output -raw flights_search_url)
+        CONVERSATIONAL_URL=$$(terraform output -raw conversational_url)
+        FRONTEND_URL=$$(terraform output -raw frontend_url)
+
+        cat <<EOF > /workspace/service_urls.env
+        FLIGHTS_SEARCH_URL=$${FLIGHTS_URL}
+        CONVERSATIONAL_URL=$${CONVERSATIONAL_URL}
+        FRONTEND_URL=$${FRONTEND_URL}
+        EOF
+
+        echo "=================================================================="
+        echo "Deployed Cloud Run Services (${_ENV} -> ${PROJECT_ID}):"
+        echo "  Flights Search App : $${FLIGHTS_URL}"
+        echo "  Conversational App : $${CONVERSATIONAL_URL}"
+        echo "  Frontend           : $${FRONTEND_URL}"
+        echo "=================================================================="
+
+  # ----------------------------------------------------------------------------
+  # Step 5: Post-Deploy Smoke Verification
+  # ----------------------------------------------------------------------------
+  - id: 'smoke-test-services'
+    name: 'gcr.io/cloud-builders/curl'
+    waitFor: ['terraform-deploy-cloud-run']
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -eu
+        . /workspace/service_urls.env
+
+        echo "Verifying Flights Search Service health endpoint ($${FLIGHTS_SEARCH_URL}/)..."
+        curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_URL}/"
+        echo ""
+
+        echo "Verifying Conversational Service health endpoint ($${CONVERSATIONAL_URL}/)..."
+        curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_URL}/"
+        echo ""
+
+        echo "Verifying Frontend health & runtime env-config ($${FRONTEND_URL}/env-config.js)..."
+        curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/env-config.js"
+        echo ""
+        echo "✅ All 3 Cloud Run services passed post-deploy smoke verification!"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: '1800s'

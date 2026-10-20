@@ -57,6 +57,30 @@ bootstrap_project() {
     echo "ℹ️  Bucket gs://${TF_STATE_BUCKET} already exists."
   fi
 
+  echo "3️⃣  Granting Cloud Build service accounts permissions to execute Terraform..."
+  local PROJECT_NUMBER
+  PROJECT_NUMBER="$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")"
+  local CB_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+  local COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+  for SA in "${CB_SA}" "${COMPUTE_SA}"; do
+    for ROLE in \
+      "roles/serviceusage.serviceUsageAdmin" \
+      "roles/resourcemanager.projectIamAdmin" \
+      "roles/iam.serviceAccountAdmin" \
+      "roles/iam.serviceAccountUser" \
+      "roles/run.admin" \
+      "roles/artifactregistry.admin" \
+      "roles/storage.admin" \
+      "roles/logging.logWriter"; do
+      gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+        --member="serviceAccount:${SA}" \
+        --role="${ROLE}" \
+        --condition=None \
+        --quiet >/dev/null || true
+    done
+  done
+
   echo "✅ Bootstrap complete for [${ENV_NAME}] (${PROJECT_ID})!"
   echo
 }

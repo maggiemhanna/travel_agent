@@ -1,0 +1,54 @@
+# ==============================================================================
+# Continuous Integration (PR Checks) Pipeline
+# Runs unit tests for both ADK backend apps, Vite production build check for
+# the React frontend, and Terraform formatting/validation.
+# ==============================================================================
+steps:
+  # 1. Backend Unit Tests (flights_search_app & conversational_app)
+  - id: 'unit-tests-backends'
+    name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        pip install --no-cache-dir --upgrade pip
+        pip install --no-cache-dir \
+          -r flights_search_app/requirements.txt \
+          -r conversational_app/requirements.txt \
+          pytest==9.0.2 \
+          httpx==0.28.1
+
+        echo "=== Running flights_search_app unit tests ==="
+        (cd flights_search_app && pytest tests/unit -v)
+
+        echo "=== Running conversational_app unit tests ==="
+        (cd conversational_app && pytest tests/unit -v)
+
+  # 2. Frontend Build Verification
+  - id: 'build-check-frontend'
+    name: 'node:20-alpine'
+    dir: 'frontend'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -eu
+        npm ci
+        npm run build
+
+  # 3. Terraform Format & Schema Validation
+  - id: 'terraform-validate'
+    name: 'hashicorp/terraform:1.9.8'
+    dir: 'deployment/terraform'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -eu
+        terraform fmt -check -recursive
+        terraform init -backend=false
+        terraform validate
+
+options:
+  logging: CLOUD_LOGGING_ONLY
