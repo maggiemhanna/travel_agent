@@ -54,9 +54,17 @@ echo "==========================================================================
 # 1. Ensure bootstrap prerequisites (state bucket & meta APIs) exist
 "${SCRIPT_DIR}/bootstrap.sh" "${ENV_NAME}"
 
-# 2. Submit the unified CI/CD + Terraform + Cloud Run build to Cloud Build
+# 2. Select environment-specific pipeline config (staging.yaml, prod.yaml, or deploy.yaml)
+case "${ENV_NAME}" in
+  staging) CLOUDBUILD_CONFIG="${REPO_ROOT}/.cloudbuild/staging.yaml" ;;
+  prod)    CLOUDBUILD_CONFIG="${REPO_ROOT}/.cloudbuild/prod.yaml" ;;
+  *)       CLOUDBUILD_CONFIG="${REPO_ROOT}/.cloudbuild/deploy.yaml" ;;
+esac
+
+# 3. Submit the CI/CD + Terraform + Cloud Run build to Cloud Build
 gcloud builds submit "${REPO_ROOT}" \
   --project="${PROJECT_ID}" \
   --region="${REGION}" \
-  --config="${REPO_ROOT}/.cloudbuild/deploy.yaml" \
+  --config="${CLOUDBUILD_CONFIG}" \
   --substitutions="_ENV=${ENV_NAME},_REGION=${REGION},_IMAGE_TAG=${IMAGE_TAG}"
+

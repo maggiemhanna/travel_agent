@@ -83,3 +83,22 @@ variable "allowed_origins" {
   type        = string
   default     = "*"
 }
+
+variable "enable_cloudbuild_triggers" {
+  description = "Whether to create automated GitHub Cloud Build triggers (requires GitHub app connection in Cloud Build)."
+  type        = bool
+  default     = false
+}
+
+variable "github_owner" {
+  description = "GitHub repository owner/organization for Cloud Build triggers."
+  type        = string
+  default     = ""
+}
+
+variable "github_repo" {
+  description = "GitHub repository name for Cloud Build triggers."
+  type        = string
+  default     = "travel_agent"
+}
+

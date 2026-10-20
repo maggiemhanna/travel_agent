@@ -1,0 +1,191 @@
+# ==============================================================================
+# Continuous Deployment (CD) — Staging Pipeline (.cloudbuild/staging.yaml)
+# Target Project : travel-agent-staging-512211
+# Trigger        : Push / Merge to `main` branch (or `./deployment/deploy.sh staging`)
+# ==============================================================================
+substitutions:
+  _ENV: 'staging'
+  _REGION: 'europe-west9'
+  _REPOSITORY_ID: 'travel-agent'
+  _IMAGE_TAG: 'latest'
+
+steps:
+  # ----------------------------------------------------------------------------
+  # Step 1: Run Backend Unit Tests & Frontend Build Check (CI Gate)
+  # ----------------------------------------------------------------------------
+  - id: 'ci-unit-tests'
+    name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        pip install --no-cache-dir \
+          -r flights_search_app/requirements.txt \
+          -r conversational_app/requirements.txt \
+          pytest==9.0.2 \
+          httpx==0.28.1
+        (cd flights_search_app && pytest tests/unit -q)
+        (cd conversational_app && pytest tests/unit -q)
+
+  # ----------------------------------------------------------------------------
+  # Step 2: Terraform Bootstrap Staging Infra (APIs, IAM, Artifact Registry)
+  # ----------------------------------------------------------------------------
+  - id: 'terraform-bootstrap-staging'
+    name: 'hashicorp/terraform:1.9.8'
+    dir: 'deployment/terraform'
+    waitFor: ['ci-unit-tests']
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -eu
+        TAG="${SHORT_SHA:-${_IMAGE_TAG}}"
+        terraform init -reconfigure \
+          -backend-config="bucket=${PROJECT_ID}-tfstate" \
+          -backend-config="prefix=travel-agent/staging"
+
+        terraform apply -auto-approve \
+          -var-file="envs/staging.tfvars" \
+          -var="project_id=${PROJECT_ID}" \
+          -var="region=${_REGION}" \
+          -var="repository_id=${_REPOSITORY_ID}" \
+          -var="image_tag=$${TAG}" \
+          -var="deploy_cloud_run_services=false"
+
+  # ----------------------------------------------------------------------------
+  # Step 3a: Build & Push flights-search-app Image (Staging)
+  # ----------------------------------------------------------------------------
+  - id: 'build-push-flights-search'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['terraform-bootstrap-staging']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        TAG="${SHORT_SHA:-${_IMAGE_TAG}}"
+        IMAGE_URI="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/flights-search-app"
+        docker pull "$${IMAGE_URI}:latest" || true
+        docker build \
+          --cache-from "$${IMAGE_URI}:latest" \
+          -t "$${IMAGE_URI}:$${TAG}" \
+          -t "$${IMAGE_URI}:latest" \
+          flights_search_app/
+        docker push "$${IMAGE_URI}:$${TAG}"
+        docker push "$${IMAGE_URI}:latest"
+
+  # ----------------------------------------------------------------------------
+  # Step 3b: Build & Push conversational-app Image (Staging)
+  # ----------------------------------------------------------------------------
+  - id: 'build-push-conversational'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['terraform-bootstrap-staging']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        TAG="${SHORT_SHA:-${_IMAGE_TAG}}"
+        IMAGE_URI="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/conversational-app"
+        docker pull "$${IMAGE_URI}:latest" || true
+        docker build \
+          --cache-from "$${IMAGE_URI}:latest" \
+          -t "$${IMAGE_URI}:$${TAG}" \
+          -t "$${IMAGE_URI}:latest" \
+          conversational_app/
+        docker push "$${IMAGE_URI}:$${TAG}"
+        docker push "$${IMAGE_URI}:latest"
+
+  # ----------------------------------------------------------------------------
+  # Step 3c: Build & Push frontend Image (Staging)
+  # ----------------------------------------------------------------------------
+  - id: 'build-push-frontend'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['terraform-bootstrap-staging']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        TAG="${SHORT_SHA:-${_IMAGE_TAG}}"
+        IMAGE_URI="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/frontend"
+        docker pull "$${IMAGE_URI}:latest" || true
+        docker build \
+          --cache-from "$${IMAGE_URI}:latest" \
+          -t "$${IMAGE_URI}:$${TAG}" \
+          -t "$${IMAGE_URI}:latest" \
+          frontend/
+        docker push "$${IMAGE_URI}:$${TAG}"
+        docker push "$${IMAGE_URI}:latest"
+
+  # ----------------------------------------------------------------------------
+  # Step 4: Terraform Deploy Staging Cloud Run Services
+  # ----------------------------------------------------------------------------
+  - id: 'terraform-deploy-staging'
+    name: 'hashicorp/terraform:1.9.8'
+    dir: 'deployment/terraform'
+    waitFor:
+      - 'build-push-flights-search'
+      - 'build-push-conversational'
+      - 'build-push-frontend'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -eu
+        TAG="${SHORT_SHA:-${_IMAGE_TAG}}"
+        terraform apply -auto-approve \
+          -var-file="envs/staging.tfvars" \
+          -var="project_id=${PROJECT_ID}" \
+          -var="region=${_REGION}" \
+          -var="repository_id=${_REPOSITORY_ID}" \
+          -var="image_tag=$${TAG}" \
+          -var="deploy_cloud_run_services=true"
+
+        FLIGHTS_URL=$$(terraform output -raw flights_search_url)
+        CONVERSATIONAL_URL=$$(terraform output -raw conversational_url)
+        FRONTEND_URL=$$(terraform output -raw frontend_url)
+
+        cat <<EOF > /workspace/service_urls.env
+        FLIGHTS_SEARCH_URL=$${FLIGHTS_URL}
+        CONVERSATIONAL_URL=$${CONVERSATIONAL_URL}
+        FRONTEND_URL=$${FRONTEND_URL}
+        EOF
+
+        echo "=================================================================="
+        echo "Deployed Cloud Run Services (STAGING -> ${PROJECT_ID}):"
+        echo "  Flights Search App : $${FLIGHTS_URL}"
+        echo "  Conversational App : $${CONVERSATIONAL_URL}"
+        echo "  Frontend           : $${FRONTEND_URL}"
+        echo "=================================================================="
+
+  # ----------------------------------------------------------------------------
+  # Step 5: Post-Deploy Staging Smoke & Health Verification
+  # ----------------------------------------------------------------------------
+  - id: 'smoke-test-staging'
+    name: 'gcr.io/cloud-builders/curl'
+    waitFor: ['terraform-deploy-staging']
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -eu
+        . /workspace/service_urls.env
+
+        echo "Verifying Staging Flights Search Service ($${FLIGHTS_SEARCH_URL}/)..."
+        curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_URL}/"
+        echo ""
+
+        echo "Verifying Staging Conversational Service ($${CONVERSATIONAL_URL}/)..."
+        curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_URL}/"
+        echo ""
+
+        echo "Verifying Staging Frontend & runtime env-config ($${FRONTEND_URL}/env-config.js)..."
+        curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/env-config.js"
+        echo ""
+        echo "✅ Staging deployment verified successfully!"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: '1800s'
