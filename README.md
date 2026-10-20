@@ -14,7 +14,7 @@ The application is organized into two standalone backend applications (**`flight
 
 ---
 
-> **Note on Branches:** This branch (`local`) is configured for **local development and testing**, where all microservices and the frontend communicate over `localhost`. For production deployment to **Google Cloud Run**, please refer to the `main` branch.
+> **Environment Parity (`localhost` & Google Cloud Run):** The codebase is environment-agnostic. By default, services run locally over `127.0.0.1` (`:8000`–`:8006` and `:5173`), and deploy reproducibly across **`dev`**, **`staging`**, and **`prod`** on **Google Cloud Run** via **Terraform** and **Google Cloud Build**.
 
 ---
 
@@ -29,7 +29,7 @@ The application is organized into two standalone backend applications (**`flight
 | **Smart Filter Sub-Agent** (`sub_agents/filter_smart`) | `8004` | Gemini 3.1 Pro + Search | **Semantic Filter**: Evaluates qualitative amenities (WiFi, legroom, aircraft) via contextual reasoning and live Google Search. | [README](conversational_app/README.md#4-smart-filter-sub-agent-port-8004) |
 | **Inspiration Sub-Agent** (`sub_agents/inspiration`) | `8005` | Gemini 3.1 Pro | **Discovery Architect**: Suggests destinations and date ranges for open-ended travel requests (*"somewhere sunny in December"*). | [README](conversational_app/README.md#5-inspiration-sub-agent-port-8005) |
 | **JSON Parser Sub-Agent** (`sub_agents/json_parser`) | `8006` | Gemini 3.1 Pro | **Structure Corrector**: Repairs malformed JSON outputs and guarantees strict schema compliance. | [README](conversational_app/README.md#6-json-parser-sub-agent-port-8006) |
-| **Frontend** (`frontend`) | `5173` | React / Vite | **User Interface**: Flight search exploration view with conversational ChatWidget. | [frontend/](frontend/) |
+| **Frontend** (`frontend`) | `5173` | React / Vite / Nginx | **User Interface**: Flight search exploration view with conversational ChatWidget. | [frontend/](frontend/) |
 
 ---
 
@@ -37,37 +37,49 @@ The application is organized into two standalone backend applications (**`flight
 
 ```text
 travel_agent/
+├── .cloudbuild/                 # Google Cloud Build CI/CD Pipelines
+│   ├── pr_checks.yaml           # CI pipeline (unit tests, frontend build, terraform validate)
+│   ├── dev.yaml                 # CD pipeline for Dev (travel-agent-511710)
+│   ├── staging.yaml             # CD pipeline for Staging (travel-agent-staging-512211)
+│   └── prod.yaml                # CD pipeline for Prod (travel-agent-prod-512211)
+├── deployment/                  # Infrastructure as Code (Terraform) & Deployment Runners
+│   ├── bootstrap.sh             # Bootstraps state bucket & meta APIs per GCP project
+│   ├── deploy.sh                # One-command CI/CD & Cloud Run deployment runner
+│   └── terraform/               # Reusable Terraform stack with dev/staging/prod parity
+│       ├── apis.tf              # Declarative GCP API activation
+│       ├── iam.tf               # Least-privilege Runtime & CI/CD Service Accounts
+│       ├── registry.tf          # Artifact Registry Docker repository
+│       ├── cloud_run.tf         # Cloud Run v2 services (flights-search, conversational, frontend)
+│       ├── triggers.tf          # Automated Cloud Build Git triggers
+│       ├── variables.tf         # Input variables
+│       ├── outputs.tf           # Service URLs & registry outputs
+│       ├── versions.tf          # Provider versions & GCS remote state backend
+│       └── envs/                # Environment-specific configurations (.tfvars)
+│           ├── dev.tfvars
+│           ├── staging.tfvars
+│           └── prod.tfvars
 ├── flights_search_app/          # Standalone Flights Search ADK Application (:8000)
 │   ├── app/                     # Core ADK agent package (agent.py, main.py, prompt.py, schema.py)
 │   │   └── app_utils/           # Shared logging and formatting utilities
 │   ├── tests/                   # Unit, integration, and E2E test suites
-│   │   ├── fixtures/
-│   │   ├── unit/
-│   │   ├── integration/
-│   │   └── e2e/
-│   ├── .env                     # Environment variables for flights_search_app
+│   ├── Dockerfile               # Production container definition for Cloud Run
+│   ├── .env.example             # Example environment variables for flights_search_app
 │   ├── pyproject.toml           # Project metadata and pytest configuration
-│   ├── requirements.txt         # Python dependencies for flights_search_app
+│   ├── requirements.txt         # Pinned runtime Python dependencies
 │   └── README.md                # Flights Search App documentation
 ├── conversational_app/          # Conversational Multi-Agent Application (:8001–8006)
 │   ├── app/                     # Main Conversational entrypoint (:8001) (agent.py, main.py, schema.py)
 │   │   ├── app_utils/           # Shared logging and formatting utilities
-│   │   └── sub_agents/          # Specialized ADK sub-agent services
-│   │       ├── engage/          # Intent triage and routing (:8002)
-│   │       ├── filter/          # Deterministic parameter extraction (:8003)
-│   │       ├── filter_smart/    # Semantic filtering + live Google Search (:8004)
-│   │       ├── inspiration/     # Open-ended travel discovery (:8005)
-│   │       └── json_parser/     # Self-healing JSON syntax & schema correction (:8006)
-│   ├── tests/                   # Unit, integration, and E2E test suites
-│   │   ├── fixtures/
-│   │   ├── unit/
-│   │   ├── integration/
-│   │   └── e2e/
-│   ├── .env                     # Environment variables for conversational_app
+│   │   └── sub_agents/          # Specialized ADK sub-agent services (engage, filter, filter_smart, inspiration, json_parser)
+│   ├── tests/                   # Unit, integration, E2E, and GEAP evaluation suites
+│   ├── Dockerfile               # Production container definition for Cloud Run
+│   ├── .env.example             # Example environment variables for conversational_app
 │   ├── pyproject.toml           # Project metadata and pytest configuration
-│   ├── requirements.txt         # Python dependencies for conversational_app
+│   ├── requirements.txt         # Pinned runtime Python dependencies
 │   └── README.md                # Conversational App & Sub-Agents documentation
 └── frontend/                    # React + Vite frontend application & ChatWidget (:5173)
+    ├── Dockerfile               # Multi-stage Node build + Nginx runtime with env-config injection
+    └── nginx.conf.template      # Cloud Run Nginx template
 ```
 
 ---
@@ -179,3 +191,35 @@ python3 -m pytest tests/unit -v -s
 python3 -m pytest tests/integration -v -s
 python3 -m pytest tests/e2e -v -s
 ```
+
+---
+
+## ☁️ CI/CD & Deployment to Google Cloud Run (Terraform + Cloud Build)
+
+The platform uses **Terraform** ([`deployment/terraform/`](deployment/terraform/)) and **Google Cloud Build** ([`.cloudbuild/`](.cloudbuild/)) to maintain reproducible infrastructure and strict environment parity across three isolated GCP projects:
+
+| Environment | GCP Project ID | Terraform Variables | Cloud Build Pipeline | Scaling (`min` / `max`) |
+| :--- | :--- | :--- | :--- | :---: |
+| **Dev** | `travel-agent-511710` | [`envs/dev.tfvars`](deployment/terraform/envs/dev.tfvars) | [`.cloudbuild/dev.yaml`](.cloudbuild/dev.yaml) | `0` / `5` |
+| **Staging** | `travel-agent-staging-512211` | [`envs/staging.tfvars`](deployment/terraform/envs/staging.tfvars) | [`.cloudbuild/staging.yaml`](.cloudbuild/staging.yaml) | `0` / `10` |
+| **Prod** | `travel-agent-prod-512211` | [`envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars) | [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml) | `1` / `20` |
+
+### 1. Run CI Pull Request Checks
+Validates backend unit tests (`pytest tests/unit`), frontend production build (`npm ci && npm run build`), and Terraform formatting/schema (`terraform fmt -check && terraform validate`):
+```bash
+./deployment/deploy.sh pr-check dev
+```
+
+### 2. Deploy to `dev`, `staging`, or `prod`
+Each deployment automatically bootstraps the remote Terraform state bucket (`gs://<PROJECT_ID>-tfstate`), runs unit tests, provisions APIs/IAM/Artifact Registry via Terraform, builds & pushes all 3 container images (`flights-search-app`, `conversational-app`, `frontend`) tagged with the Git commit SHA, deploys the Cloud Run v2 services (wiring the backend URLs into `frontend` at runtime), and runs post-deploy HTTP smoke checks:
+```bash
+# Deploy to Dev (travel-agent-511710)
+./deployment/deploy.sh dev
+
+# Deploy to Staging (travel-agent-staging-512211)
+./deployment/deploy.sh staging
+
+# Deploy to Production (travel-agent-prod-512211)
+./deployment/deploy.sh prod
+```
+
