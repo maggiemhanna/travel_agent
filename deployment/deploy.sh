@@ -54,11 +54,11 @@ echo "==========================================================================
 # 1. Ensure bootstrap prerequisites (state bucket & meta APIs) exist
 "${SCRIPT_DIR}/bootstrap.sh" "${ENV_NAME}"
 
-# 2. Select environment-specific pipeline config (staging.yaml, prod.yaml, or deploy.yaml)
+# 2. Select environment-specific pipeline config (dev.yaml, staging.yaml, or prod.yaml)
 case "${ENV_NAME}" in
+  dev)     CLOUDBUILD_CONFIG="${REPO_ROOT}/.cloudbuild/dev.yaml" ;;
   staging) CLOUDBUILD_CONFIG="${REPO_ROOT}/.cloudbuild/staging.yaml" ;;
   prod)    CLOUDBUILD_CONFIG="${REPO_ROOT}/.cloudbuild/prod.yaml" ;;
-  *)       CLOUDBUILD_CONFIG="${REPO_ROOT}/.cloudbuild/deploy.yaml" ;;
 esac
 
 # 3. Submit the CI/CD + Terraform + Cloud Run build to Cloud Build

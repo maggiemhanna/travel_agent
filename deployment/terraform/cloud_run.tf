@@ -2,11 +2,12 @@
 # 1. Flights Search Backend Service (flights-search-app)
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "flights_search" {
-  count    = var.deploy_cloud_run_services ? 1 : 0
-  project  = var.project_id
-  name     = "flights-search-app"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  count                = var.deploy_cloud_run_services ? 1 : 0
+  project              = var.project_id
+  name                 = "flights-search-app"
+  location             = var.region
+  ingress              = "INGRESS_TRAFFIC_ALL"
+  invoker_iam_disabled = var.allow_public_access
 
   template {
     service_account = google_service_account.agent_runtime.email
@@ -70,11 +71,12 @@ resource "google_cloud_run_v2_service" "flights_search" {
 # 2. Conversational Multi-Agent Workflow Service (conversational-app)
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "conversational" {
-  count    = var.deploy_cloud_run_services ? 1 : 0
-  project  = var.project_id
-  name     = "conversational-app"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  count                = var.deploy_cloud_run_services ? 1 : 0
+  project              = var.project_id
+  name                 = "conversational-app"
+  location             = var.region
+  ingress              = "INGRESS_TRAFFIC_ALL"
+  invoker_iam_disabled = var.allow_public_access
 
   template {
     service_account = google_service_account.agent_runtime.email
@@ -138,11 +140,12 @@ resource "google_cloud_run_v2_service" "conversational" {
 # 3. React + Nginx Frontend Service (frontend)
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "frontend" {
-  count    = var.deploy_cloud_run_services ? 1 : 0
-  project  = var.project_id
-  name     = "frontend"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  count                = var.deploy_cloud_run_services ? 1 : 0
+  project              = var.project_id
+  name                 = "frontend"
+  location             = var.region
+  ingress              = "INGRESS_TRAFFIC_ALL"
+  invoker_iam_disabled = var.allow_public_access
 
   template {
     scaling {
@@ -183,32 +186,3 @@ resource "google_cloud_run_v2_service" "frontend" {
   ]
 }
 
-# ------------------------------------------------------------------------------
-# 4. Public Invoker IAM Bindings
-# ------------------------------------------------------------------------------
-resource "google_cloud_run_v2_service_iam_member" "flights_search_public" {
-  count    = var.deploy_cloud_run_services && var.allow_public_access ? 1 : 0
-  project  = var.project_id
-  location = var.region
-  name     = google_cloud_run_v2_service.flights_search[0].name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
-
-resource "google_cloud_run_v2_service_iam_member" "conversational_public" {
-  count    = var.deploy_cloud_run_services && var.allow_public_access ? 1 : 0
-  project  = var.project_id
-  location = var.region
-  name     = google_cloud_run_v2_service.conversational[0].name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
-
-resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
-  count    = var.deploy_cloud_run_services && var.allow_public_access ? 1 : 0
-  project  = var.project_id
-  location = var.region
-  name     = google_cloud_run_v2_service.frontend[0].name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
