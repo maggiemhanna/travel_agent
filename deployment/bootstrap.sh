@@ -33,18 +33,14 @@ bootstrap_project() {
   echo "🚀 Bootstrapping [${ENV_NAME}] -> Project: ${PROJECT_ID} (Region: ${REGION})"
   echo "=============================================================================="
 
-  echo "1️⃣  Enabling required Google Cloud APIs in ${PROJECT_ID}..."
+  echo "1️⃣  Enabling bootstrap prerequisite APIs (for Terraform state & Cloud Build) in ${PROJECT_ID}..."
+  # Note: All application & runtime APIs (Cloud Run, Artifact Registry, Vertex AI, IAM, Logging, Trace)
+  # are managed declaratively by Terraform in deployment/terraform/apis.tf.
   gcloud services enable \
     serviceusage.googleapis.com \
     cloudresourcemanager.googleapis.com \
-    iam.googleapis.com \
-    run.googleapis.com \
-    artifactregistry.googleapis.com \
-    cloudbuild.googleapis.com \
-    aiplatform.googleapis.com \
-    logging.googleapis.com \
-    cloudtrace.googleapis.com \
     storage.googleapis.com \
+    cloudbuild.googleapis.com \
     --project="${PROJECT_ID}"
 
   echo "2️⃣  Ensuring Terraform remote state bucket gs://${TF_STATE_BUCKET} exists..."
