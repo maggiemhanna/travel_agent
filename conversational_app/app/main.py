@@ -2,6 +2,7 @@
 # All rights reserved.
 
 import json
+import os
 from typing import Any, Dict, List
 from uuid import uuid4
 
@@ -23,6 +24,12 @@ logger = setup_logging(name=__name__)
 # Load the environment variables before initializing the app
 load_dotenv()
 
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    if origin.strip()
+]
+
 # --- FastAPI Application ---
 api = FastAPI(
     title="Conversational Agent Service",
@@ -31,7 +38,7 @@ api = FastAPI(
 
 api.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -127,5 +134,7 @@ async def run_conversational(user_input: ConversationalInput) -> Dict[str, Any]:
 
 # --- Running the Server ---
 if __name__ == "__main__":
-    logger.info("Starting Uvicorn server...")
-    uvicorn.run(api, host="127.0.0.1", port=8001)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8001"))
+    logger.info(f"Starting Uvicorn server on {host}:{port}...")
+    uvicorn.run(api, host=host, port=port)

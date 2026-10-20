@@ -2,9 +2,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.venv/
 .node/
 .DS_Store
 conversational_app/**/*.env
 conversational_app/.env
 flights_search_app/**/*.env
 flights_search_app/.env
+frontend/.env
+frontend/.env.local
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl

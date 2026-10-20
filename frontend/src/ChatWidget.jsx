@@ -1,5 +1,9 @@
 import { useState } from 'react';
 
+const CONVERSATIONAL_API_URL = (
+  import.meta.env.VITE_CONVERSATIONAL_API_URL || 'http://127.0.0.1:8001'
+).replace(/\/$/, '');
+
 function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchFlights, setCurrentPage }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -36,7 +40,7 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
     };
 
     try {
-      const response = await fetch('http://127.0.0.1:8001/run-conversational', {
+      const response = await fetch(`${CONVERSATIONAL_API_URL}/run-conversational`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

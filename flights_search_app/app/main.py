@@ -2,12 +2,14 @@
 # All rights reserved.
 
 import json
+import os
 from typing import Any, Dict, List
 from uuid import uuid4
 
 from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -24,17 +26,21 @@ APP_NAME = "flights_search"
 # Load the environment variables before initializing the app
 load_dotenv()
 
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    if origin.strip()
+]
+
 # --- FastAPI Application ---
 api = FastAPI(
     title="Flights Search Agent Service",
     description="API for running the Flights Search Agent."
 )
 
-from fastapi.middleware.cors import CORSMiddleware
-
 api.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -124,5 +130,7 @@ async def run_flights_search(user_input: FlightsSearchInput) -> Dict[str, Any]:
 
 # --- Running the Server ---
 if __name__ == "__main__":
-    logger.info("Starting Uvicorn server...")
-    uvicorn.run(api, host="127.0.0.1", port=8000)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    logger.info(f"Starting Uvicorn server on {host}:{port}...")
+    uvicorn.run(api, host=host, port=port)

@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import ChatWidget from './ChatWidget';
 
+const FLIGHTS_SEARCH_API_URL = (
+  import.meta.env.VITE_FLIGHTS_SEARCH_API_URL || 'http://127.0.0.1:8000'
+).replace(/\/$/, '');
+
 const MAJOR_CITIES = [
   "Abu Dhabi", "Auckland", "Amsterdam", "Athens", "Atlanta",
   "Bangkok", "Barcelona", "Beijing", "Berlin", "Bogota", "Boston", "Brussels", "Buenos Aires",
@@ -63,7 +67,7 @@ function App() {
     };
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/run-flights-search', {
+      const response = await fetch(`${FLIGHTS_SEARCH_API_URL}/run-flights-search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
