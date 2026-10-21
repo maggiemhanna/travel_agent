@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
+from app.config import FILTER_SMART_HOST, FILTER_SMART_PORT, JSON_PARSER_BASE_URL
 from app.sub_agents.filter_smart.agent import filter_smart
 from app.sub_agents.filter_smart.schema import FilterSmartInput
 from app.app_utils.logging import format_dict_for_logs, setup_logging
@@ -22,11 +23,8 @@ logger = setup_logging(name=__name__)
 
 APP_NAME = "filter_smart"
 
-# Load the environment variables before initializing the app
-load_dotenv()
-
 def call_json_parser_api(api_inputs):
-    response = requests.post("http://127.0.0.1:8006/run-json-parser", json=api_inputs)
+    response = requests.post(f"{JSON_PARSER_BASE_URL}/run-json-parser", json=api_inputs)
     return response.json()
 
 
@@ -147,5 +145,5 @@ async def run_filter_smart(user_input: FilterSmartInput) -> Dict[str, Any]:
 
 # --- Running the Server ---
 if __name__ == "__main__":
-    logger.info("Starting Uvicorn server...")
-    uvicorn.run(api, host="127.0.0.1", port=8004)
+    logger.info(f"Starting Uvicorn server on {FILTER_SMART_HOST}:{FILTER_SMART_PORT}...")
+    uvicorn.run(api, host=FILTER_SMART_HOST, port=FILTER_SMART_PORT)

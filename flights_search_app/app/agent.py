@@ -7,6 +7,7 @@ from google.adk.models import Gemini
 from google.adk.planners import BuiltInPlanner
 from google.genai.types import HttpRetryOptions, ThinkingConfig
 
+from app.config import FLIGHTS_SEARCH_MODEL, GEMINI_MODEL_LOCATION
 from app.prompt import system_instruction
 from app.schema import FlightsSearchInput, FlightsSearchOutput
 
@@ -19,8 +20,8 @@ APP_NAME = "app"
 # Create the agent
 flights_search = Agent(
     model=Gemini(
-        model="gemini-3.5-flash-lite",
-        client_kwargs={"location": "global"},
+        model=FLIGHTS_SEARCH_MODEL,
+        client_kwargs={"location": GEMINI_MODEL_LOCATION},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(
             attempts=5,

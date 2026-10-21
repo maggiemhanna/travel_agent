@@ -8,6 +8,7 @@ from google.adk.planners import BuiltInPlanner
 from google.adk.tools import google_search
 from google.genai.types import HttpRetryOptions, ThinkingConfig
 
+from app.config import FILTER_SMART_MODEL, GEMINI_MODEL_LOCATION
 from app.sub_agents.filter_smart.prompt import system_instruction
 from app.sub_agents.filter_smart.schema import FilterSmartInput, FilterSmartOutput
 
@@ -20,8 +21,8 @@ APP_NAME = "conversational_app"
 # Create the agent
 filter_smart = Agent(
     model=Gemini(
-        model="gemini-3.5-flash-lite",
-        client_kwargs={"location": "global"},
+        model=FILTER_SMART_MODEL,
+        client_kwargs={"location": GEMINI_MODEL_LOCATION},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(
             attempts=5,

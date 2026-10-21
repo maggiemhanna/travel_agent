@@ -7,6 +7,7 @@ from google.adk.models import Gemini
 from google.adk.planners import BuiltInPlanner
 from google.genai.types import HttpRetryOptions, ThinkingConfig
 
+from app.config import GEMINI_MODEL_LOCATION, JSON_PARSER_MODEL
 from app.sub_agents.json_parser.prompt import system_instruction
 from app.sub_agents.json_parser.schema import JSONParserInput, JSONParserOutput
 
@@ -19,8 +20,8 @@ APP_NAME = "conversational_app"
 # Create the agent
 json_parser = Agent(
     model=Gemini(
-        model="gemini-3.5-flash-lite",
-        client_kwargs={"location": "global"},
+        model=JSON_PARSER_MODEL,
+        client_kwargs={"location": GEMINI_MODEL_LOCATION},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(
             attempts=5,

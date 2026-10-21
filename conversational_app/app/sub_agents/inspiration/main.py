@@ -114,5 +114,7 @@ async def run_inspiration(user_input: InspirationInput) -> Dict[str, Any]:
 
 # --- Running the Server ---
 if __name__ == "__main__":
-    logger.info("Starting Uvicorn server...")
-    uvicorn.run(api, host="127.0.0.1", port=8005)
+    from app.config import INSPIRATION_HOST, INSPIRATION_PORT
+
+    logger.info(f"Starting Uvicorn server on {INSPIRATION_HOST}:{INSPIRATION_PORT}...")
+    uvicorn.run(api, host=INSPIRATION_HOST, port=INSPIRATION_PORT)

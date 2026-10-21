@@ -114,5 +114,7 @@ async def run_filter(user_input: FilterInput) -> Dict[str, Any]:
 
 # --- Running the Server ---
 if __name__ == "__main__":
-    logger.info("Starting Uvicorn server...")
-    uvicorn.run(api, host="127.0.0.1", port=8003)
+    from app.config import FILTER_HOST, FILTER_PORT
+
+    logger.info(f"Starting Uvicorn server on {FILTER_HOST}:{FILTER_PORT}...")
+    uvicorn.run(api, host=FILTER_HOST, port=FILTER_PORT)

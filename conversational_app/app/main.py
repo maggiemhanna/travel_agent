@@ -15,20 +15,12 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 from app.agent import APP_NAME, conversational
+from app.config import ALLOWED_ORIGINS, HOST, PORT
 from app.schema import ConversationalInput
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 
 # --- Configuration & Setup ---
 logger = setup_logging(name=__name__)
-
-# Load the environment variables before initializing the app
-load_dotenv()
-
-ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",")
-    if origin.strip()
-]
 
 # --- FastAPI Application ---
 api = FastAPI(
@@ -134,7 +126,5 @@ async def run_conversational(user_input: ConversationalInput) -> Dict[str, Any]:
 
 # --- Running the Server ---
 if __name__ == "__main__":
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8001"))
-    logger.info(f"Starting Uvicorn server on {host}:{port}...")
-    uvicorn.run(api, host=host, port=port)
+    logger.info(f"Starting Uvicorn server on {HOST}:{PORT}...")
+    uvicorn.run(api, host=HOST, port=PORT)

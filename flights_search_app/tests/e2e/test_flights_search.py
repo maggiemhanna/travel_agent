@@ -4,10 +4,10 @@ import sys
 import requests
 
 from app.app_utils.logging import format_dict_for_logs, setup_logging
+from app.config import FLIGHTS_SEARCH_BASE_URL as BASE_URL
 
 logger = setup_logging(name=__name__)
 
-BASE_URL = os.getenv("FLIGHTS_SEARCH_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 FIXTURES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures", "flights_search.json")
 
 

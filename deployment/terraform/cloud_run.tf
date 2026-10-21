@@ -55,6 +55,14 @@ resource "google_cloud_run_v2_service" "flights_search" {
         value = "false"
       }
       env {
+        name  = "FLIGHTS_SEARCH_MODEL"
+        value = var.flights_search_model
+      }
+      env {
+        name  = "GEMINI_MODEL_LOCATION"
+        value = var.gemini_model_location
+      }
+      env {
         name  = "ALLOWED_ORIGINS"
         value = var.allowed_origins
       }
@@ -123,6 +131,14 @@ resource "google_cloud_run_v2_service" "conversational" {
       env {
         name  = "GOOGLE_API_USE_CLIENT_CERTIFICATE"
         value = "false"
+      }
+      env {
+        name  = "CONVERSATIONAL_MODEL"
+        value = var.conversational_model
+      }
+      env {
+        name  = "GEMINI_MODEL_LOCATION"
+        value = var.gemini_model_location
       }
       env {
         name  = "ALLOWED_ORIGINS"

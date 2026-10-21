@@ -114,5 +114,7 @@ async def run_json_parser(user_input: JSONParserInput) -> Dict[str, Any]:
 
 # --- Running the Server ---
 if __name__ == "__main__":
-    logger.info("Starting Uvicorn server...")
-    uvicorn.run(api, host="127.0.0.1", port=8006)
+    from app.config import JSON_PARSER_HOST, JSON_PARSER_PORT
+
+    logger.info(f"Starting Uvicorn server on {JSON_PARSER_HOST}:{JSON_PARSER_PORT}...")
+    uvicorn.run(api, host=JSON_PARSER_HOST, port=JSON_PARSER_PORT)

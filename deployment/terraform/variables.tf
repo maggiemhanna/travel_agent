@@ -30,6 +30,24 @@ variable "image_tag" {
   default     = "latest"
 }
 
+variable "flights_search_model" {
+  description = "Gemini model ID injected into flights-search-app at runtime."
+  type        = string
+  default     = "gemini-3.5-flash-lite"
+}
+
+variable "conversational_model" {
+  description = "Default Gemini model ID injected into conversational-app sub-agents at runtime."
+  type        = string
+  default     = "gemini-3.5-flash-lite"
+}
+
+variable "gemini_model_location" {
+  description = "Vertex AI model endpoint location for Gemini inference (e.g., global or europe-west9)."
+  type        = string
+  default     = "global"
+}
+
 variable "deploy_cloud_run_services" {
   description = "Whether to provision Cloud Run services. Set to false on initial bootstrap before Docker images are pushed, then true."
   type        = bool

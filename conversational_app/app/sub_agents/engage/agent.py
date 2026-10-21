@@ -7,6 +7,7 @@ from google.adk.models import Gemini
 from google.adk.planners import BuiltInPlanner
 from google.genai.types import HttpRetryOptions, ThinkingConfig
 
+from app.config import ENGAGE_MODEL, GEMINI_MODEL_LOCATION
 from app.sub_agents.engage.prompt import system_instruction
 from app.sub_agents.engage.schema import EngageInput, EngageOutput
 
@@ -19,8 +20,8 @@ APP_NAME = "conversational_app"
 # Create the agent
 engage = Agent(
     model=Gemini(
-        model="gemini-3.5-flash-lite",
-        client_kwargs={"location": "global"},
+        model=ENGAGE_MODEL,
+        client_kwargs={"location": GEMINI_MODEL_LOCATION},
         use_interactions_api=False,
         retry_options=HttpRetryOptions(
             attempts=5,

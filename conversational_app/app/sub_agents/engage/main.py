@@ -114,5 +114,7 @@ async def run_engage(user_input: EngageInput) -> Dict[str, Any]:
 
 # --- Running the Server ---
 if __name__ == "__main__":
-    logger.info("Starting Uvicorn server...")
-    uvicorn.run(api, host="127.0.0.1", port=8002)
+    from app.config import ENGAGE_HOST, ENGAGE_PORT
+
+    logger.info(f"Starting Uvicorn server on {ENGAGE_HOST}:{ENGAGE_PORT}...")
+    uvicorn.run(api, host=ENGAGE_HOST, port=ENGAGE_PORT)
