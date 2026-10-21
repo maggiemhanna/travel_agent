@@ -1,31 +1,25 @@
-# ✈️ Flights Search Agent Application (`flights_search_app`)
+# ✈️ Flights Search Agent Service (`flights_search_app`)
 
-The **Flights Search Agent** is a standalone application built with **Google ADK (Agent Development Kit)** and **FastAPI** (running on port **`8000`**). It acts as a realistic **Global Flight Data Simulator**, generating high-fidelity flight search results based on user-provided travel criteria (origin, destination, dates, passengers, and budget/stop filters).
+The **Flights Search Agent Service** is an independent microservice built with **Google ADK (Agent Development Kit v2)** and **FastAPI** (default local port **`8000`**, Cloud Run port **`8080`**). It acts as a high-fidelity **Global Flight Data Simulator**, generating realistic airline itineraries from structured user search criteria (`origin`, `destination`, `departure_date`, `return_date`, `passengers`, and optional `filters`).
 
 ---
 
-## 🌟 How the Agent & Backend Work
+## 🌟 Architecture & Design Highlights
 
-### 1. The Agent Architecture (`Google ADK` + `Gemini 2.5 Flash Lite`)
-- **Role:** Acts as a mock flight search engine / simulator producing realistic airline itineraries across budget, standard, and premium carriers.
-- **Model:** Powered by Google's `gemini-2.5-flash-lite` through `google-adk`.
-- **Planner & Performance:** Configured with `BuiltInPlanner` with thinking disabled (`thinking_budget=0`) for maximum speed, minimal latency, and consistent structured output.
-- **Simulation Rules & Temporal Logic:**
-  - Generates exactly 15 diverse flight options per query.
-  - Accounts for flight duration, time zones, and overnight flights (marking next-day arrivals with `+1` or `+2`).
-  - Uses realistic IATA flight numbers, route-appropriate airlines, and multiple city airport codes (e.g., LHR, LGW, STN for London; CDG, ORY for Paris).
-  - Strictly adheres to filter criteria such as `max_price`, `max_stops`, or `direct` only.
-- **Data Contracts:** Input and output data formats are enforced using **Pydantic** models (`FlightsSearchInput` and `FlightsSearchOutput`).
+### 1. ADK Agent & Externalized Model Configuration
+- **Externalized Model Selection ([`app/config.py`](app/config.py)):** Uses `FLIGHTS_SEARCH_MODEL` (falling back to `GEMINI_MODEL`, default `gemini-3.5-flash-lite`) and `GEMINI_MODEL_LOCATION` (default `global`). Models can be swapped per environment via `.env` or Terraform `.tfvars` with zero code changes.
+- **Low-Latency Structured Execution ([`app/agent.py`](app/agent.py)):** Configured with `BuiltInPlanner(thinking_config=ThinkingConfig(include_thoughts=False, thinking_budget=0))` and `include_contents='none'` for fast, deterministic structured output.
+- **Resilience & Retry Policy:** Configures `HttpRetryOptions` with **5 attempts** and exponential backoff (`5.0s` initial delay, `2.0x` multiplier, `60.0s` max delay) on transient HTTP errors (`408, 429, 500, 502, 503, 504`).
+- **Simulation Rules ([`app/prompt.py`](app/prompt.py)):**
+  - Generates 15 realistic flight options per query across budget, standard, and flagship carriers.
+  - Obeys route duration, timezone shifts, overnight arrival offsets (`+1` / `+2`), and real multi-airport city codes (e.g., `CDG`/`ORY`, `JFK`/`EWR`, `LHR`/`LGW`).
+  - Strictly enforces requested `direct`, `max_price`, and `max_stops` constraints.
+- **Strict Pydantic Contracts ([`app/schema.py`](app/schema.py)):** Validates incoming requests via `FlightsSearchInput` (returning `422 Unprocessable Entity` on invalid payloads) and enforces agent output structure via `FlightsSearchOutput`.
 
-### 2. The FastAPI Backend Architecture
-- **Framework:** FastAPI with Uvicorn ASGI server running on port **`8000`**.
-- **Environment Setup:** Loads environment settings (such as `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION`) from [`.env`](.env) on startup using `python-dotenv`.
-- **CORS:** Configured to allow cross-origin requests from the React frontend.
-- **Per-Request Session Isolation:**
-  - For each incoming request, a unique `session_id` and `user_id` are generated using `uuid4()`.
-  - An `InMemorySessionService` is instantiated with the initial state containing the user's search parameters.
-  - An ADK `Runner` executes the agent with the prompt `"Follow the system instructions."` in debug mode.
-  - The model's response parts are extracted and parsed into JSON.
+### 2. FastAPI Runtime & Cloud-Native Packaging
+- **Stateless Per-Request Isolation ([`app/main.py`](app/main.py)):** Generates an isolated `InMemorySessionService` and unique `session_id` / `user_id` (`uuid4()`) per HTTP request, with safe fallback handling if non-JSON text is returned.
+- **Configurable Server & CORS:** Reads `HOST`, `PORT`, and comma-separated `ALLOWED_ORIGINS` from [`app/config.py`](app/config.py).
+- **Hardened Container ([`Dockerfile`](Dockerfile)):** Uses `python:3.11-slim`, runs under an unprivileged `appuser` (`UID 1000`), and executes on Cloud Run under the least-privilege `travel-agent-runtime` Service Account (`roles/aiplatform.user`, `roles/logging.logWriter`, `roles/cloudtrace.agent`).
 
 ---
 
@@ -35,26 +29,53 @@ The **Flights Search Agent** is a standalone application built with **Google ADK
 flights_search_app/
 ├── app/
 │   ├── __init__.py
-│   ├── agent.py             # ADK Agent & App instantiation (gemini-2.5-flash-lite)
-│   ├── main.py              # FastAPI backend & Uvicorn entrypoint (Port 8000)
-│   ├── prompt.py            # System instruction prompt & simulation rules
-│   ├── schema.py            # Pydantic models (Filters, FlightsSearchInput, Flight, FlightsSearchOutput)
-│   └── app_utils/           # Shared logging and formatting utilities
+│   ├── agent.py             # ADK Agent & App definition (reads model from app/config.py)
+│   ├── config.py            # Centralized env configuration (models, host/port, URLs, CORS)
+│   ├── main.py              # FastAPI server, CORS middleware & ADK Runner execution
+│   ├── prompt.py            # System instruction prompt & flight simulation rules
+│   ├── schema.py            # Pydantic contracts (Filters, FlightsSearchInput, Flight, FlightsSearchOutput)
+│   └── app_utils/           # Structured logging & log formatting helpers
 ├── tests/
-│   ├── fixtures/            # Sample JSON payloads (flights_search.json)
-│   ├── unit/                # Offline unit tests (mocked ADK Runner)
-│   ├── integration/         # In-process integration tests (real Gemini calls via TestClient)
-│   └── e2e/                 # Live HTTP microservice tests against localhost:8000
-├── .env                     # Environment variables (GOOGLE_CLOUD_PROJECT, etc.)
-├── pyproject.toml           # Package metadata & pytest configuration
-└── requirements.txt         # Python dependencies
+│   ├── fixtures/            # Sample test payloads (flights_search.json)
+│   ├── unit/                # Fast offline health & Pydantic schema validation tests
+│   ├── integration/         # In-process FastAPI TestClient tests with live Gemini calls
+│   └── e2e/                 # Live HTTP client tests (configurable via FLIGHTS_SEARCH_BASE_URL)
+├── Dockerfile               # Production non-root container image definition
+├── .dockerignore            # Excludes local caches/tests from container build context
+├── .env.example             # Template environment & model variables
+├── pyproject.toml           # Project metadata & pytest configuration
+└── requirements.txt         # Pinned runtime Python dependencies
 ```
 
 ---
 
-## 📊 Data Schemas
+## ⚙️ Configuration Variables (`.env` / Cloud Run)
 
-### Request Model: `FlightsSearchInput`
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `GOOGLE_GENAI_USE_VERTEXAI` | `1` | Enables Vertex AI authentication via Application Default Credentials (ADC). |
+| `GOOGLE_CLOUD_PROJECT` | `travel-agent-511710` | Target GCP Project ID for Vertex AI inference. |
+| `GOOGLE_CLOUD_LOCATION` | `europe-west9` | Primary GCP region. |
+| `FLIGHTS_SEARCH_MODEL` | `GEMINI_MODEL` (`gemini-3.5-flash-lite`) | Gemini model ID used by the `flights_search` agent. |
+| `GEMINI_MODEL_LOCATION` | `global` | Vertex AI model endpoint location passed to `Gemini(client_kwargs=...)`. |
+| `HOST` / `PORT` | `0.0.0.0` / `8000` | Bind address and port for Uvicorn (`8080` on Cloud Run). |
+| `FLIGHTS_SEARCH_BASE_URL` | `http://127.0.0.1:8000` | Target service URL used by `tests/e2e/test_flights_search.py`. |
+| `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed CORS browser origins. |
+
+---
+
+## 🔌 API Reference
+
+### 1. Health Check — `GET /`
+```json
+{
+  "message": "Flights Search Agent Service is running. Use the /run-flights-search endpoint via POST."
+}
+```
+
+### 2. Search Flights — `POST /run-flights-search`
+
+**Request (`FlightsSearchInput`):**
 ```json
 {
   "origin": "Paris",
@@ -70,7 +91,7 @@ flights_search_app/
 }
 ```
 
-### Response Model: `FlightsSearchOutput` (Envelope)
+**Response (`FlightsSearchOutput` Envelope):**
 ```json
 {
   "status": "success",
@@ -100,87 +121,47 @@ flights_search_app/
 
 ---
 
-## 🔌 API Endpoints
-
-### 1. Health Check
-- **Method:** `GET`
-- **Path:** `/`
-- **Response:**
-  ```json
-  {
-    "message": "Flights Search Agent Service is running. Use the /run-flights-search endpoint via POST."
-  }
-  ```
-
-### 2. Run Flight Search
-- **Method:** `POST`
-- **Path:** `/run-flights-search`
-- **Headers:** `Content-Type: application/json`
-- **Body:** `FlightsSearchInput`
-- **Example cURL:**
-  ```bash
-  curl -X POST "http://localhost:8000/run-flights-search" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "origin": "Paris",
-      "destination": "New York",
-      "departure_date": "2026-05-10",
-      "return_date": "2026-05-20",
-      "passengers": 1,
-      "filters": {
-        "max_price": 900,
-        "max_stops": 1
-      }
-    }'
-  ```
-
----
-
 ## 🚀 Running Locally
 
-### 1. Environment Configuration (`.env`)
-Ensure `flights_search_app/.env` is configured:
-```dotenv
-GOOGLE_CLOUD_PROJECT=travel-agent-511710
-GOOGLE_CLOUD_LOCATION=europe-west9
-GOOGLE_GENAI_USE_VERTEXAI=TRUE
-```
-
-### 2. Installation
-From `flights_search_app/`:
 ```bash
+cd flights_search_app
+cp -n .env.example .env
 pip install -r requirements.txt
-```
 
-### 3. Start the Service (Port `8000`)
-From `flights_search_app/`:
-```bash
+# Start FastAPI + Uvicorn on port 8000
 python3 -m app.main
 ```
-Or via Uvicorn:
+
+Example request:
 ```bash
-uvicorn app.main:api --host 127.0.0.1 --port 8000 --reload
+curl -X POST "http://127.0.0.1:8000/run-flights-search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "Paris",
+    "destination": "New York",
+    "departure_date": "2026-05-10",
+    "return_date": "2026-05-20",
+    "passengers": 1,
+    "filters": {"max_price": 900, "max_stops": 1}
+  }'
 ```
 
 ---
 
 ## 🧪 Testing
 
-Run the test suite from `flights_search_app/` using `pytest` or by invoking individual test modules directly:
+Run from `flights_search_app/`:
 
 ```bash
-# Run all tests (unit, integration, e2e)
-python3 -m pytest -v -s
-
-# 1. Unit tests (offline, mocked LLM)
+# 1. Unit tests (fast, offline health check + Pydantic schema & 422 validation)
 python3 -m pytest tests/unit -v -s
-python3 -m tests.unit.test_flights_search
 
-# 2. Integration tests (in-process TestClient with real Gemini calls)
+# 2. Integration tests (in-process TestClient with live Gemini calls)
 python3 -m pytest tests/integration -v -s
-python3 -m tests.integration.test_flights_search
 
-# 3. End-to-End tests (requires server running on localhost:8000)
+# 3. End-to-End tests against local server (http://127.0.0.1:8000)
 python3 -m pytest tests/e2e -v -s
-python3 -m tests.e2e.test_flights_search
+
+# 4. End-to-End tests against a deployed Cloud Run environment
+FLIGHTS_SEARCH_BASE_URL="https://flights-search-app-5tqnsbwara-od.a.run.app" python3 -m pytest tests/e2e -v -s
 ```
