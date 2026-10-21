@@ -5,12 +5,13 @@
 
 # 1. PR Checks Trigger (runs on Pull Requests targeting `main` in dev/staging)
 resource "google_cloudbuild_trigger" "pr_checks" {
-  count       = var.enable_cloudbuild_triggers && var.environment != "prod" ? 1 : 0
-  project     = var.project_id
-  location    = var.region
-  name        = "travel-agent-pr-checks"
-  description = "Run unit tests, frontend build, and Terraform validation on Pull Requests to main"
-  filename    = ".cloudbuild/pr_checks.yaml"
+  count           = var.enable_cloudbuild_triggers && var.environment != "prod" ? 1 : 0
+  project         = var.project_id
+  location        = var.region
+  name            = "travel-agent-pr-checks"
+  description     = "Run unit tests, frontend build, and Terraform validation on Pull Requests to main"
+  filename        = ".cloudbuild/pr_checks.yaml"
+  service_account = "projects/${var.project_id}/serviceAccounts/${data.google_service_account.cicd_runner.email}"
 
   github {
     owner = var.github_owner
@@ -25,12 +26,13 @@ resource "google_cloudbuild_trigger" "pr_checks" {
 
 # 2. CD Staging Trigger (runs automatically on push/merge to `main` in staging project)
 resource "google_cloudbuild_trigger" "cd_staging" {
-  count       = var.enable_cloudbuild_triggers && var.environment == "staging" ? 1 : 0
-  project     = var.project_id
-  location    = var.region
-  name        = "travel-agent-cd-staging"
-  description = "Continuous Deployment to Staging on merge to main"
-  filename    = ".cloudbuild/staging.yaml"
+  count           = var.enable_cloudbuild_triggers && var.environment == "staging" ? 1 : 0
+  project         = var.project_id
+  location        = var.region
+  name            = "travel-agent-cd-staging"
+  description     = "Continuous Deployment to Staging on merge to main"
+  filename        = ".cloudbuild/staging.yaml"
+  service_account = "projects/${var.project_id}/serviceAccounts/${data.google_service_account.cicd_runner.email}"
 
   github {
     owner = var.github_owner
@@ -45,12 +47,13 @@ resource "google_cloudbuild_trigger" "cd_staging" {
 
 # 3. CD Production Trigger (runs on `v*` Git tag with manual approval gate in prod project)
 resource "google_cloudbuild_trigger" "cd_prod" {
-  count       = var.enable_cloudbuild_triggers && var.environment == "prod" ? 1 : 0
-  project     = var.project_id
-  location    = var.region
-  name        = "travel-agent-cd-prod"
-  description = "Production release pipeline triggered on v* tag with manual approval gate"
-  filename    = ".cloudbuild/prod.yaml"
+  count           = var.enable_cloudbuild_triggers && var.environment == "prod" ? 1 : 0
+  project         = var.project_id
+  location        = var.region
+  name            = "travel-agent-cd-prod"
+  description     = "Production release pipeline triggered on v* tag with manual approval gate"
+  filename        = ".cloudbuild/prod.yaml"
+  service_account = "projects/${var.project_id}/serviceAccounts/${data.google_service_account.cicd_runner.email}"
 
   approval_config {
     approval_required = true

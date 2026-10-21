@@ -204,6 +204,15 @@ The platform uses **Terraform** ([`deployment/terraform/`](deployment/terraform/
 | **Staging** | `travel-agent-staging-512211` | [`envs/staging.tfvars`](deployment/terraform/envs/staging.tfvars) | [`.cloudbuild/staging.yaml`](.cloudbuild/staging.yaml) | `0` / `10` |
 | **Prod** | `travel-agent-prod-512211` | [`envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars) | [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml) | `1` / `20` |
 
+### Least-Privilege Service Account Separation
+Zero extra permissions are granted to Google's built-in Cloud Build or default Compute Engine service accounts. Instead, each environment uses three dedicated custom Service Accounts:
+
+| Service Account | Provisioned By | Attached To | Granted Roles |
+| :--- | :--- | :--- | :--- |
+| `travel-agent-cicd` | [`deployment/bootstrap.sh`](deployment/bootstrap.sh) | Cloud Build pipelines & Git triggers | CI/CD & Terraform deployment roles (`run.admin`, `artifactregistry.admin`, `serviceAccountAdmin`, `projectIamAdmin`, `serviceUsageAdmin`, `storage.admin`, `logging.logWriter`) |
+| `travel-agent-runtime` | [`deployment/terraform/iam.tf`](deployment/terraform/iam.tf) | `flights-search-app`, `conversational-app` | `aiplatform.user` (Gemini / Vertex AI), `logging.logWriter`, `cloudtrace.agent` |
+| `travel-agent-frontend` | [`deployment/terraform/iam.tf`](deployment/terraform/iam.tf) | `frontend` | `logging.logWriter` only (**no** Vertex AI or admin access) |
+
 ### 1. Run CI Pull Request Checks
 Validates backend unit tests (`pytest tests/unit`), frontend production build (`npm ci && npm run build`), and Terraform formatting/schema (`terraform fmt -check && terraform validate`):
 ```bash
@@ -211,7 +220,7 @@ Validates backend unit tests (`pytest tests/unit`), frontend production build (`
 ```
 
 ### 2. Deploy to `dev`, `staging`, or `prod`
-Each deployment automatically bootstraps the remote Terraform state bucket (`gs://<PROJECT_ID>-tfstate`), runs unit tests, provisions APIs/IAM/Artifact Registry via Terraform, builds & pushes all 3 container images (`flights-search-app`, `conversational-app`, `frontend`) tagged with the Git commit SHA, deploys the Cloud Run v2 services (wiring the backend URLs into `frontend` at runtime), and runs post-deploy HTTP smoke checks:
+Each deployment automatically bootstraps the remote Terraform state bucket (`gs://<PROJECT_ID>-tfstate`) and dedicated `travel-agent-cicd` Service Account (while stripping any legacy CI/CD roles from built-in Google SAs), runs unit tests, provisions APIs/IAM/Artifact Registry via Terraform, builds & pushes all 3 container images (`flights-search-app`, `conversational-app`, `frontend`) tagged with the Git commit SHA, deploys the Cloud Run v2 services (wiring the backend URLs into `frontend` at runtime), and runs post-deploy HTTP smoke checks:
 ```bash
 # Deploy to Dev (travel-agent-511710)
 ./deployment/deploy.sh dev

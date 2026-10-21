@@ -54,9 +54,10 @@ steps:
           -target=google_artifact_registry_repository.docker_repo \
           -target=google_service_account.agent_runtime \
           -target=google_project_iam_member.agent_runtime_roles \
-          -target=google_service_account.cicd_runner \
-          -target=google_project_iam_member.cicd_runner_roles \
-          -target=google_service_account_iam_member.cicd_act_as_runtime
+          -target=google_service_account.frontend_runtime \
+          -target=google_project_iam_member.frontend_runtime_roles \
+          -target=google_service_account_iam_member.cicd_act_as_runtime \
+          -target=google_service_account_iam_member.cicd_act_as_frontend
 
   # ----------------------------------------------------------------------------
   # Step 3a: Build & Push flights-search-app Image

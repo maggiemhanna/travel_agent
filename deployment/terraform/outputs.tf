@@ -14,13 +14,18 @@ output "artifact_registry_repo" {
 }
 
 output "runtime_service_account_email" {
-  description = "Email of the least-privilege Cloud Run runtime Service Account."
+  description = "Email of the least-privilege Backend Cloud Run runtime Service Account."
   value       = google_service_account.agent_runtime.email
 }
 
+output "frontend_service_account_email" {
+  description = "Email of the least-privilege Frontend Cloud Run runtime Service Account."
+  value       = google_service_account.frontend_runtime.email
+}
+
 output "cicd_service_account_email" {
-  description = "Email of the Cloud Build CI/CD Service Account."
-  value       = google_service_account.cicd_runner.email
+  description = "Email of the dedicated Cloud Build CI/CD Service Account."
+  value       = data.google_service_account.cicd_runner.email
 }
 
 output "flights_search_url" {

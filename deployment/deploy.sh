@@ -30,17 +30,20 @@ ACTION="${1:-dev}"
 if [[ "${ACTION}" == "pr-check" ]]; then
   ENV_NAME="${2:-dev}"
   PROJECT_ID="$(get_project_id "${ENV_NAME}")"
+  CICD_SA_RESOURCE="projects/${PROJECT_ID}/serviceAccounts/travel-agent-cicd@${PROJECT_ID}.iam.gserviceaccount.com"
   "${SCRIPT_DIR}/bootstrap.sh" "${ENV_NAME}"
-  echo "🧪 Running CI PR Checks in project ${PROJECT_ID}..."
+  echo "🧪 Running CI PR Checks in project ${PROJECT_ID} (as travel-agent-cicd)..."
   gcloud builds submit "${REPO_ROOT}" \
     --project="${PROJECT_ID}" \
     --region="${REGION}" \
+    --service-account="${CICD_SA_RESOURCE}" \
     --config="${REPO_ROOT}/.cloudbuild/pr_checks.yaml"
   exit 0
 fi
 
 ENV_NAME="${ACTION}"
 PROJECT_ID="$(get_project_id "${ENV_NAME}")"
+CICD_SA_RESOURCE="projects/${PROJECT_ID}/serviceAccounts/travel-agent-cicd@${PROJECT_ID}.iam.gserviceaccount.com"
 IMAGE_TAG="${IMAGE_TAG:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD)}"
 
 echo "=============================================================================="
@@ -48,10 +51,11 @@ echo "🚢 Deploying Travel Agent Platform"
 echo "   Environment : ${ENV_NAME}"
 echo "   GCP Project : ${PROJECT_ID}"
 echo "   Region      : ${REGION}"
+echo "   CI/CD SA    : travel-agent-cicd@${PROJECT_ID}.iam.gserviceaccount.com"
 echo "   Image Tag   : ${IMAGE_TAG}"
 echo "=============================================================================="
 
-# 1. Ensure bootstrap prerequisites (state bucket & meta APIs) exist
+# 1. Ensure bootstrap prerequisites (state bucket, meta APIs & travel-agent-cicd SA) exist
 "${SCRIPT_DIR}/bootstrap.sh" "${ENV_NAME}"
 
 # 2. Select environment-specific pipeline config (dev.yaml, staging.yaml, or prod.yaml)
@@ -61,10 +65,12 @@ case "${ENV_NAME}" in
   prod)    CLOUDBUILD_CONFIG="${REPO_ROOT}/.cloudbuild/prod.yaml" ;;
 esac
 
-# 3. Submit the CI/CD + Terraform + Cloud Run build to Cloud Build
+# 3. Submit the CI/CD + Terraform + Cloud Run build using dedicated travel-agent-cicd SA
 gcloud builds submit "${REPO_ROOT}" \
   --project="${PROJECT_ID}" \
   --region="${REGION}" \
+  --service-account="${CICD_SA_RESOURCE}" \
   --config="${CLOUDBUILD_CONFIG}" \
   --substitutions="_ENV=${ENV_NAME},_REGION=${REGION},_IMAGE_TAG=${IMAGE_TAG}"
+
 

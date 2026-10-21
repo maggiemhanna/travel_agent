@@ -151,6 +151,8 @@ resource "google_cloud_run_v2_service" "frontend" {
   deletion_protection  = var.environment == "prod"
 
   template {
+    service_account = google_service_account.frontend_runtime.email
+
     scaling {
       min_instance_count = var.min_instances
       max_instance_count = var.max_instances
@@ -186,6 +188,8 @@ resource "google_cloud_run_v2_service" "frontend" {
   depends_on = [
     google_cloud_run_v2_service.flights_search,
     google_cloud_run_v2_service.conversational,
+    google_project_iam_member.frontend_runtime_roles,
+    google_service_account_iam_member.cicd_act_as_frontend,
   ]
 }
 
