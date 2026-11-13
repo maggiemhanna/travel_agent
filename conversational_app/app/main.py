@@ -15,12 +15,24 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 from app.agent import APP_NAME, app, conversational
-from app.config import ALLOWED_ORIGINS, HOST, PORT
+from app.config import (
+    ALLOWED_ORIGINS,
+    ENGAGE_MODEL,
+    FILTER_MODEL,
+    FILTER_SMART_MODEL,
+    HOST,
+    INSPIRATION_MODEL,
+    JSON_PARSER_MODEL,
+    PORT,
+)
 from app.schema import ConversationalInput
+from app.app_utils.health import build_liveness_payload, evaluate_readiness
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 
 # --- Configuration & Setup ---
 logger = setup_logging(name=__name__)
+
+SERVICE_NAME = "conversational-app"
 
 # --- FastAPI Application ---
 api = FastAPI(
@@ -39,6 +51,26 @@ api.add_middleware(
 @api.get("/", tags=["Health"])
 async def root() -> Dict[str, str]:
     return {"message": "Conversational Agent Service is running. Use the /run-conversational endpoint via POST."}
+
+@api.get("/healthz", tags=["Health"])
+async def healthz() -> Dict[str, str]:
+    """Cloud Run liveness probe endpoint."""
+    return build_liveness_payload(SERVICE_NAME)
+
+@api.get("/readyz", tags=["Health"])
+async def readyz():
+    """Cloud Run startup/readiness probe endpoint."""
+    return evaluate_readiness(
+        service_name=SERVICE_NAME,
+        adk_app=app,
+        models={
+            "engage": ENGAGE_MODEL,
+            "filter": FILTER_MODEL,
+            "filter_smart": FILTER_SMART_MODEL,
+            "inspiration": INSPIRATION_MODEL,
+            "json_parser": JSON_PARSER_MODEL,
+        },
+    )
 
 # --- Core Agent Logic ---
 async def setup_session_and_runner(session_id: str, user_id: str, initial_state: dict):

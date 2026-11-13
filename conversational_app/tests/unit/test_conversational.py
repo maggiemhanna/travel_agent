@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from types import SimpleNamespace
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from google.adk.models.llm_response import LlmResponse
 from google.genai import types as genai_types
@@ -12,6 +13,11 @@ from app.app_utils.logging import format_dict_for_logs, setup_logging
 from app.app_utils.telemetry_plugin import ExecutionTelemetryPlugin, build_plugins
 from app.main import api, setup_session_and_runner
 from app.schema import ConversationalInput
+from app.sub_agents.engage.main import api as engage_api
+from app.sub_agents.filter.main import api as filter_api
+from app.sub_agents.filter_smart.main import api as filter_smart_api
+from app.sub_agents.inspiration.main import api as inspiration_api
+from app.sub_agents.json_parser.main import api as json_parser_api
 
 logger = setup_logging(name=__name__)
 
@@ -24,6 +30,61 @@ def test_root_endpoint():
         response = client.get("/")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
         assert response.json() == {"message": "Conversational Agent Service is running. Use the /run-conversational endpoint via POST."}
+
+
+def test_healthz_and_readyz_endpoints():
+    """Test /healthz and /readyz on main orchestrator and all 5 standalone sub-agent APIs."""
+    valid_env = {
+        "GOOGLE_GENAI_USE_VERTEXAI": "1",
+        "GOOGLE_CLOUD_PROJECT": "travel-agent-test",
+        "GOOGLE_CLOUD_LOCATION": "europe-west9",
+    }
+    invalid_env = {
+        "GOOGLE_GENAI_USE_VERTEXAI": "1",
+        "GOOGLE_CLOUD_PROJECT": "",
+        "GOOGLE_CLOUD_LOCATION": "europe-west9",
+    }
+
+    with TestClient(api) as client:
+        health_resp = client.get("/healthz")
+        assert health_resp.status_code == 200
+        assert health_resp.json() == {"status": "ok", "service": "conversational-app"}
+
+        with patch.dict(os.environ, valid_env, clear=False):
+            ready_resp = client.get("/readyz")
+            assert ready_resp.status_code == 200
+            body = ready_resp.json()
+            assert body["status"] == "ready"
+            assert body["service"] == "conversational-app"
+            assert set(body["models"].keys()) == {
+                "engage",
+                "filter",
+                "filter_smart",
+                "inspiration",
+                "json_parser",
+            }
+
+        with patch.dict(os.environ, invalid_env, clear=False):
+            unready_resp = client.get("/readyz")
+            assert unready_resp.status_code == 503
+            assert unready_resp.json()["status"] == "not_ready"
+
+    for expected_name, sub_api in [
+        ("engage", engage_api),
+        ("filter", filter_api),
+        ("filter_smart", filter_smart_api),
+        ("inspiration", inspiration_api),
+        ("json_parser", json_parser_api),
+    ]:
+        with TestClient(sub_api) as sub_client:
+            assert sub_client.get("/healthz").json() == {
+                "status": "ok",
+                "service": expected_name,
+            }
+            with patch.dict(os.environ, valid_env, clear=False):
+                assert sub_client.get("/readyz").status_code == 200
+            with patch.dict(os.environ, invalid_env, clear=False):
+                assert sub_client.get("/readyz").status_code == 503
 
 
 def test_conversational_schema():
@@ -123,6 +184,10 @@ if __name__ == "__main__":
         logger.info("Running test_root_endpoint...")
         test_root_endpoint()
         logger.info("✅ test_root_endpoint passed!")
+
+        logger.info("Running test_healthz_and_readyz_endpoints...")
+        test_healthz_and_readyz_endpoints()
+        logger.info("✅ test_healthz_and_readyz_endpoints passed!")
 
         logger.info("Running test_conversational_schema...")
         test_conversational_schema()

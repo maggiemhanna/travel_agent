@@ -13,9 +13,15 @@ from fastapi import FastAPI, HTTPException
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
-from app.config import FILTER_SMART_HOST, FILTER_SMART_PORT, JSON_PARSER_BASE_URL
+from app.config import (
+    FILTER_SMART_HOST,
+    FILTER_SMART_MODEL,
+    FILTER_SMART_PORT,
+    JSON_PARSER_BASE_URL,
+)
 from app.sub_agents.filter_smart.agent import app, filter_smart
 from app.sub_agents.filter_smart.schema import FilterSmartInput
+from app.app_utils.health import build_liveness_payload, evaluate_readiness
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 
 # --- Configuration & Setup ---
@@ -58,6 +64,18 @@ def load_json_with_markdown(data):
 @api.get("/", tags=["Health"])
 async def root() -> Dict[str, str]:
     return {"message": "Filter Smart Agent Service is running. Use the /run-filter-smart endpoint via POST."}
+
+@api.get("/healthz", tags=["Health"])
+async def healthz() -> Dict[str, str]:
+    return build_liveness_payload(APP_NAME)
+
+@api.get("/readyz", tags=["Health"])
+async def readyz():
+    return evaluate_readiness(
+        service_name=APP_NAME,
+        adk_app=app,
+        models={"filter_smart": FILTER_SMART_MODEL},
+    )
 
 # --- Core Agent Logic ---
 async def setup_session_and_runner(session_id: str, user_id: str, initial_state: dict):

@@ -12,8 +12,10 @@ from fastapi import FastAPI, HTTPException
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
+from app.config import INSPIRATION_MODEL
 from app.sub_agents.inspiration.agent import app, inspiration
 from app.sub_agents.inspiration.schema import InspirationInput
+from app.app_utils.health import build_liveness_payload, evaluate_readiness
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 
 # --- Configuration & Setup ---
@@ -33,6 +35,18 @@ api = FastAPI(
 @api.get("/", tags=["Health"])
 async def root() -> Dict[str, str]:
     return {"message": "Inspiration Agent Service is running. Use the /run-inspiration endpoint via POST."}
+
+@api.get("/healthz", tags=["Health"])
+async def healthz() -> Dict[str, str]:
+    return build_liveness_payload(APP_NAME)
+
+@api.get("/readyz", tags=["Health"])
+async def readyz():
+    return evaluate_readiness(
+        service_name=APP_NAME,
+        adk_app=app,
+        models={"inspiration": INSPIRATION_MODEL},
+    )
 
 # --- Core Agent Logic ---
 async def setup_session_and_runner(session_id: str, user_id: str, initial_state: dict):

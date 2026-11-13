@@ -15,14 +15,16 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 from app.agent import app, flights_search
-from app.config import ALLOWED_ORIGINS, HOST, PORT
+from app.config import ALLOWED_ORIGINS, FLIGHTS_SEARCH_MODEL, HOST, PORT
 from app.schema import FlightsSearchInput
+from app.app_utils.health import build_liveness_payload, evaluate_readiness
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 
 # --- Configuration & Setup ---
 logger = setup_logging(name=__name__)
 
 APP_NAME = "flights_search"
+SERVICE_NAME = "flights-search-app"
 
 # --- FastAPI Application ---
 api = FastAPI(
@@ -41,6 +43,20 @@ api.add_middleware(
 @api.get("/", tags=["Health"])
 async def root() -> Dict[str, str]:
     return {"message": "Flights Search Agent Service is running. Use the /run-flights-search endpoint via POST."}
+
+@api.get("/healthz", tags=["Health"])
+async def healthz() -> Dict[str, str]:
+    """Cloud Run liveness probe endpoint."""
+    return build_liveness_payload(SERVICE_NAME)
+
+@api.get("/readyz", tags=["Health"])
+async def readyz():
+    """Cloud Run startup/readiness probe endpoint."""
+    return evaluate_readiness(
+        service_name=SERVICE_NAME,
+        adk_app=app,
+        models={"flights_search": FLIGHTS_SEARCH_MODEL},
+    )
 
 # --- Core Agent Logic ---
 async def setup_session_and_runner(session_id: str, user_id: str, initial_state: dict):

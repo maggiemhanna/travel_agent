@@ -8,6 +8,25 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
 
+    # Liveness probe (Cloud Run liveness_probe)
+    location = /healthz {
+        access_log off;
+        default_type application/json;
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        return 200 '{"status":"ok","service":"frontend"}';
+    }
+
+    # Readiness probe (Cloud Run startup_probe — verifies startup env-config.js exists)
+    location = /readyz {
+        access_log off;
+        default_type application/json;
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        if (!-f /usr/share/nginx/html/env-config.js) {
+            return 503 '{"status":"not_ready","service":"frontend","errors":["missing /env-config.js"]}';
+        }
+        return 200 '{"status":"ready","service":"frontend"}';
+    }
+
     # Never cache runtime environment config
     location = /env-config.js {
         add_header Cache-Control "no-store, no-cache, must-revalidate";

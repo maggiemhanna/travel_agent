@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from types import SimpleNamespace
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from google.adk.models.llm_response import LlmResponse
 from google.genai import types as genai_types
@@ -24,6 +25,45 @@ def test_root_endpoint():
         response = client.get("/")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}. Details: {response.text}"
         assert response.json() == {"message": "Flights Search Agent Service is running. Use the /run-flights-search endpoint via POST."}
+
+
+def test_healthz_and_readyz_endpoints():
+    """Test /healthz liveness and /readyz readiness (200 valid vs 503 misconfigured)."""
+    with TestClient(api) as client:
+        health_resp = client.get("/healthz")
+        assert health_resp.status_code == 200
+        assert health_resp.json() == {"status": "ok", "service": "flights-search-app"}
+
+        with patch.dict(
+            os.environ,
+            {
+                "GOOGLE_GENAI_USE_VERTEXAI": "1",
+                "GOOGLE_CLOUD_PROJECT": "travel-agent-test",
+                "GOOGLE_CLOUD_LOCATION": "europe-west9",
+            },
+            clear=False,
+        ):
+            ready_resp = client.get("/readyz")
+            assert ready_resp.status_code == 200
+            body = ready_resp.json()
+            assert body["status"] == "ready"
+            assert body["service"] == "flights-search-app"
+            assert "flights_search" in body["models"]
+
+        with patch.dict(
+            os.environ,
+            {
+                "GOOGLE_GENAI_USE_VERTEXAI": "1",
+                "GOOGLE_CLOUD_PROJECT": "",
+                "GOOGLE_CLOUD_LOCATION": "europe-west9",
+            },
+            clear=False,
+        ):
+            unready_resp = client.get("/readyz")
+            assert unready_resp.status_code == 503
+            unready_body = unready_resp.json()
+            assert unready_body["status"] == "not_ready"
+            assert any("GOOGLE_CLOUD_PROJECT" in err for err in unready_body["errors"])
 
 
 def test_flights_search_schema():
@@ -118,6 +158,10 @@ if __name__ == "__main__":
         logger.info("Running test_root_endpoint...")
         test_root_endpoint()
         logger.info("✅ test_root_endpoint passed!")
+
+        logger.info("Running test_healthz_and_readyz_endpoints...")
+        test_healthz_and_readyz_endpoints()
+        logger.info("✅ test_healthz_and_readyz_endpoints passed!")
 
         logger.info("Running test_flights_search_schema...")
         test_flights_search_schema()
