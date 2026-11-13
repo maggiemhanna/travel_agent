@@ -38,6 +38,8 @@ graph TD
 - **Graceful Degradation & Self-Healing**:
   - **Exponential Backoff Retries**: All 5 sub-agents configure `HttpRetryOptions(attempts=5, initial_delay=5.0, max_delay=60.0, exp_base=2.0)` on HTTP `408, 429, 500, 502, 503, 504`.
   - **Automatic JSON Repair Fallback**: Because `filter_smart` uses live `google_search` grounding, its output cannot simultaneously enforce strict JSON schema mode. `parse_filter_smart` first attempts fast regex extraction (`load_json_with_markdown`) and automatically routes malformed responses to `json_parser` (`repair_json`) without failing the user request.
+- **Cross-Cutting ADK Runtime Plugin ([`app/app_utils/telemetry_plugin.py`](app/app_utils/telemetry_plugin.py))**:
+  - Registers `ExecutionTelemetryPlugin(BasePlugin)` on the ADK `App` container (`ENABLE_TELEMETRY_PLUGIN=true`) to log per-sub-agent wall-clock latency, Gemini prompt/output token counts, and live Google Search grounding queries across every workflow invocation without modifying sub-agent packages.
 
 ---
 
@@ -51,7 +53,7 @@ conversational_app/
 │   ├── config.py                # Centralized env configuration (models, per-agent overrides, URLs, CORS)
 │   ├── main.py                  # FastAPI gateway, CORS middleware & ADK Runner execution
 │   ├── schema.py                # ConversationalInput, ConversationalOutput & ConversationalState schemas
-│   ├── app_utils/               # Structured logging & table/dict formatting helpers
+│   ├── app_utils/               # Structured logging, formatting helpers & ADK ExecutionTelemetryPlugin
 │   └── sub_agents/              # Specialized ADK Sub-Agents (each with agent.py, main.py, prompt.py, schema.py)
 │       ├── engage/              # Intent triage & routing (:8002)
 │       ├── filter/              # Deterministic filter extraction (:8003)
@@ -92,6 +94,7 @@ conversational_app/
 | `CONVERSATIONAL_BASE_URL` | `http://127.0.0.1:8001` | Target URL for `tests/e2e/test_conversational.py`. |
 | `ENGAGE_BASE_URL` ... `JSON_PARSER_BASE_URL` | `http://127.0.0.1:8002`–`8006` | Configurable standalone sub-agent URLs for microservice mode & E2E tests. |
 | `ALLOWED_ORIGINS` | `*` | Comma-separated allowed CORS origins. |
+| `ENABLE_TELEMETRY_PLUGIN` | `true` | Enables the ADK `ExecutionTelemetryPlugin` for per-agent latency, token, and grounding logs. |
 
 ---
 

@@ -12,6 +12,7 @@ from app.sub_agents.inspiration.prompt import system_instruction
 from app.sub_agents.inspiration.schema import InspirationInput, InspirationOutput
 
 from app.app_utils.logging import setup_logging
+from app.app_utils.telemetry_plugin import build_plugins
 
 logger = setup_logging(name=__name__)
 
@@ -50,4 +51,5 @@ inspiration = Agent(
 app = App(
     name=APP_NAME,
     root_agent=inspiration,
+    plugins=build_plugins(),
 )

@@ -13,6 +13,7 @@ from app.sub_agents.filter_smart.prompt import system_instruction
 from app.sub_agents.filter_smart.schema import FilterSmartInput, FilterSmartOutput
 
 from app.app_utils.logging import setup_logging
+from app.app_utils.telemetry_plugin import build_plugins
 
 logger = setup_logging(name=__name__)
 
@@ -50,4 +51,5 @@ filter_smart = Agent(
 app = App(
     name=APP_NAME,
     root_agent=filter_smart,
+    plugins=build_plugins(),
 )

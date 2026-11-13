@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
-from app.sub_agents.engage.agent import engage
+from app.sub_agents.engage.agent import app, engage
 from app.sub_agents.engage.schema import EngageInput
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 
@@ -47,7 +47,7 @@ async def setup_session_and_runner(session_id: str, user_id: str, initial_state:
     )
 
     runner = Runner(
-        agent=engage,
+        app=app,
         app_name=APP_NAME,
         session_service=service
     )

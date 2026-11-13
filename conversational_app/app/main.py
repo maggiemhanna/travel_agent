@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
-from app.agent import APP_NAME, conversational
+from app.agent import APP_NAME, app, conversational
 from app.config import ALLOWED_ORIGINS, HOST, PORT
 from app.schema import ConversationalInput
 from app.app_utils.logging import format_dict_for_logs, setup_logging
@@ -53,7 +53,7 @@ async def setup_session_and_runner(session_id: str, user_id: str, initial_state:
     )
 
     runner = Runner(
-        agent=conversational,
+        app=app,
         app_name=APP_NAME,
         session_service=service
     )

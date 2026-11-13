@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
-from app.sub_agents.filter.agent import filter
+from app.sub_agents.filter.agent import app, filter
 from app.sub_agents.filter.schema import FilterInput
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 
@@ -47,7 +47,7 @@ async def setup_session_and_runner(session_id: str, user_id: str, initial_state:
     )
 
     runner = Runner(
-        agent=filter,
+        app=app,
         app_name=APP_NAME,
         session_service=service
     )

@@ -10,6 +10,7 @@ from google.adk.apps import App
 from google.adk.workflow import START, node
 
 from app.app_utils.logging import format_dict_for_logs, setup_logging
+from app.app_utils.telemetry_plugin import build_plugins
 from app.schema import ConversationalOutput, ConversationalState
 from app.sub_agents.engage.agent import engage
 from app.sub_agents.engage.schema import EngageOutput
@@ -122,4 +123,5 @@ root_agent = conversational
 app = App(
     name=APP_NAME,
     root_agent=root_agent,
+    plugins=build_plugins(),
 )

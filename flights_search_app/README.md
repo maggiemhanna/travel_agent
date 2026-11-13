@@ -18,6 +18,7 @@ The **Flights Search Agent Service** is an independent microservice built with *
 
 ### 2. FastAPI Runtime & Cloud-Native Packaging
 - **Stateless Per-Request Isolation ([`app/main.py`](app/main.py)):** Generates an isolated `InMemorySessionService` and unique `session_id` / `user_id` (`uuid4()`) per HTTP request, with safe fallback handling if non-JSON text is returned.
+- **Cross-Cutting ADK Runtime Plugin ([`app/app_utils/telemetry_plugin.py`](app/app_utils/telemetry_plugin.py)):** Registers `ExecutionTelemetryPlugin(BasePlugin)` on the ADK `App` container (`ENABLE_TELEMETRY_PLUGIN=true`) to log execution latency and Gemini prompt/output token counts per flight search invocation.
 - **Configurable Server & CORS:** Reads `HOST`, `PORT`, and comma-separated `ALLOWED_ORIGINS` from [`app/config.py`](app/config.py).
 - **Hardened Container ([`Dockerfile`](Dockerfile)):** Uses `python:3.11-slim`, runs under an unprivileged `appuser` (`UID 1000`), and executes on Cloud Run under the least-privilege `travel-agent-runtime` Service Account (`roles/aiplatform.user`, `roles/logging.logWriter`, `roles/cloudtrace.agent`).
 
@@ -34,7 +35,7 @@ flights_search_app/
 │   ├── main.py              # FastAPI server, CORS middleware & ADK Runner execution
 │   ├── prompt.py            # System instruction prompt & flight simulation rules
 │   ├── schema.py            # Pydantic contracts (Filters, FlightsSearchInput, Flight, FlightsSearchOutput)
-│   └── app_utils/           # Structured logging & log formatting helpers
+│   └── app_utils/           # Structured logging, formatting helpers & ADK ExecutionTelemetryPlugin
 ├── tests/
 │   ├── fixtures/            # Sample test payloads (flights_search.json)
 │   ├── unit/                # Fast offline health & Pydantic schema validation tests
@@ -61,6 +62,7 @@ flights_search_app/
 | `HOST` / `PORT` | `0.0.0.0` / `8000` | Bind address and port for Uvicorn (`8080` on Cloud Run). |
 | `FLIGHTS_SEARCH_BASE_URL` | `http://127.0.0.1:8000` | Target service URL used by `tests/e2e/test_flights_search.py`. |
 | `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed CORS browser origins. |
+| `ENABLE_TELEMETRY_PLUGIN` | `true` | Enables the ADK `ExecutionTelemetryPlugin` for per-request latency and token logs. |
 
 ---
 

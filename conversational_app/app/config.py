@@ -66,3 +66,9 @@ JSON_PARSER_PORT = int(os.getenv("JSON_PARSER_PORT", "8006"))
 JSON_PARSER_BASE_URL = os.getenv(
     "JSON_PARSER_BASE_URL", f"http://{JSON_PARSER_HOST}:{JSON_PARSER_PORT}"
 ).rstrip("/")
+
+# --- ADK Plugin Configuration ---
+ENABLE_TELEMETRY_PLUGIN = os.getenv(
+    "ENABLE_TELEMETRY_PLUGIN", "true"
+).strip().lower() in {"1", "true", "yes", "on"}
+

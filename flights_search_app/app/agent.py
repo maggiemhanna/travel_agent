@@ -12,6 +12,7 @@ from app.prompt import system_instruction
 from app.schema import FlightsSearchInput, FlightsSearchOutput
 
 from app.app_utils.logging import setup_logging
+from app.app_utils.telemetry_plugin import build_plugins
 
 logger = setup_logging(name=__name__)
 
@@ -52,4 +53,5 @@ root_agent = flights_search
 app = App(
     name=APP_NAME,
     root_agent=root_agent,
+    plugins=build_plugins(),
 )

@@ -12,6 +12,7 @@ from app.sub_agents.json_parser.prompt import system_instruction
 from app.sub_agents.json_parser.schema import JSONParserInput, JSONParserOutput
 
 from app.app_utils.logging import setup_logging
+from app.app_utils.telemetry_plugin import build_plugins
 
 logger = setup_logging(name=__name__)
 
@@ -49,4 +50,5 @@ json_parser = Agent(
 app = App(
     name=APP_NAME,
     root_agent=json_parser,
+    plugins=build_plugins(),
 )

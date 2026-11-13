@@ -30,7 +30,7 @@ from tqdm import tqdm
 import vertexai
 from vertexai import types as vertex_types
 
-from app.agent import APP_NAME, conversational
+from app.agent import APP_NAME, app, conversational
 from app.app_utils.logging import format_table_for_logs, setup_logging
 from tests.eval.metrics.custom_metrics import build_evaluation_metrics
 from tests.eval.scripts.generate_scenarios import build_agent_adapter_from_workflow
@@ -228,7 +228,7 @@ async def run_single_case_inference(
                 state=dict(initial_state),
             )
             runner = Runner(
-                agent=conversational,
+                app=app,
                 app_name=APP_NAME,
                 session_service=service,
             )

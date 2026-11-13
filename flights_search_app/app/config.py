@@ -25,3 +25,9 @@ ALLOWED_ORIGINS = [
     for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",")
     if origin.strip()
 ]
+
+# --- ADK Plugin Configuration ---
+ENABLE_TELEMETRY_PLUGIN = os.getenv(
+    "ENABLE_TELEMETRY_PLUGIN", "true"
+).strip().lower() in {"1", "true", "yes", "on"}
+

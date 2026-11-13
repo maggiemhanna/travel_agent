@@ -12,6 +12,7 @@ from app.sub_agents.engage.prompt import system_instruction
 from app.sub_agents.engage.schema import EngageInput, EngageOutput
 
 from app.app_utils.logging import setup_logging
+from app.app_utils.telemetry_plugin import build_plugins
 
 logger = setup_logging(name=__name__)
 
@@ -49,4 +50,5 @@ engage = Agent(
 app = App(
     name=APP_NAME,
     root_agent=engage,
+    plugins=build_plugins(),
 )
