@@ -26,6 +26,7 @@ def evaluate_readiness(
     service_name: str,
     adk_app: Any,
     models: Mapping[str, str],
+    fallback_model: str | None = None,
 ) -> JSONResponse:
     """Validates ADK App wiring, model configuration, and Vertex AI runtime env vars.
 
@@ -65,11 +66,12 @@ def evaluate_readiness(
             },
         )
 
-    return JSONResponse(
-        status_code=200,
-        content={
-            "status": "ready",
-            "service": service_name,
-            "models": normalized_models,
-        },
-    )
+    payload: Dict[str, Any] = {
+        "status": "ready",
+        "service": service_name,
+        "models": normalized_models,
+    }
+    if fallback_model:
+        payload["fallback_model"] = fallback_model.strip()
+
+    return JSONResponse(status_code=200, content=payload)

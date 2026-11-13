@@ -7,7 +7,11 @@ from google.adk.models import Gemini
 from google.adk.planners import BuiltInPlanner
 from google.genai.types import HttpRetryOptions, ThinkingConfig
 
-from app.config import FILTER_MODEL, GEMINI_MODEL_LOCATION
+from app.config import (
+    FILTER_FALLBACK_MODEL,
+    FILTER_MODEL,
+    GEMINI_MODEL_LOCATION,
+)
 from app.sub_agents.filter.prompt import system_instruction
 from app.sub_agents.filter.schema import FilterInput, FilterOutput
 
@@ -18,37 +22,52 @@ logger = setup_logging(name=__name__)
 
 APP_NAME = "conversational_app"
 
-# Create the agent
-filter = Agent(
-    model=Gemini(
-        model=FILTER_MODEL,
-        client_kwargs={"location": GEMINI_MODEL_LOCATION},
-        use_interactions_api=False,
-        retry_options=HttpRetryOptions(
-            attempts=5,
-            initial_delay=5.0,
-            max_delay=60.0,
-            exp_base=2.0,
-            http_status_codes=[408, 429, 500, 502, 503, 504],
-        ),
-    ),
-    name="filter",
-    description="""The Filter Agent: An expert at filtering the results of the flights search agent based on existing filters.""",
-    instruction=system_instruction,
-    state_schema=FilterInput,
-    output_schema=FilterOutput,
-    include_contents='none',
-    #planner=BuiltInPlanner(
-    #    thinking_config=ThinkingConfig(
-    #        include_thoughts=False,
-    #        thinking_budget=0,
-    #    )
-    #)
-)
 
-# Create the main App
+def build_filter_agent(model_name: str) -> Agent:
+    """Builds a Filter ADK Agent bound to the specified Gemini model."""
+    return Agent(
+        model=Gemini(
+            model=model_name,
+            client_kwargs={"location": GEMINI_MODEL_LOCATION},
+            use_interactions_api=False,
+            retry_options=HttpRetryOptions(
+                attempts=5,
+                initial_delay=5.0,
+                max_delay=60.0,
+                exp_base=2.0,
+                http_status_codes=[408, 429, 500, 502, 503, 504],
+            ),
+        ),
+        name="filter",
+        description="""The Filter Agent: An expert at filtering the results of the flights search agent based on existing filters.""",
+        instruction=system_instruction,
+        state_schema=FilterInput,
+        output_schema=FilterOutput,
+        include_contents='none',
+        #planner=BuiltInPlanner(
+        #    thinking_config=ThinkingConfig(
+        #        include_thoughts=False,
+        #        thinking_budget=0,
+        #    )
+        #)
+    )
+
+
+# Create the primary agent & App
+filter = build_filter_agent(FILTER_MODEL)
+
 app = App(
     name=APP_NAME,
     root_agent=filter,
     plugins=build_plugins(),
+)
+
+fallback_app = (
+    App(
+        name=APP_NAME,
+        root_agent=build_filter_agent(FILTER_FALLBACK_MODEL),
+        plugins=build_plugins(),
+    )
+    if FILTER_FALLBACK_MODEL and FILTER_FALLBACK_MODEL != FILTER_MODEL
+    else None
 )

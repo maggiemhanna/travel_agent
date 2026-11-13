@@ -3,20 +3,27 @@ import json
 import os
 import sys
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from google.adk.models.llm_response import LlmResponse
+from google.adk.runners import Runner
 from google.genai import types as genai_types
 
-from app.agent import app
+from app.agent import app, fallback_app
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 from app.app_utils.telemetry_plugin import ExecutionTelemetryPlugin, build_plugins
+from app.config import FALLBACK_GEMINI_MODEL
 from app.main import api, setup_session_and_runner
 from app.schema import ConversationalInput
+from app.sub_agents.engage.agent import app as engage_app, fallback_app as engage_fallback_app
 from app.sub_agents.engage.main import api as engage_api
+from app.sub_agents.filter.agent import fallback_app as filter_fallback_app
 from app.sub_agents.filter.main import api as filter_api
+from app.sub_agents.filter_smart.agent import fallback_app as filter_smart_fallback_app
 from app.sub_agents.filter_smart.main import api as filter_smart_api
+from app.sub_agents.inspiration.agent import fallback_app as inspiration_fallback_app
 from app.sub_agents.inspiration.main import api as inspiration_api
+from app.sub_agents.json_parser.agent import fallback_app as json_parser_fallback_app
 from app.sub_agents.json_parser.main import api as json_parser_api
 
 logger = setup_logging(name=__name__)
@@ -56,6 +63,7 @@ def test_healthz_and_readyz_endpoints():
             body = ready_resp.json()
             assert body["status"] == "ready"
             assert body["service"] == "conversational-app"
+            assert body["fallback_model"] == FALLBACK_GEMINI_MODEL
             assert set(body["models"].keys()) == {
                 "engage",
                 "filter",
@@ -82,7 +90,9 @@ def test_healthz_and_readyz_endpoints():
                 "service": expected_name,
             }
             with patch.dict(os.environ, valid_env, clear=False):
-                assert sub_client.get("/readyz").status_code == 200
+                sub_ready = sub_client.get("/readyz")
+                assert sub_ready.status_code == 200
+                assert sub_ready.json()["fallback_model"] == FALLBACK_GEMINI_MODEL
             with patch.dict(os.environ, invalid_env, clear=False):
                 assert sub_client.get("/readyz").status_code == 503
 
@@ -176,6 +186,120 @@ def test_telemetry_plugin_registration_and_lifecycle():
     asyncio.run(_exercise_plugin())
 
 
+def test_automatic_backup_model_failover():
+    """Verify isolated fallback_app (gemini-3.6-flash) across workflow & standalone sub-agents."""
+    assert fallback_app is not None
+    assert fallback_app is not app
+    assert fallback_app.root_agent is not app.root_agent
+
+    # Verify all 5 standalone sub-agent fallback_apps are bound to gemini-3.6-flash
+    for sub_fb in [
+        engage_fallback_app,
+        filter_fallback_app,
+        filter_smart_fallback_app,
+        inspiration_fallback_app,
+        json_parser_fallback_app,
+    ]:
+        assert sub_fb is not None
+        assert sub_fb.root_agent.model.model == "gemini-3.6-flash"
+
+    with open(FIXTURES_PATH) as f:
+        sample = json.load(f)[0]
+    payload = {
+        "user_message": sample["user_message"],
+        "conversational_history": sample["conversational_history"],
+        "flights_search_input": sample["flights_search_input"],
+        "flights_input": sample["flights_input"],
+    }
+
+    def _mock_event(body: dict):
+        return SimpleNamespace(
+            content=SimpleNamespace(parts=[SimpleNamespace(text=json.dumps(body))])
+        )
+
+    with TestClient(api) as client:
+        # 1. Primary workflow succeeds -> fallback_app is not called
+        seen_apps = []
+
+        async def _primary_ok(runner_self, *args, **kwargs):
+            seen_apps.append(runner_self.app)
+            return [
+                _mock_event(
+                    {
+                        "agent_response": "Primary response",
+                        "agent_decision": "continue",
+                    }
+                )
+            ]
+
+        with patch.object(Runner, "run_debug", autospec=True, side_effect=_primary_ok):
+            resp = client.post("/run-conversational", json=payload)
+            assert resp.status_code == 200
+            assert resp.json()["results"]["agent_response"] == "Primary response"
+            assert seen_apps == [app]
+
+        # 2. Primary workflow fails -> automatic failover to isolated fallback_app (gemini-3.6-flash)
+        seen_apps.clear()
+        seen_sessions = []
+
+        async def _primary_fails_backup_succeeds(runner_self, *args, **kwargs):
+            seen_apps.append(runner_self.app)
+            seen_sessions.append(kwargs.get("session_id"))
+            if runner_self.app is app:
+                raise RuntimeError("503 Service Unavailable on primary workflow")
+            return [
+                _mock_event(
+                    {
+                        "agent_response": "Backup gemini-3.6-flash response",
+                        "agent_decision": "continue",
+                    }
+                )
+            ]
+
+        with patch.object(
+            Runner, "run_debug", autospec=True, side_effect=_primary_fails_backup_succeeds
+        ):
+            resp = client.post("/run-conversational", json=payload)
+            assert resp.status_code == 200
+            assert (
+                resp.json()["results"]["agent_response"]
+                == "Backup gemini-3.6-flash response"
+            )
+            assert seen_apps == [app, fallback_app]
+            assert len(set(seen_sessions)) == 2
+
+        # 3. Both primary and backup fail -> HTTP 500
+        with patch.object(
+            Runner,
+            "run_debug",
+            new=AsyncMock(side_effect=RuntimeError("Both models unavailable")),
+        ):
+            resp = client.post("/run-conversational", json=payload)
+            assert resp.status_code == 500
+
+    # 4. Standalone sub-agent failover check (engage_api)
+    with TestClient(engage_api) as sub_client:
+        seen_sub_apps = []
+
+        async def _sub_failover(runner_self, *args, **kwargs):
+            seen_sub_apps.append(runner_self.app)
+            if runner_self.app is engage_app:
+                raise RuntimeError("429 on primary engage")
+            return [
+                _mock_event(
+                    {"agent_response": "Engage backup ok", "agent_decision": "continue"}
+                )
+            ]
+
+        with patch.object(Runner, "run_debug", autospec=True, side_effect=_sub_failover):
+            sub_resp = sub_client.post("/run-engage", json=payload)
+            assert sub_resp.status_code == 200
+            assert sub_resp.json()["results"] == [
+                {"agent_response": "Engage backup ok", "agent_decision": "continue"}
+            ]
+            assert seen_sub_apps == [engage_app, engage_fallback_app]
+
+
 # --- Manual Execution Block ---
 if __name__ == "__main__":
     logger.info("Running unit tests manually without pytest...")
@@ -196,6 +320,10 @@ if __name__ == "__main__":
         logger.info("Running test_telemetry_plugin_registration_and_lifecycle...")
         test_telemetry_plugin_registration_and_lifecycle()
         logger.info("✅ test_telemetry_plugin_registration_and_lifecycle passed!")
+
+        logger.info("Running test_automatic_backup_model_failover...")
+        test_automatic_backup_model_failover()
+        logger.info("✅ test_automatic_backup_model_failover passed!")
 
         logger.info("🎉 All tests completed successfully!")
 

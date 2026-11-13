@@ -11,6 +11,10 @@ load_dotenv()
 # --- AI Model Configuration ---
 DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 FLIGHTS_SEARCH_MODEL = os.getenv("FLIGHTS_SEARCH_MODEL", DEFAULT_GEMINI_MODEL)
+FALLBACK_GEMINI_MODEL = os.getenv("FALLBACK_GEMINI_MODEL", "gemini-3.6-flash")
+FLIGHTS_SEARCH_FALLBACK_MODEL = os.getenv(
+    "FLIGHTS_SEARCH_FALLBACK_MODEL", FALLBACK_GEMINI_MODEL
+)
 GEMINI_MODEL_LOCATION = os.getenv("GEMINI_MODEL_LOCATION", "global")
 
 # --- Server & Endpoint Configuration ---

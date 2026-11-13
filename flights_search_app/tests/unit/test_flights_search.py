@@ -3,14 +3,16 @@ import json
 import os
 import sys
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from google.adk.models.llm_response import LlmResponse
+from google.adk.runners import Runner
 from google.genai import types as genai_types
 
-from app.agent import app
+from app.agent import app, fallback_app
 from app.app_utils.logging import format_dict_for_logs, setup_logging
 from app.app_utils.telemetry_plugin import ExecutionTelemetryPlugin, build_plugins
+from app.config import FLIGHTS_SEARCH_FALLBACK_MODEL
 from app.main import api, setup_session_and_runner
 from app.schema import FlightsSearchInput
 
@@ -49,6 +51,7 @@ def test_healthz_and_readyz_endpoints():
             assert body["status"] == "ready"
             assert body["service"] == "flights-search-app"
             assert "flights_search" in body["models"]
+            assert body["fallback_model"] == FLIGHTS_SEARCH_FALLBACK_MODEL
 
         with patch.dict(
             os.environ,
@@ -150,6 +153,75 @@ def test_telemetry_plugin_registration_and_lifecycle():
     asyncio.run(_exercise_plugin())
 
 
+def test_automatic_backup_model_failover():
+    """Verify primary success skips fallback, primary failure fails over to gemini-3.6-flash, and dual failure returns 500."""
+    assert fallback_app is not None
+    assert fallback_app is not app
+    assert fallback_app.root_agent is not app.root_agent
+    assert fallback_app.root_agent.model.model == "gemini-3.6-flash"
+
+    with open(FIXTURES_PATH) as f:
+        sample = json.load(f)[0]
+    payload = {
+        "origin": sample["origin"],
+        "destination": sample["destination"],
+        "departure_date": sample["departure_date"],
+        "return_date": sample["return_date"],
+        "passengers": sample["passengers"],
+        "filters": sample["filters"],
+    }
+
+    def _mock_event(flights_payload: dict):
+        return SimpleNamespace(
+            content=SimpleNamespace(
+                parts=[SimpleNamespace(text=json.dumps(flights_payload))]
+            )
+        )
+
+    with TestClient(api) as client:
+        # 1. Primary succeeds -> backup model is never called
+        seen_apps = []
+
+        async def _primary_ok(runner_self, *args, **kwargs):
+            seen_apps.append(runner_self.app)
+            return [_mock_event({"flights": [{"flight_number": "AF001"}]})]
+
+        with patch.object(Runner, "run_debug", autospec=True, side_effect=_primary_ok):
+            resp = client.post("/run-flights-search", json=payload)
+            assert resp.status_code == 200
+            assert resp.json()["results"] == [{"flights": [{"flight_number": "AF001"}]}]
+            assert seen_apps == [app]
+
+        # 2. Primary raises 429/503 -> automatically fails over to isolated fallback_app (gemini-3.6-flash)
+        seen_apps.clear()
+        seen_sessions = []
+
+        async def _primary_fails_backup_succeeds(runner_self, *args, **kwargs):
+            seen_apps.append(runner_self.app)
+            seen_sessions.append(kwargs.get("session_id"))
+            if runner_self.app is app:
+                raise RuntimeError("429 Resource Exhausted on primary model")
+            return [_mock_event({"flights": [{"flight_number": "AF999-BACKUP"}]})]
+
+        with patch.object(
+            Runner, "run_debug", autospec=True, side_effect=_primary_fails_backup_succeeds
+        ):
+            resp = client.post("/run-flights-search", json=payload)
+            assert resp.status_code == 200
+            assert resp.json()["results"] == [{"flights": [{"flight_number": "AF999-BACKUP"}]}]
+            assert seen_apps == [app, fallback_app]
+            assert len(set(seen_sessions)) == 2  # Fresh isolated session per attempt
+
+        # 3. Both primary and backup fail -> HTTP 500
+        with patch.object(
+            Runner,
+            "run_debug",
+            new=AsyncMock(side_effect=RuntimeError("Total Vertex AI outage")),
+        ):
+            resp = client.post("/run-flights-search", json=payload)
+            assert resp.status_code == 500
+
+
 # --- Manual Execution Block ---
 if __name__ == "__main__":
     logger.info("Running unit tests manually without pytest...")
@@ -170,6 +242,10 @@ if __name__ == "__main__":
         logger.info("Running test_telemetry_plugin_registration_and_lifecycle...")
         test_telemetry_plugin_registration_and_lifecycle()
         logger.info("✅ test_telemetry_plugin_registration_and_lifecycle passed!")
+
+        logger.info("Running test_automatic_backup_model_failover...")
+        test_automatic_backup_model_failover()
+        logger.info("✅ test_automatic_backup_model_failover passed!")
 
         logger.info("🎉 All tests completed successfully!")
 

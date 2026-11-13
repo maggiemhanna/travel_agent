@@ -14,12 +14,13 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 from app.config import (
+    FILTER_SMART_FALLBACK_MODEL,
     FILTER_SMART_HOST,
     FILTER_SMART_MODEL,
     FILTER_SMART_PORT,
     JSON_PARSER_BASE_URL,
 )
-from app.sub_agents.filter_smart.agent import app, filter_smart
+from app.sub_agents.filter_smart.agent import app, fallback_app, filter_smart
 from app.sub_agents.filter_smart.schema import FilterSmartInput
 from app.app_utils.health import build_liveness_payload, evaluate_readiness
 from app.app_utils.logging import format_dict_for_logs, setup_logging
@@ -75,10 +76,13 @@ async def readyz():
         service_name=APP_NAME,
         adk_app=app,
         models={"filter_smart": FILTER_SMART_MODEL},
+        fallback_model=FILTER_SMART_FALLBACK_MODEL if fallback_app is not None else None,
     )
 
 # --- Core Agent Logic ---
-async def setup_session_and_runner(session_id: str, user_id: str, initial_state: dict):
+async def setup_session_and_runner(
+    session_id: str, user_id: str, initial_state: dict, target_app=None
+):
     """Initializes the session service and runner for the agent."""
     service = InMemorySessionService()
     
@@ -90,53 +94,70 @@ async def setup_session_and_runner(session_id: str, user_id: str, initial_state:
     )
 
     runner = Runner(
-        app=app,
+        app=target_app or app,
         app_name=APP_NAME,
         session_service=service
     )
     return service, runner
 
-async def execute_agent_run(user_input: FilterSmartInput) -> List[Dict[str, Any]]:
-    """Executes the filter smart agent runner and processes its responses."""
+async def _run_with_app(initial_state: dict, target_app) -> List[Dict[str, Any]]:
+    """Executes a single isolated ADK Runner pass against the given App."""
     session_id = str(uuid4())
-    user_id = str(uuid4())  # Generate per-request rather than globally
-    initial_state = user_input.model_dump()
-
+    user_id = str(uuid4())
     _, runner = await setup_session_and_runner(
-        session_id=session_id, 
+        session_id=session_id,
         user_id=user_id,
-        initial_state=initial_state
+        initial_state=initial_state,
+        target_app=target_app,
+    )
+    responses = await runner.run_debug(
+        "Follow the system instructions.",
+        user_id=user_id,
+        session_id=session_id,
+        quiet=True,
     )
 
-    try:
-        responses = await runner.run_debug(
-            "Follow the system instructions.", 
-            user_id=user_id, 
-            session_id=session_id,
-            quiet=True
-        )
-        
-        parsed_responses =[]
-        for resp in responses:
-            text_content = resp.content.parts[-1].text
-            try:
-                parsed_responses.append(load_json_with_markdown(text_content))
-            except json.JSONDecodeError:
-                logger.warning("Agent response text was not valid JSON. Calling JSON Parser Agent.")
-                json_parser_state = {
-                    "agent_response": text_content,
-                }
-                json_parser_response = call_json_parser_api(json_parser_state) 
-                logger.info(f"--- JSON Parser Response ---\n{format_dict_for_logs(json_parser_response, max_len=1000)}")
-                parsed_responses.append(json_parser_response["results"][0])
+    parsed_responses = []
+    for resp in responses:
+        text_content = resp.content.parts[-1].text
+        try:
+            parsed_responses.append(load_json_with_markdown(text_content))
+        except json.JSONDecodeError:
+            logger.warning("Agent response text was not valid JSON. Calling JSON Parser Agent.")
+            json_parser_state = {
+                "agent_response": text_content,
+            }
+            json_parser_response = call_json_parser_api(json_parser_state)
+            logger.info(f"--- JSON Parser Response ---\n{format_dict_for_logs(json_parser_response, max_len=1000)}")
+            parsed_responses.append(json_parser_response["results"][0])
 
-        
+    return parsed_responses
+
+async def execute_agent_run(user_input: FilterSmartInput) -> List[Dict[str, Any]]:
+    """Executes the filter smart agent runner with automatic backup model failover."""
+    initial_state = user_input.model_dump()
+
+    try:
+        parsed_responses = await _run_with_app(initial_state, app)
         logger.info(f"--- Agent Response ---\n{format_dict_for_logs(parsed_responses, max_len=1000)}")
         return parsed_responses
-
-    except Exception as e:
-        logger.error(f"An error occurred during agent execution: {e}", exc_info=True)
-        raise
+    except Exception as primary_err:
+        if fallback_app is None:
+            logger.error(f"An error occurred during agent execution: {primary_err}", exc_info=True)
+            raise
+        logger.warning(
+            "Primary model '%s' failed (%s: %s). Failing over to backup model '%s'.",
+            FILTER_SMART_MODEL,
+            type(primary_err).__name__,
+            primary_err,
+            FILTER_SMART_FALLBACK_MODEL,
+        )
+        parsed_responses = await _run_with_app(initial_state, fallback_app)
+        logger.info(
+            f"--- Backup Model ({FILTER_SMART_FALLBACK_MODEL}) Agent Response ---\n"
+            f"{format_dict_for_logs(parsed_responses, max_len=1000)}"
+        )
+        return parsed_responses
 
 # --- FastAPI Endpoints ---
 @api.post("/run-filter-smart", response_model=Dict[str, Any], tags=["Agent"])

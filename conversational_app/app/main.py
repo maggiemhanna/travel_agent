@@ -14,10 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
-from app.agent import APP_NAME, app, conversational
+from app.agent import APP_NAME, app, conversational, fallback_app
 from app.config import (
     ALLOWED_ORIGINS,
+    DEFAULT_GEMINI_MODEL,
     ENGAGE_MODEL,
+    FALLBACK_GEMINI_MODEL,
     FILTER_MODEL,
     FILTER_SMART_MODEL,
     HOST,
@@ -70,10 +72,13 @@ async def readyz():
             "inspiration": INSPIRATION_MODEL,
             "json_parser": JSON_PARSER_MODEL,
         },
+        fallback_model=FALLBACK_GEMINI_MODEL if fallback_app is not None else None,
     )
 
 # --- Core Agent Logic ---
-async def setup_session_and_runner(session_id: str, user_id: str, initial_state: dict):
+async def setup_session_and_runner(
+    session_id: str, user_id: str, initial_state: dict, target_app=None
+):
     """Initializes the session service and runner for the conversational workflow."""
     service = InMemorySessionService()
     
@@ -85,52 +90,80 @@ async def setup_session_and_runner(session_id: str, user_id: str, initial_state:
     )
 
     runner = Runner(
-        app=app,
+        app=target_app or app,
         app_name=APP_NAME,
         session_service=service
     )
     return service, runner
 
-async def execute_agent_run(user_input: ConversationalInput) -> Dict[str, Any]:
-    """Executes the conversational workflow runner and processes its responses."""
+async def _run_with_app(initial_state: dict, target_app) -> Dict[str, Any]:
+    """Executes a single isolated ADK Workflow Runner pass against the given App."""
     session_id = str(uuid4())
-    user_id = str(uuid4())  # Generate per-request rather than globally
-    initial_state = user_input.model_dump()
-
+    user_id = str(uuid4())
     _, runner = await setup_session_and_runner(
-        session_id=session_id, 
+        session_id=session_id,
         user_id=user_id,
-        initial_state=initial_state
+        initial_state=initial_state,
+        target_app=target_app,
+    )
+    responses = await runner.run_debug(
+        "Follow the system instructions.",
+        user_id=user_id,
+        session_id=session_id,
+        quiet=True,
     )
 
+    parsed_responses = []
+    for resp in responses:
+        if not resp.content or not resp.content.parts:
+            continue
+        text_content = resp.content.parts[-1].text
+        if not text_content:
+            continue
+        try:
+            parsed_responses.append(json.loads(text_content))
+        except json.JSONDecodeError:
+            logger.warning("Agent response text was not valid JSON. Returning raw text.")
+            parsed_responses.append({"raw_text": text_content})
+
+    return parsed_responses[-1] if parsed_responses else {}
+
+async def execute_agent_run(user_input: ConversationalInput) -> Dict[str, Any]:
+    """Executes the conversational workflow runner with automatic backup model failover."""
+    initial_state = user_input.model_dump()
+
     try:
-        responses = await runner.run_debug(
-            "Follow the system instructions.", 
-            user_id=user_id, 
-            session_id=session_id,
-            quiet=True
-        )
-        
-        parsed_responses = []
-        for resp in responses:
-            if not resp.content or not resp.content.parts:
-                continue
-            text_content = resp.content.parts[-1].text
-            if not text_content:
-                continue
-            try:
-                parsed_responses.append(json.loads(text_content))
-            except json.JSONDecodeError:
-                logger.warning("Agent response text was not valid JSON. Returning raw text.")
-                parsed_responses.append({"raw_text": text_content})
-        
-        results = parsed_responses[-1] if parsed_responses else {}
+        results = await _run_with_app(initial_state, app)
         logger.info(f"--- Agent Response ---\n{format_dict_for_logs(results)}")
         return results
+    except Exception as primary_err:
+        if fallback_app is None:
+            logger.error(
+                f"An error occurred during agent execution (no fallback configured): {primary_err}",
+                exc_info=True,
+            )
+            raise
 
-    except Exception as e:
-        logger.error(f"An error occurred during agent execution: {e}", exc_info=True)
-        raise
+        logger.warning(
+            "Primary conversational workflow '%s' failed (%s: %s). Failing over to backup model '%s'.",
+            DEFAULT_GEMINI_MODEL,
+            type(primary_err).__name__,
+            primary_err,
+            FALLBACK_GEMINI_MODEL,
+        )
+        try:
+            results = await _run_with_app(initial_state, fallback_app)
+            logger.info(
+                f"--- Backup Model ({FALLBACK_GEMINI_MODEL}) Agent Response ---\n"
+                f"{format_dict_for_logs(results)}"
+            )
+            return results
+        except Exception as fallback_err:
+            logger.error(
+                f"Backup conversational workflow '{FALLBACK_GEMINI_MODEL}' also failed: {fallback_err}",
+                exc_info=True,
+            )
+            raise
 
 # --- FastAPI Endpoints ---
 @api.post("/run-conversational", response_model=Dict[str, Any], tags=["Agent"])
