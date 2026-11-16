@@ -46,13 +46,25 @@ PROJECT_ID="$(get_project_id "${ENV_NAME}")"
 CICD_SA_RESOURCE="projects/${PROJECT_ID}/serviceAccounts/travel-agent-cicd@${PROJECT_ID}.iam.gserviceaccount.com"
 IMAGE_TAG="${IMAGE_TAG:-$(git -C "${REPO_ROOT}" rev-parse --short HEAD)}"
 
+# Default warm secondary region for prod (europe-west1), empty for dev/staging.
+# Supports explicit override (e.g., REGION=europe-west4 SECONDARY_REGION="" ./deployment/deploy.sh prod)
+# and automatically clears secondary region if REGION itself is already europe-west1.
+if [[ -z "${SECONDARY_REGION+x}" ]]; then
+  if [[ "${ENV_NAME}" == "prod" && "${REGION}" != "europe-west1" ]]; then
+    SECONDARY_REGION="europe-west1"
+  else
+    SECONDARY_REGION=""
+  fi
+fi
+
 echo "=============================================================================="
 echo "🚢 Deploying Travel Agent Platform"
-echo "   Environment : ${ENV_NAME}"
-echo "   GCP Project : ${PROJECT_ID}"
-echo "   Region      : ${REGION}"
-echo "   CI/CD SA    : travel-agent-cicd@${PROJECT_ID}.iam.gserviceaccount.com"
-echo "   Image Tag   : ${IMAGE_TAG}"
+echo "   Environment      : ${ENV_NAME}"
+echo "   GCP Project      : ${PROJECT_ID}"
+echo "   Primary Region   : ${REGION}"
+echo "   Secondary Region : ${SECONDARY_REGION:-disabled}"
+echo "   CI/CD SA         : travel-agent-cicd@${PROJECT_ID}.iam.gserviceaccount.com"
+echo "   Image Tag        : ${IMAGE_TAG}"
 echo "=============================================================================="
 
 # 1. Ensure bootstrap prerequisites (state bucket, meta APIs & travel-agent-cicd SA) exist
@@ -71,6 +83,6 @@ gcloud builds submit "${REPO_ROOT}" \
   --region="${REGION}" \
   --service-account="${CICD_SA_RESOURCE}" \
   --config="${CLOUDBUILD_CONFIG}" \
-  --substitutions="_ENV=${ENV_NAME},_REGION=${REGION},_IMAGE_TAG=${IMAGE_TAG}"
+  --substitutions="_ENV=${ENV_NAME},_REGION=${REGION},_SECONDARY_REGION=${SECONDARY_REGION},_IMAGE_TAG=${IMAGE_TAG}"
 
 

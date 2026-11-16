@@ -10,6 +10,7 @@
 set -euo pipefail
 
 REGION="${REGION:-europe-west9}"
+TF_STATE_LOCATION="${TF_STATE_LOCATION:-EU}"
 
 get_project_id() {
   case "$1" in
@@ -30,7 +31,7 @@ bootstrap_project() {
   local TF_STATE_BUCKET="${PROJECT_ID}-tfstate"
 
   echo "=============================================================================="
-  echo "🚀 Bootstrapping [${ENV_NAME}] -> Project: ${PROJECT_ID} (Region: ${REGION})"
+  echo "🚀 Bootstrapping [${ENV_NAME}] -> Project: ${PROJECT_ID} (Region: ${REGION}, State: ${TF_STATE_LOCATION})"
   echo "=============================================================================="
 
   echo "1️⃣  Enabling bootstrap prerequisite APIs (for Terraform state, IAM & Cloud Build) in ${PROJECT_ID}..."
@@ -50,12 +51,12 @@ bootstrap_project() {
     NEEDS_IAM_PROPAGATION_WAIT=true
     gcloud storage buckets create "gs://${TF_STATE_BUCKET}" \
       --project="${PROJECT_ID}" \
-      --location="${REGION}" \
+      --location="${TF_STATE_LOCATION}" \
       --uniform-bucket-level-access
     gcloud storage buckets update "gs://${TF_STATE_BUCKET}" \
       --project="${PROJECT_ID}" \
       --versioning
-    echo "✅ Created versioned state bucket gs://${TF_STATE_BUCKET}"
+    echo "✅ Created versioned multi-region state bucket gs://${TF_STATE_BUCKET} (location: ${TF_STATE_LOCATION})"
   else
     echo "ℹ️  Bucket gs://${TF_STATE_BUCKET} already exists."
   fi

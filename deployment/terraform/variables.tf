@@ -13,9 +13,15 @@ variable "environment" {
 }
 
 variable "region" {
-  description = "Google Cloud region for Cloud Run, Artifact Registry, and Vertex AI."
+  description = "Primary Google Cloud region for Cloud Run, Artifact Registry, and Vertex AI."
   type        = string
   default     = "europe-west9"
+}
+
+variable "secondary_region" {
+  description = "Optional warm secondary Google Cloud region for multi-region Cloud Run & Artifact Registry failover (empty string disables secondary region)."
+  type        = string
+  default     = ""
 }
 
 variable "repository_id" {
@@ -42,6 +48,12 @@ variable "conversational_model" {
   default     = "gemini-3.5-flash-lite"
 }
 
+variable "fallback_gemini_model" {
+  description = "Backup Gemini model ID automatically invoked when the primary model fails."
+  type        = string
+  default     = "gemini-3.6-flash"
+}
+
 variable "gemini_model_location" {
   description = "Vertex AI model endpoint location for Gemini inference (e.g., global or europe-west9)."
   type        = string
@@ -55,9 +67,15 @@ variable "deploy_cloud_run_services" {
 }
 
 variable "min_instances" {
-  description = "Minimum number of Cloud Run instances per service (0 for dev/staging, >=1 for prod)."
+  description = "Minimum number of Cloud Run instances per service in primary region (0 for dev/staging, >=2 for prod N+1 redundancy)."
   type        = number
   default     = 0
+}
+
+variable "secondary_min_instances" {
+  description = "Minimum number of warm Cloud Run instances per service in secondary_region when enabled."
+  type        = number
+  default     = 1
 }
 
 variable "max_instances" {

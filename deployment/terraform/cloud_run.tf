@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# 1. Flights Search Backend Service (flights-search-app)
+# 1. Flights Search Backend Service — Primary Region (flights-search-app)
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "flights_search" {
   count                = var.deploy_cloud_run_services ? 1 : 0
@@ -34,6 +34,30 @@ resource "google_cloud_run_v2_service" "flights_search" {
         container_port = 8080
       }
 
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 5
+        failure_threshold     = 12
+
+        http_get {
+          path = "/readyz"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
+
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+
       env {
         name  = "GOOGLE_GENAI_USE_VERTEXAI"
         value = "1"
@@ -59,6 +83,10 @@ resource "google_cloud_run_v2_service" "flights_search" {
         value = var.flights_search_model
       }
       env {
+        name  = "FALLBACK_GEMINI_MODEL"
+        value = var.fallback_gemini_model
+      }
+      env {
         name  = "GEMINI_MODEL_LOCATION"
         value = var.gemini_model_location
       }
@@ -77,7 +105,7 @@ resource "google_cloud_run_v2_service" "flights_search" {
 }
 
 # ------------------------------------------------------------------------------
-# 2. Conversational Multi-Agent Workflow Service (conversational-app)
+# 2. Conversational Multi-Agent Workflow Service — Primary Region (conversational-app)
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "conversational" {
   count                = var.deploy_cloud_run_services ? 1 : 0
@@ -112,6 +140,30 @@ resource "google_cloud_run_v2_service" "conversational" {
         container_port = 8080
       }
 
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 5
+        failure_threshold     = 12
+
+        http_get {
+          path = "/readyz"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
+
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+
       env {
         name  = "GOOGLE_GENAI_USE_VERTEXAI"
         value = "1"
@@ -137,6 +189,10 @@ resource "google_cloud_run_v2_service" "conversational" {
         value = var.conversational_model
       }
       env {
+        name  = "FALLBACK_GEMINI_MODEL"
+        value = var.fallback_gemini_model
+      }
+      env {
         name  = "GEMINI_MODEL_LOCATION"
         value = var.gemini_model_location
       }
@@ -155,7 +211,216 @@ resource "google_cloud_run_v2_service" "conversational" {
 }
 
 # ------------------------------------------------------------------------------
-# 3. React + Nginx Frontend Service (frontend)
+# 3. Warm Secondary Region Backend Services (enabled when secondary_region != "")
+# ------------------------------------------------------------------------------
+resource "google_cloud_run_v2_service" "flights_search_secondary" {
+  count                = var.deploy_cloud_run_services && local.enable_secondary_region ? 1 : 0
+  project              = var.project_id
+  name                 = "flights-search-app"
+  location             = var.secondary_region
+  ingress              = "INGRESS_TRAFFIC_ALL"
+  invoker_iam_disabled = var.allow_public_access
+  deletion_protection  = var.environment == "prod"
+
+  template {
+    service_account = google_service_account.agent_runtime.email
+    timeout         = "300s"
+
+    scaling {
+      min_instance_count = var.secondary_min_instances
+      max_instance_count = var.max_instances
+    }
+
+    containers {
+      image = "${local.secondary_artifact_registry_prefix}/flights-search-app:${var.image_tag}"
+
+      resources {
+        limits = {
+          cpu    = var.backend_cpu
+          memory = var.backend_memory
+        }
+        cpu_idle = var.secondary_min_instances == 0
+      }
+
+      ports {
+        container_port = 8080
+      }
+
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 5
+        failure_threshold     = 12
+
+        http_get {
+          path = "/readyz"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
+
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+
+      env {
+        name  = "GOOGLE_GENAI_USE_VERTEXAI"
+        value = "1"
+      }
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "GOOGLE_CLOUD_LOCATION"
+        value = var.secondary_region
+      }
+      env {
+        name  = "GOOGLE_API_USE_MTLS"
+        value = "never"
+      }
+      env {
+        name  = "GOOGLE_API_USE_CLIENT_CERTIFICATE"
+        value = "false"
+      }
+      env {
+        name  = "FLIGHTS_SEARCH_MODEL"
+        value = var.flights_search_model
+      }
+      env {
+        name  = "FALLBACK_GEMINI_MODEL"
+        value = var.fallback_gemini_model
+      }
+      env {
+        name  = "GEMINI_MODEL_LOCATION"
+        value = var.gemini_model_location
+      }
+      env {
+        name  = "ALLOWED_ORIGINS"
+        value = var.allowed_origins
+      }
+    }
+  }
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_artifact_registry_repository.docker_repo_secondary,
+    google_project_iam_member.agent_runtime_roles,
+  ]
+}
+
+resource "google_cloud_run_v2_service" "conversational_secondary" {
+  count                = var.deploy_cloud_run_services && local.enable_secondary_region ? 1 : 0
+  project              = var.project_id
+  name                 = "conversational-app"
+  location             = var.secondary_region
+  ingress              = "INGRESS_TRAFFIC_ALL"
+  invoker_iam_disabled = var.allow_public_access
+  deletion_protection  = var.environment == "prod"
+
+  template {
+    service_account = google_service_account.agent_runtime.email
+    timeout         = "300s"
+
+    scaling {
+      min_instance_count = var.secondary_min_instances
+      max_instance_count = var.max_instances
+    }
+
+    containers {
+      image = "${local.secondary_artifact_registry_prefix}/conversational-app:${var.image_tag}"
+
+      resources {
+        limits = {
+          cpu    = var.backend_cpu
+          memory = var.backend_memory
+        }
+        cpu_idle = var.secondary_min_instances == 0
+      }
+
+      ports {
+        container_port = 8080
+      }
+
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 5
+        failure_threshold     = 12
+
+        http_get {
+          path = "/readyz"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
+
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+
+      env {
+        name  = "GOOGLE_GENAI_USE_VERTEXAI"
+        value = "1"
+      }
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "GOOGLE_CLOUD_LOCATION"
+        value = var.secondary_region
+      }
+      env {
+        name  = "GOOGLE_API_USE_MTLS"
+        value = "never"
+      }
+      env {
+        name  = "GOOGLE_API_USE_CLIENT_CERTIFICATE"
+        value = "false"
+      }
+      env {
+        name  = "CONVERSATIONAL_MODEL"
+        value = var.conversational_model
+      }
+      env {
+        name  = "FALLBACK_GEMINI_MODEL"
+        value = var.fallback_gemini_model
+      }
+      env {
+        name  = "GEMINI_MODEL_LOCATION"
+        value = var.gemini_model_location
+      }
+      env {
+        name  = "ALLOWED_ORIGINS"
+        value = var.allowed_origins
+      }
+    }
+  }
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_artifact_registry_repository.docker_repo_secondary,
+    google_project_iam_member.agent_runtime_roles,
+  ]
+}
+
+# ------------------------------------------------------------------------------
+# 4. React + Nginx Frontend Service — Primary Region (frontend)
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "frontend" {
   count                = var.deploy_cloud_run_services ? 1 : 0
@@ -189,7 +454,31 @@ resource "google_cloud_run_v2_service" "frontend" {
         container_port = 8080
       }
 
-      # Automatically wire the deployed Cloud Run backend URLs at runtime
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 5
+        failure_threshold     = 12
+
+        http_get {
+          path = "/readyz"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
+
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+
+      # Automatically wire primary and warm secondary Cloud Run backend URLs at runtime
       env {
         name  = "VITE_FLIGHTS_SEARCH_API_URL"
         value = google_cloud_run_v2_service.flights_search[0].uri
@@ -198,12 +487,118 @@ resource "google_cloud_run_v2_service" "frontend" {
         name  = "VITE_CONVERSATIONAL_API_URL"
         value = google_cloud_run_v2_service.conversational[0].uri
       }
+      dynamic "env" {
+        for_each = local.enable_secondary_region ? [1] : []
+        content {
+          name  = "VITE_FLIGHTS_SEARCH_FALLBACK_API_URL"
+          value = google_cloud_run_v2_service.flights_search_secondary[0].uri
+        }
+      }
+      dynamic "env" {
+        for_each = local.enable_secondary_region ? [1] : []
+        content {
+          name  = "VITE_CONVERSATIONAL_FALLBACK_API_URL"
+          value = google_cloud_run_v2_service.conversational_secondary[0].uri
+        }
+      }
     }
   }
 
   depends_on = [
     google_cloud_run_v2_service.flights_search,
     google_cloud_run_v2_service.conversational,
+    google_cloud_run_v2_service.flights_search_secondary,
+    google_cloud_run_v2_service.conversational_secondary,
+    google_project_iam_member.frontend_runtime_roles,
+    google_service_account_iam_member.cicd_act_as_frontend,
+  ]
+}
+
+# ------------------------------------------------------------------------------
+# 5. React + Nginx Frontend Service — Warm Secondary Region (frontend)
+# ------------------------------------------------------------------------------
+resource "google_cloud_run_v2_service" "frontend_secondary" {
+  count                = var.deploy_cloud_run_services && local.enable_secondary_region ? 1 : 0
+  project              = var.project_id
+  name                 = "frontend"
+  location             = var.secondary_region
+  ingress              = "INGRESS_TRAFFIC_ALL"
+  invoker_iam_disabled = var.allow_public_access
+  deletion_protection  = var.environment == "prod"
+
+  template {
+    service_account = google_service_account.frontend_runtime.email
+
+    scaling {
+      min_instance_count = var.secondary_min_instances
+      max_instance_count = var.max_instances
+    }
+
+    containers {
+      image = "${local.secondary_artifact_registry_prefix}/frontend:${var.image_tag}"
+
+      resources {
+        limits = {
+          cpu    = var.frontend_cpu
+          memory = var.frontend_memory
+        }
+        cpu_idle = true
+      }
+
+      ports {
+        container_port = 8080
+      }
+
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 5
+        failure_threshold     = 12
+
+        http_get {
+          path = "/readyz"
+          port = 8080
+        }
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
+
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+
+      # Local secondary backends as primary URLs, primary-region backends as cross-region fallback
+      env {
+        name  = "VITE_FLIGHTS_SEARCH_API_URL"
+        value = google_cloud_run_v2_service.flights_search_secondary[0].uri
+      }
+      env {
+        name  = "VITE_CONVERSATIONAL_API_URL"
+        value = google_cloud_run_v2_service.conversational_secondary[0].uri
+      }
+      env {
+        name  = "VITE_FLIGHTS_SEARCH_FALLBACK_API_URL"
+        value = google_cloud_run_v2_service.flights_search[0].uri
+      }
+      env {
+        name  = "VITE_CONVERSATIONAL_FALLBACK_API_URL"
+        value = google_cloud_run_v2_service.conversational[0].uri
+      }
+    }
+  }
+
+  depends_on = [
+    google_cloud_run_v2_service.flights_search,
+    google_cloud_run_v2_service.conversational,
+    google_cloud_run_v2_service.flights_search_secondary,
+    google_cloud_run_v2_service.conversational_secondary,
+    google_artifact_registry_repository.docker_repo_secondary,
     google_project_iam_member.frontend_runtime_roles,
     google_service_account_iam_member.cicd_act_as_frontend,
   ]

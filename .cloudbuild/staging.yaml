@@ -6,6 +6,7 @@
 substitutions:
   _ENV: 'staging'
   _REGION: 'europe-west9'
+  _SECONDARY_REGION: ''
   _REPOSITORY_ID: 'travel-agent'
   _IMAGE_TAG: 'latest'
 
@@ -49,10 +50,12 @@ steps:
           -var-file="envs/${_ENV}.tfvars" \
           -var="project_id=${PROJECT_ID}" \
           -var="region=${_REGION}" \
+          -var="secondary_region=${_SECONDARY_REGION}" \
           -var="repository_id=${_REPOSITORY_ID}" \
           -var="image_tag=$${TAG}" \
           -target=google_project_service.required_apis \
           -target=google_artifact_registry_repository.docker_repo \
+          -target=google_artifact_registry_repository.docker_repo_secondary \
           -target=google_service_account.agent_runtime \
           -target=google_project_iam_member.agent_runtime_roles \
           -target=google_service_account.frontend_runtime \
@@ -81,6 +84,13 @@ steps:
           flights_search_app/
         docker push "$${IMAGE_URI}:$${TAG}"
         docker push "$${IMAGE_URI}:latest"
+        if [[ -n "${_SECONDARY_REGION}" && "${_SECONDARY_REGION}" != "${_REGION}" ]]; then
+          SECONDARY_URI="${_SECONDARY_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/flights-search-app"
+          docker tag "$${IMAGE_URI}:$${TAG}" "$${SECONDARY_URI}:$${TAG}"
+          docker tag "$${IMAGE_URI}:latest" "$${SECONDARY_URI}:latest"
+          docker push "$${SECONDARY_URI}:$${TAG}"
+          docker push "$${SECONDARY_URI}:latest"
+        fi
 
   # ----------------------------------------------------------------------------
   # Step 3b: Build & Push conversational-app Image (Staging)
@@ -103,6 +113,13 @@ steps:
           conversational_app/
         docker push "$${IMAGE_URI}:$${TAG}"
         docker push "$${IMAGE_URI}:latest"
+        if [[ -n "${_SECONDARY_REGION}" && "${_SECONDARY_REGION}" != "${_REGION}" ]]; then
+          SECONDARY_URI="${_SECONDARY_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/conversational-app"
+          docker tag "$${IMAGE_URI}:$${TAG}" "$${SECONDARY_URI}:$${TAG}"
+          docker tag "$${IMAGE_URI}:latest" "$${SECONDARY_URI}:latest"
+          docker push "$${SECONDARY_URI}:$${TAG}"
+          docker push "$${SECONDARY_URI}:latest"
+        fi
 
   # ----------------------------------------------------------------------------
   # Step 3c: Build & Push frontend Image (Staging)
@@ -125,6 +142,13 @@ steps:
           frontend/
         docker push "$${IMAGE_URI}:$${TAG}"
         docker push "$${IMAGE_URI}:latest"
+        if [[ -n "${_SECONDARY_REGION}" && "${_SECONDARY_REGION}" != "${_REGION}" ]]; then
+          SECONDARY_URI="${_SECONDARY_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY_ID}/frontend"
+          docker tag "$${IMAGE_URI}:$${TAG}" "$${SECONDARY_URI}:$${TAG}"
+          docker tag "$${IMAGE_URI}:latest" "$${SECONDARY_URI}:latest"
+          docker push "$${SECONDARY_URI}:$${TAG}"
+          docker push "$${SECONDARY_URI}:latest"
+        fi
 
   # ----------------------------------------------------------------------------
   # Step 4: Terraform Deploy Staging Cloud Run Services
@@ -146,6 +170,7 @@ steps:
           -var-file="envs/${_ENV}.tfvars" \
           -var="project_id=${PROJECT_ID}" \
           -var="region=${_REGION}" \
+          -var="secondary_region=${_SECONDARY_REGION}" \
           -var="repository_id=${_REPOSITORY_ID}" \
           -var="image_tag=$${TAG}" \
           -var="deploy_cloud_run_services=true"
@@ -153,11 +178,17 @@ steps:
         FLIGHTS_URL=$$(terraform output -raw flights_search_url)
         CONVERSATIONAL_URL=$$(terraform output -raw conversational_url)
         FRONTEND_URL=$$(terraform output -raw frontend_url)
+        FLIGHTS_SECONDARY_URL=$$(terraform output -raw flights_search_secondary_url 2>/dev/null || true)
+        CONVERSATIONAL_SECONDARY_URL=$$(terraform output -raw conversational_secondary_url 2>/dev/null || true)
+        FRONTEND_SECONDARY_URL=$$(terraform output -raw frontend_secondary_url 2>/dev/null || true)
 
         cat <<EOF > /workspace/service_urls.env
-        FLIGHTS_SEARCH_URL=$${FLIGHTS_URL}
-        CONVERSATIONAL_URL=$${CONVERSATIONAL_URL}
-        FRONTEND_URL=$${FRONTEND_URL}
+        FLIGHTS_SEARCH_URL="$${FLIGHTS_URL}"
+        CONVERSATIONAL_URL="$${CONVERSATIONAL_URL}"
+        FRONTEND_URL="$${FRONTEND_URL}"
+        FLIGHTS_SEARCH_SECONDARY_URL="$${FLIGHTS_SECONDARY_URL}"
+        CONVERSATIONAL_SECONDARY_URL="$${CONVERSATIONAL_SECONDARY_URL}"
+        FRONTEND_SECONDARY_URL="$${FRONTEND_SECONDARY_URL}"
         EOF
 
         echo "=================================================================="
@@ -165,10 +196,15 @@ steps:
         echo "  Flights Search App : $${FLIGHTS_URL}"
         echo "  Conversational App : $${CONVERSATIONAL_URL}"
         echo "  Frontend           : $${FRONTEND_URL}"
+        if [ -n "$${FLIGHTS_SECONDARY_URL}" ]; then
+          echo "  [Secondary] Flights Search App : $${FLIGHTS_SECONDARY_URL}"
+          echo "  [Secondary] Conversational App : $${CONVERSATIONAL_SECONDARY_URL}"
+          echo "  [Secondary] Frontend           : $${FRONTEND_SECONDARY_URL}"
+        fi
         echo "=================================================================="
 
   # ----------------------------------------------------------------------------
-  # Step 5: Post-Deploy Staging Smoke & Health Verification
+  # Step 5: Post-Deploy Staging Smoke & Readiness Verification
   # ----------------------------------------------------------------------------
   - id: 'smoke-test-staging'
     name: 'gcr.io/cloud-builders/curl'
@@ -180,17 +216,37 @@ steps:
         set -eu
         . /workspace/service_urls.env
 
-        echo "Verifying Staging Flights Search Service ($${FLIGHTS_SEARCH_URL}/)..."
-        curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_URL}/"
+        echo "Verifying Staging Flights Search Service ($${FLIGHTS_SEARCH_URL})..."
+        curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_URL}/healthz"
+        echo ""
+        curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_URL}/readyz"
         echo ""
 
-        echo "Verifying Staging Conversational Service ($${CONVERSATIONAL_URL}/)..."
-        curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_URL}/"
+        echo "Verifying Staging Conversational Service ($${CONVERSATIONAL_URL})..."
+        curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_URL}/healthz"
+        echo ""
+        curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_URL}/readyz"
         echo ""
 
-        echo "Verifying Staging Frontend & runtime env-config ($${FRONTEND_URL}/env-config.js)..."
+        echo "Verifying Staging Frontend & runtime env-config ($${FRONTEND_URL})..."
+        curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/healthz"
+        echo ""
+        curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/readyz"
+        echo ""
         curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/env-config.js"
         echo ""
+
+        if [ -n "$${FLIGHTS_SEARCH_SECONDARY_URL}" ]; then
+          echo "Verifying Warm Secondary Region Services..."
+          curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_SECONDARY_URL}/healthz"
+          curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_SECONDARY_URL}/readyz"
+          curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_SECONDARY_URL}/healthz"
+          curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_SECONDARY_URL}/readyz"
+          curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/healthz"
+          curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/readyz"
+          curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/env-config.js"
+          echo ""
+        fi
         echo "✅ Staging deployment verified successfully!"
 
 options:

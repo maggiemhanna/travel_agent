@@ -1,9 +1,11 @@
 project_id            = "travel-agent-511710"
 environment           = "dev"
 region                = "europe-west9"
+secondary_region      = ""
 repository_id         = "travel-agent"
 flights_search_model  = "gemini-3.5-flash-lite"
 conversational_model  = "gemini-3.5-flash-lite"
+fallback_gemini_model = "gemini-3.6-flash"
 gemini_model_location = "global"
 min_instances         = 0
 max_instances         = 5
