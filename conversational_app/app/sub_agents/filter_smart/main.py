@@ -119,7 +119,11 @@ async def _run_with_app(initial_state: dict, target_app) -> List[Dict[str, Any]]
 
     parsed_responses = []
     for resp in responses:
+        if not resp.content or not resp.content.parts:
+            continue
         text_content = resp.content.parts[-1].text
+        if not text_content:
+            continue
         try:
             parsed_responses.append(load_json_with_markdown(text_content))
         except json.JSONDecodeError:

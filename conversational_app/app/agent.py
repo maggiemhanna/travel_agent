@@ -23,11 +23,14 @@ from app.config import (
     JSON_PARSER_FALLBACK_MODEL,
     JSON_PARSER_MODEL,
 )
+from pydantic import ValidationError
+
 from app.schema import ConversationalOutput, ConversationalState
 from app.sub_agents.engage.agent import build_engage_agent, engage
 from app.sub_agents.engage.schema import EngageOutput
 from app.sub_agents.filter.agent import build_filter_agent, filter
 from app.sub_agents.filter_smart.agent import build_filter_smart_agent, filter_smart
+from app.sub_agents.filter_smart.schema import FilterSmartOutput
 from app.sub_agents.inspiration.agent import build_inspiration_agent, inspiration
 from app.sub_agents.json_parser.agent import build_json_parser_agent, json_parser
 
@@ -58,17 +61,18 @@ def _route_engage_fn(ctx: Context, node_input: EngageOutput) -> Event:
 
 
 def _parse_filter_smart_fn(ctx: Context, node_input: str) -> Event:
-    """Parses the Filter Smart Agent's text response, falling back to json_parser on invalid JSON."""
+    """Parses and validates the Filter Smart Agent's text response, falling back to json_parser on invalid JSON or schema mismatch."""
     try:
         parsed = load_json_with_markdown(node_input)
-        return Event(route="parsed", output=parsed)
-    except json.JSONDecodeError:
+        validated = FilterSmartOutput.model_validate(parsed)
+        return Event(route="parsed", output=validated.model_dump())
+    except (json.JSONDecodeError, ValidationError, TypeError, AttributeError):
         logger.warning(
-            "Filter Smart response was not valid JSON. Routing to json_parser."
+            "Filter Smart response was not valid FilterSmartOutput JSON. Routing to json_parser."
         )
         return Event(
             route="repair_json",
-            state={"agent_response": node_input},
+            state={"agent_response": str(node_input)},
         )
 
 
