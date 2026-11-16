@@ -10,8 +10,6 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 - **Filter by Qualitative Amenities with Live Google Search (`POST /run-filter-smart`)**: Narrow down candidate flights by specific airlines, morning or afternoon departure windows, layover cities, or on-board amenities (such as reliable Wi-Fi for remote work, extra legroom, or in-flight entertainment) verified through live Google Search, backed by an automatic JSON repair step (`POST /run-json-parser`) if the response formatting needs cleanup.
 - **Explore Open-Ended Travel Ideas (`POST /run-inspiration`)**: Turn broad travel goals (such as *"somewhere warm and sunny in December"*) into concrete origin, destination, and date parameters that automatically trigger a fresh flight search in the dashboard.
 
-![Architecture](architecture.png)
-
 ---
 
 ## 📑 Outline
@@ -38,6 +36,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
   - [**V/ Security, Privacy, and Compliance**](#v-security-privacy-and-compliance)
     - [1. Authentication & Authorization](#1-authentication--authorization)
   - [**VI/ Reliability & Resilience**](#vi-reliability--resilience)
+    - [1. Availability Design](#1-availability-design)
     - [2. Graceful Degradation](#2-graceful-degradation)
 - [**Repository Structure**](#-repository-structure)
 - [**Local Setup & Prerequisites**](#-local-setup--prerequisites)
@@ -115,21 +114,22 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 
 ## 🏗 Cloud Architecture & Production Engineering Layers
 
-The platform is engineered for reproducible multi-environment deployment (`dev`, `staging`, `prod`) on **Google Cloud Platform (GCP)** across **6 architectural domains (`I`–`VI`) and 10 production engineering layers**, verified by the automated test, evaluation, and CI/CD suites in [`flights_search_app/tests/`](flights_search_app/tests/), [`conversational_app/tests/`](conversational_app/tests/), [`deployment/`](deployment/), and [`.cloudbuild/`](.cloudbuild/):
+The platform is engineered for reproducible multi-environment deployment (`dev`, `staging`, `prod`) on **Google Cloud Platform (GCP)** across **6 architectural domains (`I`–`VI`) and 11 production engineering layers**, verified by the automated test, evaluation, and CI/CD suites in [`flights_search_app/tests/`](flights_search_app/tests/), [`conversational_app/tests/`](conversational_app/tests/), [`deployment/`](deployment/), and [`.cloudbuild/`](.cloudbuild/):
 
 | Domain | Layer | Pillars & Focus Areas |
 | :--- | :--- | :--- |
-| [**I. Cloud Architecture**](#i-cloud-architecture) | [**1. Cloud Deployment**](#1-cloud-deployment-cloud-architecture--google-cloud-services-used) | Three-service serverless Cloud Run topology across isolated `dev`, `staging`, and `prod` GCP projects, runtime backend URL wiring, and inventory of managed Google Cloud compute, AI, search grounding, registry, CI/CD, state, IAM & logging services |
-| [**II. Operational Excellence**](#ii-operational-excellence) | [**1. Infrastructure as Code (IaC)**](#1-infrastructure-as-code-iac) | Declarative Terraform stack, versioned Cloud Storage remote state, remote Cloud Build Terraform execution, reproducible two-phase project bootstrap, and strict `dev`/`staging`/`prod` environment parity |
-| [**II. Operational Excellence**](#ii-operational-excellence) | [**2. CI/CD & Deployment**](#2-cicd--deployment) | Pull Request CI checks, 5-stage CD pipelines across `dev`, `staging`, and `prod` (with a manual approval gate on `prod`), zero-downtime Cloud Run revision rollouts with automated smoke checks, and Git-commit image rollback support |
-| [**II. Operational Excellence**](#ii-operational-excellence) | [**3. Testing & Quality Engineering**](#3-testing--quality-engineering) | Four-tier verification pyramid (offline unit tests, live Gemini in-process integration tests, live HTTP E2E tests against localhost or Cloud Run, and a 50-scenario 7-metric AI Evaluation & Loss Analysis suite), automated CI test gates, and 1-to-1 service and sub-agent test coverage |
-| [**III. Designing for Change**](#iii-designing-for-change) | [**1. Configuration Management**](#1-configuration-management) | Externalized backend and Terraform configuration, startup frontend runtime config generation, multi-project `dev`/`staging`/`prod` vs. local environment separation, and infrastructure/runtime feature flags |
-| [**III. Designing for Change**](#iii-designing-for-change) | [**2. Modularity & Abstraction**](#2-modularity--abstraction) | Loose coupling across 3 independent services and 5 self-contained sub-agent packages, strict request/response/state interface schemas, global and per-sub-agent Gemini model swappability, and composable runner & session injection |
-| [**III. Designing for Change**](#iii-designing-for-change) | [**3. Extensibility**](#3-extensibility) | Event-driven in-process workflow routing, cross-cutting ADK `BasePlugin` runtime telemetry, plug-and-play sub-agent and custom evaluation metric registries, and GitHub webhook-driven Cloud Build triggers |
-| [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**1. Scalability & Elasticity**](#1-scalability--elasticity) | Workload-isolated microservice scaling with zero-hop in-process sub-agent execution, environment-tiered horizontal autoscaling (`0–5` dev, `0–10` staging, `1–20` prod) and vertical CPU/memory sizing, managed Cloud Run HTTPS load balancing with non-blocking async I/O, and global Vertex AI inference |
-| [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**2. Resource Efficiency**](#2-resource-efficiency) | Per-service CPU & memory right-sizing and LLM token/tool budget optimization, scale-to-zero non-prod billing with request-scoped CPU throttling, and automated container registry cleanup with Docker layer caching and Nginx Gzip compression |
-| [**V. Security, Privacy, and Compliance**](#v-security-privacy-and-compliance) | [**1. Authentication & Authorization**](#1-authentication--authorization) | Three dedicated custom Service Accounts per project, declarative IAM bindings, active removal of extra permissions from default Google service accounts, non-root backend containers, and keyless Vertex AI authentication with configurable CORS scoping |
-| [**VI. Reliability & Resilience**](#vi-reliability--resilience) | [**2. Graceful Degradation**](#2-graceful-degradation) | Self-healing JSON repair fallback, non-JSON runner fallback, independent UI feature isolation between Flight Search and Chat, 3-tier frontend endpoint fallback, 5-attempt exponential backoff retries across all 6 agents + CI/CD smoke retries, and 300-second Cloud Run request timeouts |
+| [**I. Cloud Architecture**](#i-cloud-architecture) | [**1. Cloud Deployment**](#1-cloud-deployment-cloud-architecture--google-cloud-services-used) | Three-service Cloud Run setup across separate `dev`, `staging`, and `prod` Google Cloud projects (with warm backup servers in Belgium for `prod`), automatic backend URL wiring, and managed Google Cloud services for compute, AI, live web search, image storage, CI/CD, permissions, and logging |
+| [**II. Operational Excellence**](#ii-operational-excellence) | [**1. Infrastructure as Code (IaC)**](#1-infrastructure-as-code-iac) | Version-controlled Terraform setup, versioned multi-region Cloud Storage state backups, remote Cloud Build Terraform execution, two-step first-run project setup, and identical `dev`/`staging`/`prod` infrastructure files |
+| [**II. Operational Excellence**](#ii-operational-excellence) | [**2. CI/CD & Deployment**](#2-cicd--deployment) | Pull Request test checks, 5-stage deployment pipelines across `dev`, `staging`, and `prod` (with a manual approval step on `prod`), zero-downtime Cloud Run updates with automated health checks, and one-command Git-commit rollbacks |
+| [**II. Operational Excellence**](#ii-operational-excellence) | [**3. Testing & Quality Engineering**](#3-testing--quality-engineering) | Four-level test pyramid (offline unit tests, live Gemini integration tests, live HTTP end-to-end tests, and a 50-scenario 7-check AI quality & evaluation suite), automated pipeline test gates, and dedicated tests for every service and specialist agent |
+| [**III. Designing for Change**](#iii-designing-for-change) | [**1. Configuration Management**](#1-configuration-management) | Externalized backend and Terraform settings, startup backend URL configuration for the web frontend, isolated `dev`/`staging`/`prod` vs. local environments, and feature/infrastructure toggles |
+| [**III. Designing for Change**](#iii-designing-for-change) | [**2. Modularity & Abstraction**](#2-modularity--abstraction) | Independent Flight Search, Chat, and Frontend services, 5 self-contained specialist agent folders, strict input/output validation, global and per-agent Gemini model switching, and reusable session setup |
+| [**III. Designing for Change**](#iii-designing-for-change) | [**3. Extensibility**](#3-extensibility) | Step-by-step event routing between agents, automatic performance and token-tracking plugins, plug-and-play specialist agent and evaluation folders, and GitHub webhook deployment triggers |
+| [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**1. Scalability & Elasticity**](#1-scalability--elasticity) | Independent scaling per service, running chat agents together without extra network calls, automatic container scaling (`0–5` dev, `0–10` staging, `2–20` prod Paris + `1–20` warm Belgium backup), configurable CPU/memory, Cloud Run HTTPS load balancing, and global Vertex AI capacity |
+| [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**2. Resource Efficiency**](#2-resource-efficiency) | Right-sized CPU & memory per service, fast default AI models & lean search/prompt usage, `$0` idle shutdown in `dev`/`staging` with pay-per-request CPU billing, and automatic cleanup of old container images with cached builds and Gzip compression |
+| [**V. Security, Privacy, and Compliance**](#v-security-privacy-and-compliance) | [**1. Authentication & Authorization**](#1-authentication--authorization) | Three separate Service Accounts per project, version-controlled permissions, automatic removal of extra permissions from default Google accounts, non-root backend containers, and keyless Vertex AI authentication with configurable allowed website origins |
+| [**VI. Reliability & Resilience**](#vi-reliability--resilience) | [**1. Availability Design**](#1-availability-design) | Always-on backup containers in production, automatic backup Gemini model & safe updates that block broken releases, two-level health checks ("alive" vs. "ready"), and a warm backup region in Belgium with automatic browser failover & one-command regional recovery |
+| [**VI. Reliability & Resilience**](#vi-reliability--resilience) | [**2. Graceful Degradation**](#2-graceful-degradation) | Automatic repair of messy JSON replies, safe handling of plain-text replies, separate Flight Search and Chat failure boundaries, 3-step backend address fallback, 5-attempt automatic retries across all 6 agents, and 5-minute backend request timeouts |
 
 ---
 
@@ -137,34 +137,34 @@ The platform is engineered for reproducible multi-environment deployment (`dev`,
 
 ### 1. Cloud Deployment (Cloud Architecture & Google Cloud Services Used)
 
-The platform is deployed as three containerized serverless microservices on **Google Cloud Run** in `europe-west9`, promoted across three isolated Google Cloud projects (**Dev**: `travel-agent-511710`, **Staging**: `travel-agent-staging-512211`, **Prod**: `travel-agent-prod-512211`).
+The platform runs as three containerized services on **Google Cloud Run** in Paris (`europe-west9`)—paired in production with warm backup services in Belgium (`europe-west1`)—promoted across three separate Google Cloud projects (**Dev**: `travel-agent-511710`, **Staging**: `travel-agent-staging-512211`, **Prod**: `travel-agent-prod-512211`).
 
 - **1.1 End-to-End Cloud Architecture & Request Routing**
-  - **Three Independently Deployed Serverless Microservices:**
-    - **Web Frontend (`frontend`):** Serves the React single-page application via Nginx and generates a runtime configuration script at container startup containing the environment's live backend service URLs.
-    - **Flights Search Service (`flights-search-app`):** Exposes `POST /run-flights-search` (and `GET /` for health checks) to generate 15 realistic flight itineraries per search request.
-    - **Conversational Multi-Agent Service (`conversational-app`):** Exposes `POST /run-conversational` (and `GET /` for health checks) to execute the five-agent conversational workflow in-process.  
+  - **Three Independently Deployed Serverless Services:**
+    - **Web Frontend (`frontend`):** Serves the React web app through Nginx (with built-in health checks) and writes a small startup config file containing the environment's live primary and backup backend URLs so the browser knows where to send requests.
+    - **Flights Search Service (`flights-search-app`):** Provides `POST /run-flights-search` (alongside health-check URLs) to generate 15 realistic flight itineraries per search.
+    - **Conversational Multi-Agent Service (`conversational-app`):** Provides `POST /run-conversational` (alongside health-check URLs) to run the five-agent chat workflow inside a single service.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf), [`deployment/terraform/outputs.tf`](deployment/terraform/outputs.tf) & [`deployment/terraform/envs/`](deployment/terraform/envs/)*  
     — *Implemented in [`frontend/Dockerfile`](frontend/Dockerfile), [`flights_search_app/app/main.py`](flights_search_app/app/main.py) & [`conversational_app/app/main.py`](conversational_app/app/main.py)*
 
 - **1.2 Managed Google Cloud Services Used**
-  - **Google Cloud Run (Gen2 Serverless Compute):** Hosts `flights-search-app`, `conversational-app`, and `frontend` with managed HTTPS certificates, revision-based traffic switching, environment-specific autoscaling, and production deletion protection.  
+  - **Google Cloud Run (Serverless Containers):** Runs `flights-search-app`, `conversational-app`, and `frontend` with automatic HTTPS certificates, startup and ongoing health checks, zero-downtime version updates, automatic scaling, warm backup services in Belgium for `prod`, and accidental-deletion protection in `prod`.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
-  - **Google Cloud Vertex AI (Gemini Models & GenAI Evaluation Service):** Provides managed Gemini inference (`gemini-3.5-flash-lite` by default) for all six agents and powers the LLM-as-a-Judge evaluation rubrics in the AI evaluation suite.  
+  - **Google Cloud Vertex AI (Gemini Models & AI Evaluation):** Runs all Gemini AI calls (`gemini-3.5-flash-lite` primary with automatic backup switching to `gemini-3.6-flash`) across all six agents and powers the AI-graded quality checks in the evaluation suite.  
     — *Provisioned in [`deployment/terraform/apis.tf`](deployment/terraform/apis.tf), [`deployment/terraform/iam.tf`](deployment/terraform/iam.tf) & [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*  
     — *Implemented in [`flights_search_app/app/agent.py`](flights_search_app/app/agent.py), [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/) & [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py)*
-  - **Google Search Grounding:** Grounds the Smart Filter sub-agent in live web search results whenever evaluating qualitative airline or cabin amenities.  
+  - **Google Search Grounding:** Connects the Smart Filter agent to live Google Search results whenever a user asks about real-world airline or cabin amenities (such as Wi-Fi quality or legroom).  
     — *Implemented in [`conversational_app/app/sub_agents/filter_smart/agent.py`](conversational_app/app/sub_agents/filter_smart/agent.py)*
-  - **Google Artifact Registry:** Hosts the private regional (`europe-west9`) Docker repository storing versioned container images for all three services with an automated retention policy that keeps the 15 most recent versions.  
+  - **Google Artifact Registry:** Stores private versioned Docker images for all three services in Paris (`europe-west9`, plus a second independent copy in Belgium `europe-west1` for `prod`) and automatically cleans up older images beyond the 15 most recent versions.  
     — *Provisioned in [`deployment/terraform/registry.tf`](deployment/terraform/registry.tf) & [`deployment/terraform/apis.tf`](deployment/terraform/apis.tf)*
-  - **Google Cloud Build:** Executes Pull Request CI checks, 5-stage CD pipelines across `dev`, `staging`, and `prod`, and automated GitHub triggers with a production manual approval gate.  
+  - **Google Cloud Build:** Runs Pull Request test checks, 5-stage deployment pipelines across `dev`, `staging`, and `prod`, and automated GitHub triggers with a manual approval step for production releases.  
     — *Provisioned in [`deployment/terraform/triggers.tf`](deployment/terraform/triggers.tf) & [`deployment/terraform/apis.tf`](deployment/terraform/apis.tf)*  
     — *Implemented in [`.cloudbuild/pr_checks.yaml`](.cloudbuild/pr_checks.yaml), [`.cloudbuild/dev.yaml`](.cloudbuild/dev.yaml), [`.cloudbuild/staging.yaml`](.cloudbuild/staging.yaml) & [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml)*
-  - **Google Cloud Storage (Remote Terraform State Bucket):** Stores versioned Terraform infrastructure state files (`gs://<PROJECT_ID>-tfstate`) isolated per project and environment with uniform bucket-level access.  
+  - **Google Cloud Storage (Terraform State Backup):** Stores versioned Terraform infrastructure state files (`gs://<PROJECT_ID>-tfstate`) in a multi-region European bucket separated per project and environment.  
     — *Provisioned in [`deployment/bootstrap.sh`](deployment/bootstrap.sh) & [`deployment/terraform/versions.tf`](deployment/terraform/versions.tf)*
-  - **Google Cloud IAM & Resource Manager:** Governs least-privilege machine-to-machine permissions across three dedicated Service Accounts per project (`travel-agent-cicd`, `travel-agent-runtime`, `travel-agent-frontend`).  
+  - **Google Cloud IAM & Resource Manager:** Controls least-privilege permissions across three dedicated Service Accounts per project (`travel-agent-cicd`, `travel-agent-runtime`, `travel-agent-frontend`).  
     — *Provisioned in [`deployment/terraform/iam.tf`](deployment/terraform/iam.tf) & [`deployment/bootstrap.sh`](deployment/bootstrap.sh)*
-  - **Google Cloud Logging & Google Cloud Trace:** Collects container operational logs, Cloud Build pipeline logs, and distributed request trace data.  
+  - **Google Cloud Logging & Google Cloud Trace:** Collects application logs, deployment pipeline logs, and request timing data.  
     — *Provisioned in [`deployment/terraform/apis.tf`](deployment/terraform/apis.tf) & [`deployment/terraform/iam.tf`](deployment/terraform/iam.tf)*  
     — *Implemented in [`flights_search_app/app/app_utils/logging.py`](flights_search_app/app/app_utils/logging.py) & [`conversational_app/app/app_utils/logging.py`](conversational_app/app/app_utils/logging.py)*
 
@@ -215,7 +215,7 @@ Code verification, container builds, infrastructure rollouts, and post-deploy he
 | **Pull Requests** | `travel-agent-511710` | — | [`.cloudbuild/pr_checks.yaml`](.cloudbuild/pr_checks.yaml) — PRs targeting `main` | — |
 | **Dev** | `travel-agent-511710` | [`envs/dev.tfvars`](deployment/terraform/envs/dev.tfvars) | [`.cloudbuild/dev.yaml`](.cloudbuild/dev.yaml) — Active feature iteration | `0` / `5` |
 | **Staging** | `travel-agent-staging-512211` | [`envs/staging.tfvars`](deployment/terraform/envs/staging.tfvars) | [`.cloudbuild/staging.yaml`](.cloudbuild/staging.yaml) — Automated on merge to `main` | `0` / `10` |
-| **Prod** | `travel-agent-prod-512211` | [`envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars) | [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml) — `v*` Git tag + **Manual Approval Gate** | `1` / `20` |
+| **Prod** | `travel-agent-prod-512211` | [`envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars) | [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml) — `v*` Git tag + **Manual Approval Gate** | `2` / `20` *(+ `1` / `20` standby)* |
 
 - **2.1 Pillar 1 — Pipeline Design**
   - **Pull Request Continuous Integration Gate:** Runs automatically on pull requests targeting `main` (or via `./deployment/deploy.sh pr-check dev`) to execute offline unit tests for both backend applications, verify that the React production bundle compiles cleanly, and check Terraform formatting and schema validity before code can be merged.  
@@ -223,10 +223,10 @@ Code verification, container builds, infrastructure rollouts, and post-deploy he
     — *Implemented in [`.cloudbuild/pr_checks.yaml`](.cloudbuild/pr_checks.yaml) & [`deployment/deploy.sh`](deployment/deploy.sh)*
   - **Five-Stage Continuous Delivery Pipeline (`dev`, `staging`, `prod`):**
     1. **Stage 1 — CI Unit Test Gate:** Runs the offline unit test suites across both backend services and halts the pipeline immediately if any test fails.
-    2. **Stage 2 — Targeted Infrastructure Bootstrap:** Enables required Google Cloud APIs, provisions Artifact Registry, and configures the dedicated runtime Service Accounts.
-    3. **Stage 3 — Parallel Container Build & Push:** Builds all three service images in parallel using Docker layer caching and pushes both the Git commit hash tag and `latest` to Artifact Registry.
-    4. **Stage 4 — Cloud Run Infrastructure Rollout:** Applies the full Terraform stack to deploy the new Cloud Run revisions, inject model settings, and wire the live backend URLs into the frontend service.
-    5. **Stage 5 — Post-Deploy Smoke Verification:** Pings the live health endpoints on both backend services and verifies the generated runtime configuration on the live frontend with automatic retries.  
+    2. **Stage 2 — Targeted Infrastructure Bootstrap:** Enables required Google Cloud APIs, provisions primary (and standby regional) Artifact Registry repositories, and configures the dedicated runtime Service Accounts.
+    3. **Stage 3 — Parallel Container Build & Push:** Builds all three service images in parallel using Docker layer caching and pushes both the Git commit hash tag and `latest` to Artifact Registry (including the standby region repository in production).
+    4. **Stage 4 — Cloud Run Infrastructure Rollout:** Applies the full Terraform stack to deploy the new Cloud Run revisions, inject primary and backup model settings, and wire the live primary and regional fallback backend URLs into the frontend service.
+    5. **Stage 5 — Post-Deploy Smoke Verification:** Verifies the live liveness and readiness health endpoints on both backend services (including standby regional services in production) and confirms that the frontend's runtime configuration loaded cleanly, retrying automatically on startup transients.  
     — *Implemented in [`.cloudbuild/dev.yaml`](.cloudbuild/dev.yaml), [`.cloudbuild/staging.yaml`](.cloudbuild/staging.yaml), [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml) & [`deployment/deploy.sh`](deployment/deploy.sh)*
   - **Manual Approval Gate for Production Releases:** Production releases are triggered only when a semantic version tag (`v*`) is pushed and require explicit human approval in Cloud Build before deployment begins.  
     — *Provisioned in [`deployment/terraform/triggers.tf`](deployment/terraform/triggers.tf)*
@@ -282,13 +282,13 @@ Quality, schema compliance, sub-agent routing, non-hallucination, and response l
 All AI model selections, Vertex AI locations, server ports, CORS origins, scaling bounds, and frontend backend URLs are externalized from application code:
 
 - **1.1 Pillar 1 — Externalized Configuration**
-  - **Centralized Backend Configuration Modules:** All backend settings—including global and per-sub-agent Gemini model names, Vertex AI model locations, server hosts and ports, allowed CORS origins, and standalone sub-agent URLs—are loaded from environment variables through dedicated configuration modules rather than hardcoded across files.  
+  - **Centralized Backend Configuration Modules:** All backend settings—including global and per-sub-agent primary and backup Gemini model names, Vertex AI model locations, server hosts and ports, allowed CORS origins, and standalone sub-agent URLs—are loaded from environment variables through dedicated configuration modules rather than hardcoded across files.  
     — *Implemented in [`flights_search_app/app/config.py`](flights_search_app/app/config.py) & [`conversational_app/app/config.py`](conversational_app/app/config.py)*
-  - **Parameterized Terraform Infrastructure Configuration:** Terraform input variables and per-environment `.tfvars` files control project IDs, region, model versions, minimum and maximum container counts, per-service CPU and memory limits, CORS origins, and Git trigger toggles without editing infrastructure code.  
+  - **Parameterized Terraform Infrastructure Configuration:** Terraform input variables and per-environment `.tfvars` files control project IDs, primary and secondary regions, primary and fallback model versions, minimum and maximum container counts, per-service CPU and memory limits, CORS origins, and Git trigger toggles without editing infrastructure code.  
     — *Provisioned in [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf), [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf) & [`deployment/terraform/envs/`](deployment/terraform/envs/)*
-  - **Startup Runtime Configuration for the Web Frontend:** Single-page web apps normally bake backend URLs into static JavaScript files at build time—before cloud resources exist. Instead, when the frontend container starts on Cloud Run, an Nginx startup script reads the backend service URLs injected by Terraform and writes a runtime configuration file (`/env-config.js` with browser caching disabled) that the browser loads before starting React.  
+  - **Startup Runtime Configuration for the Web Frontend:** Single-page web apps normally bake backend URLs into static JavaScript files at build time—before cloud resources exist. Instead, when the frontend container starts on Cloud Run, an Nginx startup script reads the primary and regional fallback backend service URLs injected by Terraform and writes a runtime configuration file (`/env-config.js` with browser caching disabled) that the browser loads before starting React.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*  
-    — *Implemented in [`frontend/Dockerfile`](frontend/Dockerfile), [`frontend/nginx.conf.template`](frontend/nginx.conf.template), [`frontend/index.html`](frontend/index.html), [`frontend/src/App.jsx`](frontend/src/App.jsx) & [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx)*
+    — *Implemented in [`frontend/Dockerfile`](frontend/Dockerfile), [`frontend/nginx.conf.template`](frontend/nginx.conf.template), [`frontend/index.html`](frontend/index.html), [`frontend/src/apiClient.js`](frontend/src/apiClient.js), [`frontend/src/App.jsx`](frontend/src/App.jsx) & [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx)*
 
 - **1.2 Pillar 2 — Environment Separation**
   - **Isolated Multi-Project Cloud Environments (`dev`, `staging`, `prod`) vs. Local Development:** Local development loads `.env` files (templated by `.env.example` in each app) and binds to localhost ports (`8000`–`8006` and `5173`). Cloud deployments isolate `dev` (`travel-agent-511710`), `staging` (`travel-agent-staging-512211`), and `prod` (`travel-agent-prod-512211`) into separate Google Cloud projects, separate remote Terraform state prefixes, and environment-specific `.tfvars` scaling and protection profiles.  
@@ -296,7 +296,7 @@ All AI model selections, Vertex AI locations, server ports, CORS origins, scalin
     — *Implemented in [`flights_search_app/.env.example`](flights_search_app/.env.example), [`conversational_app/.env.example`](conversational_app/.env.example) & [`frontend/.env.example`](frontend/.env.example)*
 
 - **1.3 Pillar 3 — Feature & Infrastructure Flags**
-  - **Infrastructure & Runtime Capability Toggles:** Boolean and environment-driven toggles allow operators to control phased Cloud Run service provisioning during initial project bootstrap, enable or disable automated GitHub Cloud Build triggers, control public HTTP access, enforce production-only deletion protection, and toggle Vertex AI credential mode.  
+  - **Infrastructure & Runtime Capability Toggles:** Boolean and environment-driven toggles allow operators to control phased Cloud Run service provisioning during initial project bootstrap, enable or disable warm secondary-region compute, toggle automated GitHub Cloud Build triggers, control public HTTP access, enforce production-only deletion protection, and toggle Vertex AI credential mode.  
     — *Provisioned in [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf), [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf) & [`deployment/terraform/triggers.tf`](deployment/terraform/triggers.tf)*
 
 > **Note on Unimplemented Pillars:**
@@ -325,37 +325,37 @@ The platform is organized around decoupled service boundaries, typed data contra
     — *Verified in [`conversational_app/tests/eval/results/experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md)*
 
 - **2.4 Pillar 4 — Dependency Injection**
-  - **Composable Runner & Session Service Wiring:** FastAPI route handlers and the evaluation harness construct ADK runners by injecting a fresh in-memory session service per request, while the root workflow composes imported sub-agent objects declaratively—allowing the exact same agent definitions to run inside the production API server, in-process integration tests, or the batch evaluation runner.  
+  - **Reusable Agent & Session Setup Across Environments:** Rather than tying AI agents directly to the web server, the API routes and evaluation scripts pass a fresh temporary memory session into the agent runner on each request and plug the specialist agents into the main workflow as reusable building blocks. This lets the exact same agent code run unchanged inside the live web API, automated integration tests, or batch evaluation runs.  
     — *Implemented in [`flights_search_app/app/main.py`](flights_search_app/app/main.py), [`conversational_app/app/main.py`](conversational_app/app/main.py), [`conversational_app/app/agent.py`](conversational_app/app/agent.py) & [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py)*
 
 > **Note on Unimplemented Pillars:**
-> - **Route-Level FastAPI `Depends()` Providers for Offline Fake LLM Injection (*Not Implemented — Relevant*):** While session and runner setup is modularized in helper functions, refactoring FastAPI route handlers to accept runner factories via `Depends(...)` so offline unit tests can inject deterministic mock LLM responses without live Vertex AI calls is a relevant future enhancement.
+> - **Swappable Mock AI Models for Offline Testing (*Not Implemented — Relevant*):** While session and runner setup is organized in reusable helper functions, allowing API routes to swap in fake offline AI responses during unit tests without calling Vertex AI is a useful future improvement.
 
 ---
 
 ### 3. Extensibility
 
-New specialist sub-agents, tools, evaluation metrics, and CI/CD pipelines can be added through standardized plugin contracts and event-driven routing:
+New specialist agents, external tools, evaluation checks, and deployment pipelines can be added without rewriting existing services:
 
-- **3.1 Pillar 1 — Event-Driven In-Process Workflow Routing**
-  - **Event-Driven State Transitions Inside the ADK Workflow:** Within the conversational orchestrator, routing steps emit structured workflow events carrying the next branch key and updated session state to trigger downstream specialist agents. During execution, the runner streams these internal events asynchronously so the evaluation harness can record sub-agent trajectories, tool calls, and per-agent latency breakdowns.  
+- **3.1 Pillar 1 — Event-Driven Workflow Routing**
+  - **Step-by-Step Event Routing Between Agents:** Inside the conversational workflow, each routing step passes an event specifying which specialist agent should run next along with the updated conversation data. As the workflow runs, these step-by-step events are streamed in real time so the evaluation suite can see which agents ran, whether Google Search was used, and how long each agent took.  
     — *Implemented in [`conversational_app/app/agent.py`](conversational_app/app/agent.py), [`conversational_app/app/main.py`](conversational_app/app/main.py) & [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py)*
 
-- **3.2 Pillar 2 — Plugin Patterns (ADK Runtime Plugins, Sub-Agent, Tool & Evaluation Metric Registries)**
-  - **Cross-Cutting ADK Runtime Plugin (`ExecutionTelemetryPlugin`):** Both backend applications register a concurrency-safe `BasePlugin` (`ExecutionTelemetryPlugin`, toggleable via `ENABLE_TELEMETRY_PLUGIN`) on their ADK `App` containers (`before_run_callback`, `before_agent_callback`, `after_model_callback`, `on_model_error_callback`, `after_run_callback`, `on_run_error_callback`). Isolating state by `invocation_id`, it automatically captures and logs per-agent execution latency, prompt/output token usage (`usage_metadata`), and live Google Search grounding queries (`grounding_metadata`) across the entire workflow and standalone sub-agents without coupling observability code into individual specialist packages.  
+- **3.2 Pillar 2 — Plugin Patterns**
+  - **Automatic Performance & Token-Tracking Plugin:** Both backend services use a shared monitoring plugin (which can be turned on or off through configuration) that automatically listens to the start, finish, and failure of every AI agent and model call. Keeping each user's request separate even when many people use the app at once, it records how long each agent took, how many input and output tokens were used, and which Google Search queries were run—without cluttering individual agent code with manual logging.  
     — *Implemented in [`conversational_app/app/app_utils/telemetry_plugin.py`](conversational_app/app/app_utils/telemetry_plugin.py), [`flights_search_app/app/app_utils/telemetry_plugin.py`](flights_search_app/app/app_utils/telemetry_plugin.py), [`conversational_app/app/agent.py`](conversational_app/app/agent.py), [`flights_search_app/app/agent.py`](flights_search_app/app/agent.py) & [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/)*  
     — *Verified in [`conversational_app/tests/unit/test_conversational.py`](conversational_app/tests/unit/test_conversational.py) & [`flights_search_app/tests/unit/test_flights_search.py`](flights_search_app/tests/unit/test_flights_search.py)*
-  - **Plug-and-Play Sub-Agent & Tool Pattern:** Every sub-agent under `conversational_app/app/sub_agents/` follows an identical four-file structure (`agent.py`, `prompt.py`, `schema.py`, `main.py`). Adding a new specialist capability (such as a hotel or baggage assistant) requires only dropping in a new sub-agent folder, adding its route key to the workflow graph, and optionally attaching tools to its agent definition.  
+  - **Plug-and-Play Specialist Agents & Tools:** Every conversational specialist agent uses the same four-file folder structure—separating its AI setup, instructions, input/output formats, and optional standalone web server. Adding a new specialist (such as a hotel or baggage assistant) only requires adding a new folder, connecting it as a new step in the workflow, and optionally giving it external tools like Google Search.  
     — *Implemented in [`conversational_app/app/agent.py`](conversational_app/app/agent.py) & [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/)*
-  - **Pluggable Evaluation Metric Registries:** The evaluation suite uses dictionary-based plugin registries for both deterministic Python metrics and custom LLM-as-a-Judge rubric templates, resolving active metrics dynamically from [`eval_config.json`](conversational_app/tests/eval/configs/eval_config.json) at runtime without modifying the evaluation runner script.  
+  - **Plug-and-Play Evaluation Checks:** Automated rule-based checks and AI-graded quality scores are listed in a central directory inside the evaluation suite. Teams can add new grading checks and turn them on or off from a simple JSON configuration file without changing the main evaluation script.  
     — *Implemented in [`conversational_app/tests/eval/metrics/custom_metrics.py`](conversational_app/tests/eval/metrics/custom_metrics.py) & [`conversational_app/tests/eval/configs/eval_config.json`](conversational_app/tests/eval/configs/eval_config.json)*
 
 - **3.3 Pillar 3 — Webhook-Driven CI/CD Automation**
-  - **GitHub Webhook Triggers in Cloud Build:** Terraform provisions automated Cloud Build triggers that listen for GitHub pull request and push webhook events to launch CI validation and CD deployment pipelines automatically.  
+  - **GitHub Webhook Triggers in Cloud Build:** Terraform sets up automated Cloud Build triggers that listen for GitHub pull request and push notifications to start test checks and deployments automatically.  
     — *Provisioned in [`deployment/terraform/triggers.tf`](deployment/terraform/triggers.tf)*
 
 > **Note on Unimplemented Pillars:**
-> - **Distributed Cloud Event Brokers (Pub/Sub / Eventarc) & Outbound Application Webhooks (*Not Implemented — Relevant*):** While the conversational workflow uses ADK's in-process event graph, `ExecutionTelemetryPlugin` hooks global ADK lifecycle callbacks, and CI/CD uses GitHub webhook triggers, a distributed cloud message bus (such as Google Cloud Pub/Sub or Eventarc) and outbound application webhooks (such as asynchronous price-alert callbacks) are not yet implemented and remain relevant future extensibility enhancements.
+> - **Cloud Message Queues (Pub/Sub / Eventarc) & Outbound User Notifications (*Not Implemented — Relevant*):** While agents pass events inside the workflow, a monitoring plugin tracks agent activity, and GitHub triggers start deployments automatically, an external cloud message queue (such as Google Cloud Pub/Sub or Eventarc) and outbound webhook notifications (for example, background flight price alerts) are not yet set up and remain useful future additions.
 
 ---
 
@@ -363,66 +363,66 @@ New specialist sub-agents, tools, evaluation metrics, and CI/CD pipelines can be
 
 ### 1. Scalability & Elasticity
 
-The platform separates flight simulation from multi-step conversational reasoning, eliminates internal network hops between sub-agents, and scales horizontally across environment-tiered Cloud Run pools and global Vertex AI endpoints:
+The platform separates flight generation from multi-step chat reasoning, runs chat sub-agents together inside one service to avoid extra network delays, and scales automatically across Cloud Run and global Vertex AI capacity:
 
 - **1.1 Pillar 1 — Horizontal & Vertical Scaling Strategies**
-  - **Workload-Isolated Horizontal Microservice Scaling:** Deploying Flight Search (`flights-search-app`), Conversational Orchestration (`conversational-app`), and the Web Frontend (`frontend`) as three separate Cloud Run services allows each tier to scale out horizontally according to its own traffic demand without competing for CPU or memory.  
+  - **Independent Scaling per Service:** Running Flight Search (`flights-search-app`), the Conversational Assistant (`conversational-app`), and the Web Frontend (`frontend`) as three separate Cloud Run services lets each one add or remove containers based on its own traffic without competing for CPU or memory.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
-  - **Parameterized Vertical Compute Sizing:** Per-container CPU and memory limits are parameterized in Terraform (`2 vCPU / 2 GiB` for backend AI services and `1 vCPU / 512 MiB` for the Nginx frontend) so operators can scale vertical container capacity per environment via `.tfvars` files.  
+  - **Configurable CPU & Memory per Container:** CPU and memory limits for each container (`2 vCPU / 2 GiB` for the Python AI backends and `1 vCPU / 512 MiB` for the Nginx web frontend) are configured through Terraform settings so capacity can be adjusted per environment without changing code.  
     — *Provisioned in [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf), [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf) & [`deployment/terraform/envs/`](deployment/terraform/envs/)*
 
 - **1.2 Pillar 2 — Environment-Tiered Autoscaling Policies**
-  - **Environment-Specific Minimum & Maximum Instance Bounds:** Cloud Run automatically adds or removes container instances based on incoming traffic using bounds matched to each environment:
-    - **Dev ([`envs/dev.tfvars`](deployment/terraform/envs/dev.tfvars)):** `0` to `5` instances per service.
-    - **Staging ([`envs/staging.tfvars`](deployment/terraform/envs/staging.tfvars)):** `0` to `10` instances per service.
-    - **Prod ([`envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars)):** `1` minimum warm instance (eliminating cold-start delays for production users) scaling up to `20` instances per service during traffic spikes.  
+  - **Environment-Specific Minimum & Maximum Container Counts:** Cloud Run automatically adds or removes containers based on live traffic using limits tailored to each environment:
+    - **Dev ([`envs/dev.tfvars`](deployment/terraform/envs/dev.tfvars)):** `0` to `5` containers per service.
+    - **Staging ([`envs/staging.tfvars`](deployment/terraform/envs/staging.tfvars)):** `0` to `10` containers per service.
+    - **Prod ([`envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars)):** `2` always-ready containers per primary service in Paris (`europe-west9`)—plus `1` warm backup container per service in Belgium (`europe-west1`)—scaling up to `20` containers per service during busy periods.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf), [`deployment/terraform/envs/dev.tfvars`](deployment/terraform/envs/dev.tfvars), [`deployment/terraform/envs/staging.tfvars`](deployment/terraform/envs/staging.tfvars) & [`deployment/terraform/envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars)*
 
 - **1.3 Pillar 3 — Load Balancing & High-Throughput API Design**
-  - **Built-In Cloud Run HTTPS Load Balancing:** Each Cloud Run service is fronted by Google Cloud's managed global HTTPS load balancer, which terminates TLS at the edge and distributes concurrent requests across healthy container instances.  
+  - **Built-In Cloud Run HTTPS Load Balancing:** Every Cloud Run service sits behind Google Cloud's managed HTTPS load balancer, which handles encryption automatically and spreads incoming user requests across healthy running containers.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
-  - **Zero-Network-Hop In-Process Sub-Agent Execution:** Running all five conversational sub-agents in-process inside `conversational-app` avoids 2–3 internal HTTP round-trips and serialization steps on every chat turn.  
+  - **Running Chat Sub-Agents Together Without Extra Network Calls:** Running all five conversational agents inside the same `conversational-app` container avoids 2–3 extra network round-trips on every chat message.  
     — *Implemented in [`conversational_app/app/agent.py`](conversational_app/app/agent.py) & [`conversational_app/app/main.py`](conversational_app/app/main.py)*
-  - **Non-Blocking Asynchronous API Execution:** All backend endpoints run asynchronously on FastAPI and Uvicorn with isolated per-request in-memory sessions, allowing each container to handle multiple concurrent requests while waiting on Vertex AI network I/O.  
+  - **Handling Multiple Users at Once per Container:** Backend endpoints process requests asynchronously with separate temporary memory per request, allowing a single container to serve multiple users at the same time while waiting for Gemini AI replies.  
     — *Implemented in [`flights_search_app/app/main.py`](flights_search_app/app/main.py) & [`conversational_app/app/main.py`](conversational_app/app/main.py)*
 
 - **1.4 Pillar 4 — Scalable Managed Vertex AI Inference**
-  - **Global Vertex AI Endpoint Routing:** All six agents route inference calls through Vertex AI's `global` endpoint location by default, drawing from Google Cloud's globally pooled inference capacity for higher quota availability and lower tail latency.  
+  - **Global Vertex AI Routing:** All six agents send Gemini requests through Vertex AI's `global` endpoint by default, drawing from Google Cloud's shared worldwide AI capacity for higher rate limits and steadier response times.  
     — *Provisioned in [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf) & [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*  
     — *Implemented in [`flights_search_app/app/config.py`](flights_search_app/app/config.py), [`conversational_app/app/config.py`](conversational_app/app/config.py), [`flights_search_app/app/agent.py`](flights_search_app/app/agent.py) & [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/)*
 
 > **Note on Unimplemented / Non-Relevant Pillars:**
-> - **HPC / GPU Cluster Scaling (*Not Implemented — Not Relevant*):** Managing self-hosted HPC or GPU Kubernetes clusters is not relevant to this serverless architecture because all LLM inference and search grounding are offloaded to fully managed, auto-scaling **Google Cloud Vertex AI** APIs while application services run on serverless **Google Cloud Run**.
-> - **Unified Global External Application Load Balancer (*Not Implemented — Relevant*):** Each microservice currently uses Cloud Run's built-in `.run.app` HTTPS load balancer; fronting all three services behind a single Global External Application Load Balancer with path-based routing and Cloud Armor WAF is a relevant future enhancement.
+> - **Self-Managed GPU Clusters (*Not Implemented — Not Relevant*):** Managing dedicated GPU or Kubernetes clusters is not needed because all AI model calls and web searches run on fully managed **Google Cloud Vertex AI** APIs while application containers run on serverless **Google Cloud Run**.
+> - **Single Global Load Balancer Across All Services (*Not Implemented — Relevant*):** Each service currently uses Cloud Run's built-in `.run.app` web address; placing all services behind one shared Global External Application Load Balancer with a custom domain and Cloud Armor firewall rules is a practical future upgrade.
 
 ---
 
 ### 2. Resource Efficiency
 
-Compute allocations, model token/tool budgets, idle instance billing, and container registry storage are tuned so non-production environments cost `$0` when idle while active workloads avoid wasted compute and tokens:
+Server sizes, AI token usage, idle container shutdowns, and image storage cleanup are tuned so development and staging environments cost `$0` when idle while active traffic avoids wasted compute and AI calls:
 
 - **2.1 Pillar 1 — Compute & Inference Right-Sizing**
-  - **Right-Sized CPU & Memory per Tier:** Compute resources are matched to each service's footprint—allocating `2 vCPU` and `2 GiB` of RAM to the Python AI backend services (`flights-search-app` and `conversational-app`) and a lightweight `1 vCPU` and `512 MiB` of RAM to the static Nginx `frontend`.  
+  - **Right-Sized CPU & Memory per Service:** Resources match what each service actually does—giving `2 vCPU` and `2 GiB` of RAM to the Python AI backends (`flights-search-app` and `conversational-app`) and a lightweight `1 vCPU` and `512 MiB` of RAM to the static Nginx `frontend`.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf) & [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf)*
-  - **Model Selection, Thinking-Budget & Tool-Call Optimization:**
-    - All six agents default to fast, cost-efficient `gemini-3.5-flash-lite` (which achieved a `0.946` quality score at `4.64s` average turn latency in [`experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md)) while allowing selective per-agent model overrides.
-    - The Flight Search agent disables extended thinking tokens (`thinking_budget=0`) during structured itinerary generation, all agents scope context strictly to required input fields, and the Smart Filter agent skips Google Search whenever structured flight fields are sufficient.  
+  - **Fast Model Defaults & Lean Prompt/Search Usage:**
+    - All six agents default to fast, cost-effective `gemini-3.5-flash-lite` (which reached a `0.946` quality score with a `4.64s` average response time in [`experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md)) while still allowing individual agents to use larger models if needed.
+    - The Flight Search agent turns off extra internal "thinking" steps that aren't needed when generating flight schedules, every agent receives only the exact inputs it needs, and the Smart Filter agent skips Google Search whenever the flight list already contains the answer.  
     — *Implemented in [`flights_search_app/app/agent.py`](flights_search_app/app/agent.py), [`conversational_app/app/config.py`](conversational_app/app/config.py) & [`conversational_app/app/sub_agents/filter_smart/prompt.py`](conversational_app/app/sub_agents/filter_smart/prompt.py)*
 
-- **2.2 Pillar 2 — Cost-Aware Autoscaling & Request-Scoped CPU Billing**
-  - **Scale-to-Zero Idle Instance Elimination in `dev` & `staging`:** Development and staging environments set their minimum instance count to zero across all services so containers spin down completely when no requests are running.  
+- **2.2 Pillar 2 — Cost-Aware Autoscaling & Pay-Per-Request Billing**
+  - **Automatic Shutdown When Idle in `dev` & `staging`:** Development and staging environments set their minimum container count to zero so servers shut down completely whenever no one is using them.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf), [`deployment/terraform/envs/dev.tfvars`](deployment/terraform/envs/dev.tfvars) & [`deployment/terraform/envs/staging.tfvars`](deployment/terraform/envs/staging.tfvars)*
-  - **Request-Scoped CPU Billing:** Cloud Run CPU throttling is enabled whenever scale-to-zero is active (and on the frontend across all environments) so CPU is allocated and billed only while a container is actively processing an HTTP request.  
+  - **Pay-Per-Request CPU Billing:** Whenever scale-to-zero is active (and on the web frontend in every environment), Cloud Run bills for CPU time only during the moments a container is actively answering a web request.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
 
 - **2.3 Pillar 3 — Storage, Build & Bandwidth Efficiency**
-  - **Automated 15-Version Artifact Registry Cleanup:** Artifact Registry automatically deletes older container images beyond the 15 most recent versions per service to prevent unbounded image storage growth.  
+  - **Automatic Cleanup of Old Container Images:** Artifact Registry automatically deletes older container images beyond the 15 most recent versions per service so storage costs never grow unchecked.  
     — *Provisioned in [`deployment/terraform/registry.tf`](deployment/terraform/registry.tf)*
-  - **Docker Layer Caching, Multi-Stage Builds & Nginx Gzip Compression:** Cloud Build pipelines pull the previous `latest` image to reuse cached Docker layers, the frontend Dockerfile uses a multi-stage build that discards Node build tools from the final Nginx image, and Nginx compresses JavaScript, CSS, and JSON payloads with Gzip.  
+  - **Cached Builds, Slim Frontend Images & Compressed Responses:** Cloud Build reuses cached Docker layers from the previous build to speed up deployments, the frontend build discards Node.js build tools from the final Nginx container to keep the image small, and Nginx compresses JavaScript, CSS, and JSON files with Gzip for faster page loads.  
     — *Implemented in [`.cloudbuild/dev.yaml`](.cloudbuild/dev.yaml), [`frontend/Dockerfile`](frontend/Dockerfile), [`frontend/nginx.conf.template`](frontend/nginx.conf.template), [`flights_search_app/Dockerfile`](flights_search_app/Dockerfile) & [`conversational_app/Dockerfile`](conversational_app/Dockerfile)*
 
 > **Note on Unimplemented / Non-Relevant Pillars:**
-> - **GPU Right-Sizing & Spot / Preemptible VM Usage (*Not Implemented — Not Relevant*):** GPU right-sizing and Spot/Preemptible virtual machines are not relevant to this architecture because the platform uses zero self-managed VMs or GPU nodes—all deep-learning inference runs on pay-per-token managed **Google Cloud Vertex AI** APIs and all application containers run on serverless **Google Cloud Run**.
+> - **GPU Sizing & Spot Virtual Machines (*Not Implemented — Not Relevant*):** GPU sizing and Spot/Preemptible virtual machines do not apply because the project manages zero virtual machines or GPUs—AI calls are billed per token on **Vertex AI** and containers run on serverless **Cloud Run**.
 
 ---
 
@@ -430,7 +430,7 @@ Compute allocations, model token/tool budgets, idle instance billing, and contai
 
 ### 1. Authentication & Authorization
 
-Cloud infrastructure and runtime services follow a least-privilege model across three dedicated service accounts per project, declarative IAM role bindings, non-root containers, and keyless Vertex AI authentication:
+Cloud infrastructure and running services follow a strict least-privilege setup across three separate service accounts per project, version-controlled permissions, non-root containers, and keyless cloud authentication:
 
 | Service Account | Provisioned By | Attached To | Granted IAM Roles |
 | :--- | :--- | :--- | :--- |
@@ -448,9 +448,9 @@ Cloud infrastructure and runtime services follow a least-privilege model across 
     — *Called in [`deployment/deploy.sh`](deployment/deploy.sh)*
 
 - **1.2 Pillar 2 — Identity & Access Management (IAM)**
-  - **Declarative Role Bindings & Scoped Impersonation Permissions:** All runtime permissions and service-account attachment bindings (allowing the CI/CD service account to attach the runtime service accounts to Cloud Run) are defined explicitly in version-controlled Terraform code.  
+  - **Version-Controlled Cloud Permissions:** All service permissions—including which deployment account is allowed to attach runtime identities to Cloud Run—are defined explicitly in Terraform rather than clicked manually in the cloud console.  
     — *Provisioned in [`deployment/terraform/iam.tf`](deployment/terraform/iam.tf)*
-  - **Uniform Bucket-Level Access on State Storage:** The Terraform state bucket disables legacy per-object ACLs and enforces uniform bucket-level IAM access.  
+  - **Consistent Bucket-Wide Storage Permissions:** The Cloud Storage bucket that holds Terraform state disables per-file permission overrides so access is controlled consistently across the entire bucket.  
     — *Provisioned in [`deployment/bootstrap.sh`](deployment/bootstrap.sh)*
 
 - **1.3 Pillar 3 — Principle of Least Privilege**
@@ -463,49 +463,93 @@ Cloud infrastructure and runtime services follow a least-privilege model across 
   - **Non-Root Container Execution:** Inside both backend Docker images, root privileges are dropped before startup so the web server runs as an unprivileged operating-system user (`appuser`).  
     — *Implemented in [`flights_search_app/Dockerfile`](flights_search_app/Dockerfile) & [`conversational_app/Dockerfile`](conversational_app/Dockerfile)*
 
-- **1.4 Pillar 4 — Keyless Workload Identity & API Origin Scoping**
-  - **Keyless Backend Service-to-Service Authentication:** Backend containers never use static Gemini API keys or downloadable JSON key files to call Vertex AI; instead, they authenticate automatically using short-lived credentials attached to their Cloud Run service account, while local `.env` and `.tfvars` files are excluded from Git and Docker builds.  
+- **1.4 Pillar 4 — Keyless Cloud Authentication & Allowed Website Origins**
+  - **No Hardcoded API Keys:** Backend containers never use static Gemini API keys or downloaded JSON key files; instead, Cloud Run provides automatic short-lived credentials through each container's attached service account, while local `.env` and `.tfvars` files are excluded from Git and Docker images.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*  
     — *Implemented in [`.gitignore`](.gitignore), [`.gcloudignore`](.gcloudignore), [`flights_search_app/.dockerignore`](flights_search_app/.dockerignore) & [`conversational_app/.dockerignore`](conversational_app/.dockerignore)*
-  - **Configurable Cross-Origin Request Scoping (CORS):** Backend services enforce configurable CORS origin lists injected via environment variables and Terraform settings.  
+  - **Configurable Allowed Website Origins (CORS):** Backend services restrict which web addresses can call their APIs from a browser using configurable origin lists in environment variables and Terraform settings.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf) & [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf)*  
     — *Implemented in [`flights_search_app/app/config.py`](flights_search_app/app/config.py), [`flights_search_app/app/main.py`](flights_search_app/app/main.py), [`conversational_app/app/config.py`](conversational_app/app/config.py) & [`conversational_app/app/main.py`](conversational_app/app/main.py)*
 
 > **Note on Unimplemented Pillars:**
-> - **End-User OAuth 2.0 / OIDC Sign-In & Authenticated Cloud Run Invoker IAM (*Not Implemented — Relevant*):** Because the platform is deployed as an open interactive flight search application (`allow_public_access = true`), end-user OAuth 2.0 / OIDC login (such as Google Identity Platform / Firebase Authentication) and IAM-restricted backend invocation are not yet enabled and remain relevant future security enhancements for user accounts and saved trips.
+> - **User Sign-In & Private Backend Access (*Not Implemented — Relevant*):** Because the app is currently deployed as a public flight search demo that anyone can try in the browser without signing up, user login (such as Google Sign-In / Firebase Auth) and private-only backend access are not yet enabled and remain natural next steps if personal user accounts and saved trips are added.
 
 ---
 
 ## VI/ [RELIABILITY & RESILIENCE]
 
+### 1. Availability Design
+
+The platform avoids single points of failure across servers, AI models, health checks, and cloud regions so the app stays online even if an individual container crashes, a Gemini model has an outage, or an entire cloud region goes down—while still letting development and staging environments shut down when idle to save money:
+
+- **1.1 Pillar 1 — Redundancy**
+  - **Always-On Backup Containers in Production:** In production, each of the three main services (Flight Search, Conversational Assistant, and Web Frontend) keeps at least two ready-to-serve containers running at all times across separate data-center zones within the Paris region (whereas development and staging shut down to zero containers when unused). If one container crashes or restarts, the second running container immediately handles user requests with zero startup wait time.  
+    — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf), [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf) & [`deployment/terraform/envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars)*
+  - **Built-In Redundancy Across Supporting Cloud Services:** None of the surrounding cloud services depend on a single data center either: incoming web traffic is distributed automatically by Google Cloud's global load balancers, Gemini AI requests are served from Google's shared global capacity pool rather than one local facility, production container images are stored in two separate European regions (Paris and Belgium), and infrastructure state backups are automatically copied across multiple European locations.  
+    — *Provisioned in [`deployment/bootstrap.sh`](deployment/bootstrap.sh), [`deployment/terraform/registry.tf`](deployment/terraform/registry.tf) & [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
+
+- **1.2 Pillar 2 — Failover**
+  - **Automatic Backup AI Model:** Across Flight Search, the Conversational workflow, and every individual specialist agent, the default Gemini model (`gemini-3.5-flash-lite`) is paired with a separate backup Gemini model (`gemini-3.6-flash`, which can be changed globally or per agent). If the primary model is still unavailable after five automatic retry attempts—for instance, during a temporary model outage or traffic spike—the backend automatically switches to the backup model and completes the user's flight search or chat message without showing an error.  
+    — *Provisioned in [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf) & [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*  
+    — *Implemented in [`flights_search_app/app/config.py`](flights_search_app/app/config.py), [`flights_search_app/app/agent.py`](flights_search_app/app/agent.py), [`flights_search_app/app/main.py`](flights_search_app/app/main.py), [`conversational_app/app/config.py`](conversational_app/app/config.py), [`conversational_app/app/agent.py`](conversational_app/app/agent.py), [`conversational_app/app/main.py`](conversational_app/app/main.py) & [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/)*  
+    — *Verified in [`flights_search_app/tests/unit/test_flights_search.py`](flights_search_app/tests/unit/test_flights_search.py) & [`conversational_app/tests/unit/test_conversational.py`](conversational_app/tests/unit/test_conversational.py)*
+  - **Safe Updates That Block Broken Releases:** Whenever a new version of a service is deployed, `100%` of live users stay on the currently running version until the new version proves it has started properly and passed its readiness check. If a new release crashes on startup or is missing required settings, Cloud Run automatically cancels the switch so broken updates never reach users.  
+    — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
+
+- **1.3 Pillar 3 — Health Checks**
+  - **Two-Level Health Checks ("Is It Running?" vs. "Is It Ready?"):** Every backend service, specialist agent, and web frontend provides two separate health-check URLs alongside its root info page (`GET /`):
+    - **Liveness Check (`GET /healthz` — *"Is the server alive?"*):** A quick check confirming the web server is running and hasn't frozen.
+    - **Readiness Check (`GET /readyz` — *"Is the server ready for users?"*):** A deeper check confirming the AI agents are loaded and all required cloud project and model settings are in place (or, on the web frontend, that its backend connection file has been created) before any user traffic is sent to it.  
+    — *Implemented in [`flights_search_app/app/app_utils/health.py`](flights_search_app/app/app_utils/health.py), [`flights_search_app/app/main.py`](flights_search_app/app/main.py), [`conversational_app/app/app_utils/health.py`](conversational_app/app/app_utils/health.py), [`conversational_app/app/main.py`](conversational_app/app/main.py), [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/) & [`frontend/nginx.conf.template`](frontend/nginx.conf.template)*  
+    — *Verified in [`flights_search_app/tests/unit/test_flights_search.py`](flights_search_app/tests/unit/test_flights_search.py), [`conversational_app/tests/unit/`](conversational_app/tests/unit/), [`.cloudbuild/dev.yaml`](.cloudbuild/dev.yaml), [`.cloudbuild/staging.yaml`](.cloudbuild/staging.yaml) & [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml)*
+  - **Automatic Self-Healing Container Checks:** Cloud Run calls both health-check URLs automatically on every primary and backup service: at startup, it checks `/readyz` every 5 seconds and waits until the container is fully ready before sending user requests; while running, it checks `/healthz` every 30 seconds and automatically restarts any container that stops responding.  
+    — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
+
+- **1.4 Pillar 4 — Distributed Systems Patterns (Multi-Region & Stateless Design)**
+  - **Global AI Routing Across Regions:** All primary and backup Gemini calls connect through Google's global Vertex AI service rather than being locked to a single regional data center, so AI responses keep working even if one European region runs low on capacity.  
+    — *Provisioned in [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf) & [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
+  - **Warm Backup Region with Automatic Browser Failover:** Without needing a paid custom domain or an external global load balancer, production keeps a warm backup copy of all three services running in **Belgium (`europe-west1`)** alongside the main services in **Paris (`europe-west9`)**, complete with its own Belgium image storage so it can start containers even if Paris is completely offline. The web app receives both sets of backend addresses when it loads: if a flight search or chat request to Paris fails because of a network drop or regional server outage, the browser automatically resends the request to the warm Belgium backend behind the scenes—and if the main Paris website URL itself ever goes down, the live Belgium website URL is already running and ready to open.  
+    — *Provisioned in [`deployment/terraform/registry.tf`](deployment/terraform/registry.tf), [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf), [`deployment/terraform/outputs.tf`](deployment/terraform/outputs.tf), [`deployment/terraform/envs/prod.tfvars`](deployment/terraform/envs/prod.tfvars) & [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml)*  
+    — *Implemented in [`frontend/Dockerfile`](frontend/Dockerfile), [`frontend/src/apiClient.js`](frontend/src/apiClient.js), [`frontend/src/App.jsx`](frontend/src/App.jsx) & [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx)*
+  - **One-Command Recovery to Any Other Cloud Region:** Because infrastructure state files are backed up across multiple European regions and region names are configurable, an operator can redeploy the entire production stack into another healthy Google Cloud region (such as the Netherlands, `europe-west4`) with a single command (`REGION="europe-west4" SECONDARY_REGION="" ./deployment/deploy.sh prod`).  
+    — *Provisioned in [`deployment/bootstrap.sh`](deployment/bootstrap.sh) & [`deployment/deploy.sh`](deployment/deploy.sh)*
+
+> **Note on Unimplemented / Non-Relevant Pillars:**
+> - **Formal Uptime Targets (SLOs / SLAs) & Automated Alerts (*Not Implemented — Relevant*):** While the evaluation suite checks response speed (`<= 15.0s`) and output accuracy (`>= 0.95`), formal uptime commitments (such as a `99.9%` monthly availability target with automated alert notifications when error rates rise) are not yet set up and remain a practical future addition.
+> - **External Uptime Monitoring & Single-Domain Global Load Balancing (*Not Implemented — Relevant*):** Cloud Run checks container health internally and production keeps a warm backup website URL in Belgium, but external monitoring checks from outside Google Cloud and a custom domain behind a global load balancer (which would let users keep using one single `.com` address even if the Paris website URL went down) are not yet set up.
+> - **End-to-End Request Tracking IDs & Internal Service Mesh (*Not Implemented — Relevant*):** Because all five chat agents run together inside a single backend service rather than calling each other over a network, an internal service mesh is unnecessary; passing a shared tracking ID from the browser into backend logs for easier debugging remains a useful future improvement.
+> - **Database Consistency & Sharding (*Not Implemented — Not Relevant*):** Database replication rules and data partitioning do not apply to this project because none of the services store user data in a database—every search or chat message sends its current flight list and conversation history directly in the request and is processed in temporary memory.
+
+---
+
 ### 2. Graceful Degradation
 
-The platform is engineered to handle transient Vertex AI errors, malformed model responses after live Google Search calls, and partial service outages without breaking the user experience:
+The platform is built to absorb temporary Vertex AI glitches, messy AI formatting after live Google Searches, and partial service outages without breaking the app for the user:
 
 - **2.1 Pillar 1 — Fallback Strategies**
-  - **Self-Healing JSON Repair Fallback:** When the Smart Filter specialist returns markdown-wrapped or malformed JSON after running a live Google Search, the workflow catches the parsing error and automatically routes the raw text to the JSON Parser specialist, which repairs the output into valid schema-compliant JSON so the user's request succeeds.  
+  - **Automatic Repair of Messy JSON Replies:** When the Smart Filter agent returns broken or markdown-wrapped JSON after searching Google, the workflow catches the formatting issue automatically and hands the text to the JSON Parser agent, which cleans it into valid JSON so the user still gets their filtered flights.  
     — *Implemented in [`conversational_app/app/agent.py`](conversational_app/app/agent.py), [`conversational_app/app/sub_agents/json_parser/agent.py`](conversational_app/app/sub_agents/json_parser/agent.py) & [`conversational_app/app/sub_agents/json_parser/prompt.py`](conversational_app/app/sub_agents/json_parser/prompt.py)*
-  - **Non-JSON Runner Output Fallback:** If an agent runner ever returns unexpected plain text instead of JSON, the backend catches the error, logs a warning, and wraps the raw text safely rather than crashing with an unhandled exception.  
+  - **Safe Handling of Unexpected Plain-Text Replies:** If an AI agent ever replies with plain text instead of expected JSON data, the backend catches the issue, logs a warning, and returns the text safely instead of crashing with a server error.  
     — *Implemented in [`flights_search_app/app/main.py`](flights_search_app/app/main.py), [`conversational_app/app/main.py`](conversational_app/app/main.py) & [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/)*
-  - **Independent UI Feature Isolation (Flight Search vs. Chat Assistant):** Because Flight Search and the Conversational Assistant are separate microservices—and the React chat widget catches network or server errors locally inside the chat panel—an outage in the conversational service never interrupts core flight search, manual filtering, or pagination on the main page.  
+  - **Independent Flight Search & Chat Panels:** Because Flight Search and the Chat Assistant run as separate services—and the chat widget handles errors locally inside its own panel—a problem in the chat service never breaks flight searching, manual filters, or page navigation on the main screen.  
     — *Implemented in [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx) & [`frontend/src/App.jsx`](frontend/src/App.jsx)*
-  - **Three-Tier Frontend Endpoint Fallback:** The web frontend resolves backend URLs across three fallback levels: (1) runtime Cloud Run configuration (`/env-config.js`), (2) local `.env` build variables, and (3) default localhost ports (`8000` and `8001`).  
-    — *Implemented in [`frontend/src/App.jsx`](frontend/src/App.jsx) & [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx)*
+  - **Three-Step Backend Address Fallback:** The web frontend looks up backend URLs across three fallback levels so it works seamlessly in the cloud and on a laptop: (1) live Cloud Run settings (`/env-config.js`), (2) local `.env` settings, and (3) default local ports (`8000` and `8001`).  
+    — *Implemented in [`frontend/src/apiClient.js`](frontend/src/apiClient.js), [`frontend/src/App.jsx`](frontend/src/App.jsx) & [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx)*
 
 - **2.2 Pillar 2 — Retry Policies**
-  - **Exponential Backoff Retries Across All Six AI Agents:** Every agent configures automatic HTTP retries (up to 5 attempts with exponential backoff from 5 seconds to 60 seconds) on transient Vertex AI rate limits (`429`), request timeouts (`408`), and upstream server errors (`500`, `502`, `503`, `504`).  
+  - **Automatic Retries with Increasing Wait Times Across All Six Agents:** Every AI agent automatically retries failed Gemini calls up to 5 times (waiting longer between each attempt, from 5 seconds up to 60 seconds) whenever it hits temporary rate limits (`429`), timeouts (`408`), or server hiccups (`500`, `502`, `503`, `504`).  
     — *Implemented in [`flights_search_app/app/agent.py`](flights_search_app/app/agent.py), [`conversational_app/app/sub_agents/engage/agent.py`](conversational_app/app/sub_agents/engage/agent.py), [`conversational_app/app/sub_agents/filter/agent.py`](conversational_app/app/sub_agents/filter/agent.py), [`conversational_app/app/sub_agents/filter_smart/agent.py`](conversational_app/app/sub_agents/filter_smart/agent.py), [`conversational_app/app/sub_agents/inspiration/agent.py`](conversational_app/app/sub_agents/inspiration/agent.py) & [`conversational_app/app/sub_agents/json_parser/agent.py`](conversational_app/app/sub_agents/json_parser/agent.py)*
-  - **CI/CD IAM Binding & Post-Deploy Smoke Test Retries:** Project bootstrap scripts retry IAM policy bindings with propagation wait delays, and Stage 5 of every deployment pipeline retries live service health checks (`--retry 5 --retry-delay 3`) to absorb container startup transients.  
+  - **Deployment & Post-Release Health-Check Retries:** Setup scripts wait and retry when new cloud permissions take a moment to activate, and the final stage of every deployment pipeline retries live health checks up to 5 times to allow freshly started containers to warm up.  
     — *Implemented in [`deployment/bootstrap.sh`](deployment/bootstrap.sh), [`.cloudbuild/dev.yaml`](.cloudbuild/dev.yaml), [`.cloudbuild/staging.yaml`](.cloudbuild/staging.yaml) & [`.cloudbuild/prod.yaml`](.cloudbuild/prod.yaml)*
 
 - **2.3 Pillar 3 — Timeout Handling**
-  - **Workload-Tailored Cloud Run Request Timeouts (300 Seconds):** Terraform configures a 300-second request timeout on both backend Cloud Run services so multi-step conversational turns involving Google Search grounding, exponential backoff retries, and JSON repair are never cut off prematurely.  
+  - **Generous 5-Minute Backend Request Timeouts:** Both backend Cloud Run services allow up to 300 seconds (5 minutes) per request so multi-step chat turns involving live Google Searches, automatic retries, backup model switching, and JSON repair are never cut off mid-answer.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf)*
-  - **Bounded E2E Client Timeouts, Terraform Lock Timeouts & Build Deadlines:** End-to-end HTTP tests enforce a 90-second request timeout, Terraform commands enforce a 5-minute state-lock timeout, and Cloud Build pipelines enforce a 30-minute overall build timeout.  
+  - **Clear Time Limits on Tests, Infrastructure Locks & Builds:** End-to-end tests stop waiting after 90 seconds, Terraform waits up to 5 minutes if another deployment lock is active, and Cloud Build pipelines cap total build time at 30 minutes so stuck jobs never hang indefinitely.  
     — *Implemented in [`.cloudbuild/dev.yaml`](.cloudbuild/dev.yaml), [`flights_search_app/tests/e2e/test_flights_search.py`](flights_search_app/tests/e2e/test_flights_search.py) & [`conversational_app/tests/e2e/test_conversational.py`](conversational_app/tests/e2e/test_conversational.py)*
 
 > **Note on Unimplemented Pillars:**
-> - **Stateful Upstream Circuit Breakers & Automatic Cross-Model Failover (*Not Implemented — Relevant*):** While the platform enforces 5-attempt exponential backoff retries, self-healing JSON repair via `json_parser`, 300-second Cloud Run request timeouts, and UI feature isolation between Flight Search and Chat, a stateful circuit-breaker state machine (tracking consecutive upstream failure rates across requests to fail fast) and automatic cross-model failover (such as automatically retrying a timed-out primary model call on a backup Gemini model) are not yet implemented and remain relevant future resilience enhancements.
+> - **Automatic Circuit Breakers (*Not Implemented — Relevant*):** While the app uses 5-attempt automatic retries, backup Gemini model switching, automatic Belgium regional failover, JSON repair, 5-minute request timeouts, and separate Flight Search and Chat services, a shared circuit breaker (which temporarily pauses calls to a failing upstream service so requests fail immediately instead of waiting through retries) is not yet set up and remains a useful future enhancement.
 
 ---
 
@@ -519,31 +563,32 @@ travel_agent/
 │   ├── staging.yaml                    # 5-stage CD pipeline for Staging (travel-agent-staging-512211)
 │   └── prod.yaml                       # 5-stage CD pipeline for Prod (travel-agent-prod-512211)
 ├── deployment/                         # Infrastructure as Code (Terraform) & Deployment Runners
-│   ├── bootstrap.sh                    # Provisions versioned GCS state bucket, travel-agent-cicd SA & cleans default SAs
-│   ├── deploy.sh                       # Unified runner for PR checks and dev/staging/prod Cloud Build deployments
+│   ├── bootstrap.sh                    # Provisions multi-region (EU) GCS state bucket, travel-agent-cicd SA & cleans default SAs
+│   ├── deploy.sh                       # Unified runner for PR checks, dev/staging/prod deployments & regional DR overrides
 │   └── terraform/                      # Single declarative Terraform stack across dev, staging & prod
 │       ├── apis.tf                     # Required GCP service APIs (Cloud Run, Vertex AI, Artifact Registry, IAM, etc.)
 │       ├── iam.tf                      # 3-SA separation (agent_runtime, frontend_runtime, cicd_runner)
-│       ├── registry.tf                 # Artifact Registry Docker repository + 15-version cleanup policy
-│       ├── cloud_run.tf                # Cloud Run v2 services, scaling, model & runtime URL env injection
+│       ├── registry.tf                 # Primary & secondary regional Artifact Registry Docker repos + 15-version cleanup
+│       ├── cloud_run.tf                # Cloud Run v2 primary/secondary services, /readyz & /healthz probes & URL wiring
 │       ├── triggers.tf                 # Automated Cloud Build GitHub triggers (PR, main -> staging, v* -> prod)
-│       ├── variables.tf                # Parameterized infrastructure, model, scaling, CPU/memory & CORS inputs
-│       ├── outputs.tf                  # Deployed Cloud Run service URLs & Service Account emails
+│       ├── variables.tf                # Parameterized primary/secondary region, primary/fallback models, scaling & CORS inputs
+│       ├── outputs.tf                  # Deployed primary & secondary Cloud Run service URLs & Service Account emails
 │       ├── versions.tf                 # Terraform & provider constraints + remote GCS state backend
 │       └── envs/                       # Environment-specific variable files (dev.tfvars, staging.tfvars, prod.tfvars)
 ├── flights_search_app/                 # Standalone Flights Search ADK Service (Local :8000 / Cloud Run :8080)
 │   ├── app/
-│   │   ├── agent.py                    # flights_search ADK Agent & App container (with telemetry plugin)
-│   │   ├── config.py                   # Externalized model, location, host/port, base URL, CORS & plugin config
-│   │   ├── main.py                     # FastAPI server, CORSMiddleware & per-request ADK Runner
+│   │   ├── agent.py                    # Primary & fallback flights_search ADK Agents & App containers
+│   │   ├── config.py                   # Externalized primary/fallback models, location, host/port, base URL, CORS & plugin config
+│   │   ├── main.py                     # FastAPI server, /healthz & /readyz probes, CORS & ADK Runner failover execution
 │   │   ├── prompt.py                   # Flight simulation system instructions & realism rules
 │   │   ├── schema.py                   # Validated request & response schemas
 │   │   └── app_utils/
+│   │       ├── health.py               # Standardized /healthz liveness & /readyz deep readiness payload builders
 │   │       ├── logging.py              # Structured logging & table formatting helpers
 │   │       └── telemetry_plugin.py     # ADK ExecutionTelemetryPlugin (latency & token telemetry)
 │   ├── tests/
 │   │   ├── fixtures/                   # Sample search payloads (flights_search.json)
-│   │   ├── unit/                       # Offline health check, schema / 422 & telemetry plugin tests
+│   │   ├── unit/                       # Offline health, readiness, model failover, schema / 422 & telemetry plugin tests
 │   │   ├── integration/                # In-process TestClient tests with live Vertex AI Gemini inference
 │   │   └── e2e/                        # Live HTTP client tests (configurable via FLIGHTS_SEARCH_BASE_URL)
 │   ├── Dockerfile                      # Hardened non-root (appuser) Python 3.11 container image
@@ -552,11 +597,12 @@ travel_agent/
 │   └── README.md                       # Flights Search service documentation
 ├── conversational_app/                 # Conversational Multi-Agent Workflow Service (Local :8001–8006 / Cloud Run :8080)
 │   ├── app/
-│   │   ├── agent.py                    # Root ADK v2 Workflow graph, routing steps & App container
-│   │   ├── config.py                   # Externalized global & per-sub-agent models, ports, base URLs, CORS & plugin config
-│   │   ├── main.py                     # FastAPI gateway (POST /run-conversational) & ADK Runner execution
+│   │   ├── agent.py                    # Primary & fallback ADK v2 Workflow graphs, routing steps & App containers
+│   │   ├── config.py                   # Externalized global & per-sub-agent primary/fallback models, ports, URLs & CORS
+│   │   ├── main.py                     # FastAPI gateway (POST /run-conversational, /healthz, /readyz) & ADK Runner failover
 │   │   ├── schema.py                   # Validated workflow input, output & shared state schemas
 │   │   ├── app_utils/
+│   │   │   ├── health.py               # Standardized /healthz liveness & /readyz deep readiness payload builders
 │   │   │   ├── logging.py              # Structured logging & table formatting helpers
 │   │   │   └── telemetry_plugin.py     # ADK ExecutionTelemetryPlugin (latency, token & search grounding telemetry)
 │   │   └── sub_agents/                 # 5 Self-Contained Specialist Sub-Agents (each with agent.py, main.py, prompt.py, schema.py)
@@ -567,7 +613,7 @@ travel_agent/
 │   │       └── json_parser/            # Self-healing JSON structure repair specialist (:8006)
 │   ├── tests/
 │   │   ├── fixtures/                   # Sample JSON test payloads for orchestrator & all 5 sub-agents
-│   │   ├── unit/                       # Offline health & schema / 422 validation tests (6 test modules)
+│   │   ├── unit/                       # Offline health, readiness, model failover & schema / 422 tests (6 test modules)
 │   │   ├── integration/                # In-process TestClient tests with live Gemini calls (6 test modules)
 │   │   ├── e2e/                        # Live HTTP client tests against :8001–:8006 or Cloud Run (6 test modules)
 │   │   └── eval/                       # 7-Metric GEAP AI Quality, Non-Hallucination & Latency Evaluation Suite
@@ -584,12 +630,13 @@ travel_agent/
     ├── src/
     │   ├── App.jsx                     # Flight search form, manual filter controls & paginated itinerary cards
     │   ├── ChatWidget.jsx              # Conversational AI widget & dynamic UI state synchronization
+    │   ├── apiClient.js                # Runtime primary/fallback URL resolver & cross-region POST failover helper
     │   ├── index.css                   # Application & ChatWidget styling
     │   └── main.jsx                    # React root entrypoint
     ├── index.html                      # Loads runtime /env-config.js before mounting React bundle
     ├── Dockerfile                      # Multi-stage Node 20 build + Nginx 1.27 runtime /env-config.js generator
-    ├── nginx.conf.template             # Cloud Run Nginx config (Gzip, SPA fallback & no-store /env-config.js)
-    ├── .env.example                    # Template local backend API URLs
+    ├── nginx.conf.template             # Cloud Run Nginx config (/healthz, /readyz, Gzip, SPA fallback & no-store /env-config.js)
+    ├── .env.example                    # Template local primary & optional fallback backend API URLs
     └── README.md                       # Frontend & runtime configuration documentation
 ```
 
@@ -617,11 +664,13 @@ GOOGLE_GENAI_USE_VERTEXAI=1
 GOOGLE_CLOUD_PROJECT=travel-agent-511710
 GOOGLE_CLOUD_LOCATION=europe-west9
 
-# Global & Per-Sub-Agent Gemini Model Configuration
+# Global & Per-Sub-Agent Primary & Backup Gemini Model Configuration
 GEMINI_MODEL=gemini-3.5-flash-lite
 CONVERSATIONAL_MODEL=gemini-3.5-flash-lite
+FALLBACK_GEMINI_MODEL=gemini-3.6-flash
+CONVERSATIONAL_FALLBACK_MODEL=gemini-3.6-flash
 GEMINI_MODEL_LOCATION=global
-# Optional per-sub-agent model overrides (fall back to CONVERSATIONAL_MODEL):
+# Optional per-sub-agent model overrides (fall back to CONVERSATIONAL_MODEL / CONVERSATIONAL_FALLBACK_MODEL):
 # ENGAGE_MODEL=gemini-3.5-flash-lite
 # FILTER_MODEL=gemini-3.5-flash-lite
 # FILTER_SMART_MODEL=gemini-3.5-flash-lite
@@ -705,12 +754,17 @@ The scripts in [`deployment/`](deployment/) automate project bootstrapping, leas
    ```bash
    ./deployment/deploy.sh dev          # Deploys to travel-agent-511710 (envs/dev.tfvars)
    ./deployment/deploy.sh staging      # Deploys to travel-agent-staging-512211 (envs/staging.tfvars)
-   ./deployment/deploy.sh prod         # Deploys to travel-agent-prod-512211 (envs/prod.tfvars)
+   ./deployment/deploy.sh prod         # Deploys to travel-agent-prod-512211 (envs/prod.tfvars: europe-west9 + warm europe-west1)
    ```
 
 4. **Roll Back to a Previous Immutable Git Commit SHA (Optional)**
    ```bash
    IMAGE_TAG="<previous-git-sha>" ./deployment/deploy.sh prod
+   ```
+
+5. **Redeploy Primary Stack into Any Standby GCP Region (Optional Cold-Standby Recovery)**
+   ```bash
+   REGION="europe-west4" SECONDARY_REGION="" ./deployment/deploy.sh prod
    ```
 
 ---

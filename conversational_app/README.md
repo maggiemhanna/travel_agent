@@ -33,10 +33,12 @@ graph TD
 - **In-Process ADK v2 `Workflow` + Optional Standalone Endpoints**:
   - **Production & Default Local Mode (`:8001`)**: [`app/agent.py`](app/agent.py) wires all 5 sub-agents directly into a single ADK v2 `Workflow` graph—avoiding internal network hops and deploying as a single Cloud Run service (`conversational-app`).
   - **Component Isolation Mode (`:8002`–`:8006`)**: Each sub-agent under `app/sub_agents/<name>/main.py` also exposes its own FastAPI server for standalone debugging and component E2E testing.
-- **Externalized Model & Endpoint Configuration ([`app/config.py`](app/config.py))**:
-  - Supports global model selection (`CONVERSATIONAL_MODEL` / `GEMINI_MODEL`, default `gemini-3.5-flash-lite`) **plus independent per-sub-agent overrides** (`ENGAGE_MODEL`, `FILTER_MODEL`, `FILTER_SMART_MODEL`, `INSPIRATION_MODEL`, `JSON_PARSER_MODEL`) and `GEMINI_MODEL_LOCATION` (`global`).
-- **Graceful Degradation & Self-Healing**:
+- **Externalized Primary & Backup Model Configuration ([`app/config.py`](app/config.py))**:
+  - Supports global primary model selection (`CONVERSATIONAL_MODEL` / `GEMINI_MODEL`, default `gemini-3.5-flash-lite`), global backup model selection (`CONVERSATIONAL_FALLBACK_MODEL` / `FALLBACK_GEMINI_MODEL`, default `gemini-3.6-flash`), **independent per-sub-agent primary & fallback overrides** (`ENGAGE_MODEL` / `ENGAGE_FALLBACK_MODEL`, `FILTER_MODEL` / `FILTER_FALLBACK_MODEL`, `FILTER_SMART_MODEL` / `FILTER_SMART_FALLBACK_MODEL`, `INSPIRATION_MODEL` / `INSPIRATION_FALLBACK_MODEL`, `JSON_PARSER_MODEL` / `JSON_PARSER_FALLBACK_MODEL`), and `GEMINI_MODEL_LOCATION` (`global`).
+- **Availability, Failover & Self-Healing**:
   - **Exponential Backoff Retries**: All 5 sub-agents configure `HttpRetryOptions(attempts=5, initial_delay=5.0, max_delay=60.0, exp_base=2.0)` on HTTP `408, 429, 500, 502, 503, 504`.
+  - **Automatic Backup Gemini Model Failover (`gemini-3.6-flash`)**: Both the 5-agent workflow ([`app/agent.py`](app/agent.py)) and all 5 standalone sub-agent packages construct an isolated `fallback_app` bound to `gemini-3.6-flash`. If the primary model exhausts its 5 retry attempts or raises an upstream Vertex AI error, `execute_agent_run()` automatically fails over to `fallback_app` inside a fresh `InMemorySessionService` session.
+  - **Standardized Liveness & Readiness Probes ([`app/app_utils/health.py`](app/app_utils/health.py))**: Both the main gateway (`:8001`) and all 5 standalone sub-agent servers (`:8002`–`:8006`) expose `GET /healthz` (process liveness) and `GET /readyz` (deep readiness verifying ADK `App` initialization, `GOOGLE_CLOUD_PROJECT`, and primary/fallback model configuration—returning `HTTP 503` if misconfigured) alongside legacy `GET /`.
   - **Automatic JSON Repair Fallback**: Because `filter_smart` uses live `google_search` grounding, its output cannot simultaneously enforce strict JSON schema mode. `parse_filter_smart` first attempts fast regex extraction (`load_json_with_markdown`) and automatically routes malformed responses to `json_parser` (`repair_json`) without failing the user request.
 - **Cross-Cutting ADK Runtime Plugin ([`app/app_utils/telemetry_plugin.py`](app/app_utils/telemetry_plugin.py))**:
   - Registers `ExecutionTelemetryPlugin(BasePlugin)` on the ADK `App` container (`ENABLE_TELEMETRY_PLUGIN=true`) to log per-sub-agent wall-clock latency, Gemini prompt/output token counts, and live Google Search grounding queries across every workflow invocation without modifying sub-agent packages.
@@ -49,11 +51,11 @@ graph TD
 conversational_app/
 ├── app/                         # Main Conversational Workflow Service (:8001)
 │   ├── __init__.py
-│   ├── agent.py                 # ADK v2 Workflow graph (route_engage, parse_filter_smart, finalize_output)
-│   ├── config.py                # Centralized env configuration (models, per-agent overrides, URLs, CORS)
-│   ├── main.py                  # FastAPI gateway, CORS middleware & ADK Runner execution
+│   ├── agent.py                 # Primary & fallback ADK v2 Workflow graphs (route_engage, parse_filter_smart, finalize_output)
+│   ├── config.py                # Centralized env configuration (primary/fallback models, per-agent overrides, URLs, CORS)
+│   ├── main.py                  # FastAPI gateway, /healthz & /readyz probes, CORS & ADK Runner failover execution
 │   ├── schema.py                # ConversationalInput, ConversationalOutput & ConversationalState schemas
-│   ├── app_utils/               # Structured logging, formatting helpers & ADK ExecutionTelemetryPlugin
+│   ├── app_utils/               # health.py (/healthz & /readyz), logging.py & telemetry_plugin.py
 │   └── sub_agents/              # Specialized ADK Sub-Agents (each with agent.py, main.py, prompt.py, schema.py)
 │       ├── engage/              # Intent triage & routing (:8002)
 │       ├── filter/              # Deterministic filter extraction (:8003)
@@ -62,7 +64,7 @@ conversational_app/
 │       └── json_parser/         # Self-healing JSON structure repair (:8006)
 ├── tests/
 │   ├── fixtures/                # Sample JSON test inputs for orchestrator & each sub-agent
-│   ├── unit/                    # Fast offline health checks, Pydantic schema & 422 validation tests
+│   ├── unit/                    # Fast offline health, readiness, model failover & 422 validation tests
 │   ├── integration/             # In-process FastAPI TestClient tests with live Gemini calls
 │   ├── e2e/                     # Live HTTP client tests (configurable via *_BASE_URL env vars)
 │   └── eval/                    # 7-metric GEAP AI Quality, Non-Hallucination & Latency Evaluation Suite
@@ -87,8 +89,10 @@ conversational_app/
 | `GOOGLE_GENAI_USE_VERTEXAI` | `1` | Authenticates to Vertex AI using Application Default Credentials (ADC). |
 | `GOOGLE_CLOUD_PROJECT` | `travel-agent-511710` | Target GCP Project ID. |
 | `GOOGLE_CLOUD_LOCATION` | `europe-west9` | Primary GCP region. |
-| `CONVERSATIONAL_MODEL` | `GEMINI_MODEL` (`gemini-3.5-flash-lite`) | Default Gemini model ID inherited by all 5 sub-agents. |
-| `ENGAGE_MODEL` / `FILTER_MODEL` / `FILTER_SMART_MODEL` / `INSPIRATION_MODEL` / `JSON_PARSER_MODEL` | `CONVERSATIONAL_MODEL` | Optional per-sub-agent model overrides (e.g., upgrade only `FILTER_SMART_MODEL`). |
+| `CONVERSATIONAL_MODEL` | `GEMINI_MODEL` (`gemini-3.5-flash-lite`) | Default primary Gemini model ID inherited by all 5 sub-agents. |
+| `CONVERSATIONAL_FALLBACK_MODEL` | `FALLBACK_GEMINI_MODEL` (`gemini-3.6-flash`) | Default automatic backup Gemini model ID inherited by all 5 sub-agents on primary failure. |
+| `ENGAGE_MODEL` / `FILTER_MODEL` / `FILTER_SMART_MODEL` / `INSPIRATION_MODEL` / `JSON_PARSER_MODEL` | `CONVERSATIONAL_MODEL` | Optional per-sub-agent primary model overrides (e.g., upgrade only `FILTER_SMART_MODEL`). |
+| `ENGAGE_FALLBACK_MODEL` ... `JSON_PARSER_FALLBACK_MODEL` | `CONVERSATIONAL_FALLBACK_MODEL` | Optional per-sub-agent backup model overrides. |
 | `GEMINI_MODEL_LOCATION` | `global` | Vertex AI model endpoint location. |
 | `HOST` / `PORT` | `0.0.0.0` / `8001` | Bind address and port for main FastAPI service (`8080` on Cloud Run). |
 | `CONVERSATIONAL_BASE_URL` | `http://127.0.0.1:8001` | Target URL for `tests/e2e/test_conversational.py`. |
@@ -102,7 +106,7 @@ conversational_app/
 
 ### 1. Conversational Workflow (Entrypoint — Port `8001`)
 - **Location:** [`app/agent.py`](app/agent.py), [`app/main.py`](app/main.py), [`app/schema.py`](app/schema.py)
-- **Endpoint:** `POST /run-conversational`
+- **Endpoints:** `POST /run-conversational` | Probes: `GET /healthz`, `GET /readyz`, `GET /`
 - **Execution Pipeline:**
   1. Runs **Engage** with `user_message` and `conversational_history` to classify user intent (`agent_decision`).
   2. Routes via `route_engage`:
