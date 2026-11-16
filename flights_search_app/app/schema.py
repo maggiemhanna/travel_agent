@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 class Filters(BaseModel):
     """
@@ -16,7 +16,14 @@ class Filters(BaseModel):
     max_stops: Optional[int] = Field(
         None, 
         description="The maximum number of stops on the flight."
-    )    
+    )
+
+    @field_validator("max_price", "max_stops")
+    @classmethod
+    def _validate_non_negative_filter(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and value < 0:
+            raise ValueError("Filter numeric bounds must be >= 0.")
+        return value
 
 
 class FlightsSearchInput(BaseModel):
@@ -47,6 +54,21 @@ class FlightsSearchInput(BaseModel):
         ..., 
         description="The filters for the flight search."
     )
+
+    @field_validator("origin", "destination", "departure_date", "return_date")
+    @classmethod
+    def _validate_non_empty_text(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned or len(cleaned) > 200:
+            raise ValueError("Field must be a non-empty string up to 200 characters.")
+        return cleaned
+
+    @field_validator("passengers")
+    @classmethod
+    def _validate_passengers(cls, value: int) -> int:
+        if value < 1 or value > 9:
+            raise ValueError("passengers must be between 1 and 9.")
+        return value
     
 class Flight(BaseModel):
     origin: str = Field(
@@ -101,6 +123,13 @@ class Flight(BaseModel):
         ..., 
         description="The cities where the flight stops."
     )
+
+    @field_validator("stops")
+    @classmethod
+    def _validate_stops(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("stops must be >= 0.")
+        return value
 
 class FlightsSearchOutput(BaseModel):
     """

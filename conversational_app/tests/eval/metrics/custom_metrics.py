@@ -14,7 +14,7 @@ import vertexai
 from vertexai import types as vertex_types
 
 from app.app_utils.logging import setup_logging
-from app.schema import ConversationalOutput, FlightParams
+from app.schema import ConversationalOutput, Flight, FlightParams
 
 logger = setup_logging(name=__name__)
 
@@ -220,20 +220,40 @@ def evaluate_schema_and_contract(instance: Dict[str, Any]) -> Dict[str, Any]:
                 session_inputs = {}
         state = session_inputs.get("state") or {}
         input_flights = state.get("flights_input") or []
-        allowed_flight_numbers = {
-            f.get("flight_number")
-            for f in input_flights
-            if isinstance(f, dict) and f.get("flight_number")
-        }
-        if allowed_flight_numbers:
+        canonical_by_number: Dict[str, List[Dict[str, Any]]] = {}
+        for f in input_flights:
+            if isinstance(f, dict) and f.get("flight_number"):
+                try:
+                    canonical = Flight.model_validate(f).model_dump()
+                except ValidationError:
+                    canonical = f
+                canonical_by_number.setdefault(str(f["flight_number"]), []).append(
+                    canonical
+                )
+        if canonical_by_number:
             returned_numbers = {f.flight_number for f in parsed.flights_output}
-            unknown_flights = returned_numbers - allowed_flight_numbers
+            unknown_flights = returned_numbers - set(canonical_by_number.keys())
             if unknown_flights:
                 return {
                     "score": 0.0,
                     "explanation": (
                         f"flights_output contains hallucinated flight_number(s) not in "
                         f"session flights_input: {sorted(unknown_flights)}."
+                    ),
+                }
+            mutated_flights = sorted(
+                {
+                    f.flight_number
+                    for f in parsed.flights_output
+                    if f.model_dump() not in canonical_by_number.get(f.flight_number, [])
+                }
+            )
+            if mutated_flights:
+                return {
+                    "score": 0.0,
+                    "explanation": (
+                        f"flights_output contains mutated flight field(s) (e.g. tampered price or schedule) "
+                        f"not matching session flights_input for flight_number(s): {mutated_flights}."
                     ),
                 }
         return {
