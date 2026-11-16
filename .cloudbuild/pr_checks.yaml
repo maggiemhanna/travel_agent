@@ -25,7 +25,11 @@ steps:
         echo "=== Running conversational_app unit tests ==="
         (cd conversational_app && pytest tests/unit -v)
 
-  # 2. Frontend Build Verification
+        echo "=== Running DR & Backup script local self-tests ==="
+        bash deployment/validate_dr.sh --local-self-test
+        bash deployment/verify_backups.sh --local-self-test
+
+  # 2. Frontend Unit Tests & Build Verification
   - id: 'build-check-frontend'
     name: 'node:20-alpine'
     dir: 'frontend'
@@ -35,6 +39,7 @@ steps:
       - |
         set -eu
         npm ci
+        npm test
         npm run build
 
   # 3. Terraform Format & Schema Validation

@@ -233,10 +233,16 @@ steps:
         echo ""
         curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/readyz"
         echo ""
-        curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/env-config.js"
-        echo ""
+        PRIMARY_ENV_CFG=$$(curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/env-config.js")
+        echo "$${PRIMARY_ENV_CFG}"
+        echo "$${PRIMARY_ENV_CFG}" | grep -F "VITE_FLIGHTS_SEARCH_API_URL: \"$${FLIGHTS_SEARCH_URL}\""
+        echo "$${PRIMARY_ENV_CFG}" | grep -F "VITE_CONVERSATIONAL_API_URL: \"$${CONVERSATIONAL_URL}\""
 
         if [ -n "$${FLIGHTS_SEARCH_SECONDARY_URL}" ]; then
+          echo "Verifying Primary Frontend cross-region fallback URL wiring..."
+          echo "$${PRIMARY_ENV_CFG}" | grep -F "VITE_FLIGHTS_SEARCH_FALLBACK_API_URL: \"$${FLIGHTS_SEARCH_SECONDARY_URL}\""
+          echo "$${PRIMARY_ENV_CFG}" | grep -F "VITE_CONVERSATIONAL_FALLBACK_API_URL: \"$${CONVERSATIONAL_SECONDARY_URL}\""
+
           echo "Verifying Production Warm Secondary Region Services..."
           curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_SECONDARY_URL}/healthz"
           curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_SECONDARY_URL}/readyz"
@@ -244,10 +250,14 @@ steps:
           curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_SECONDARY_URL}/readyz"
           curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/healthz"
           curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/readyz"
-          curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/env-config.js"
-          echo ""
+          SECONDARY_ENV_CFG=$$(curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/env-config.js")
+          echo "$${SECONDARY_ENV_CFG}"
+          echo "$${SECONDARY_ENV_CFG}" | grep -F "VITE_FLIGHTS_SEARCH_API_URL: \"$${FLIGHTS_SEARCH_SECONDARY_URL}\""
+          echo "$${SECONDARY_ENV_CFG}" | grep -F "VITE_CONVERSATIONAL_API_URL: \"$${CONVERSATIONAL_SECONDARY_URL}\""
+          echo "$${SECONDARY_ENV_CFG}" | grep -F "VITE_FLIGHTS_SEARCH_FALLBACK_API_URL: \"$${FLIGHTS_SEARCH_URL}\""
+          echo "$${SECONDARY_ENV_CFG}" | grep -F "VITE_CONVERSATIONAL_FALLBACK_API_URL: \"$${CONVERSATIONAL_URL}\""
         fi
-        echo "✅ Production primary & secondary release verified successfully!"
+        echo "✅ Production primary & secondary release and cross-region fallback wiring verified successfully!"
 
 options:
   logging: CLOUD_LOGGING_ONLY
