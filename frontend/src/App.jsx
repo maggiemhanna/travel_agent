@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import ChatWidget from './ChatWidget';
+import { postWithRegionalFailover, resolveBackendUrl } from './apiClient';
 
-const FLIGHTS_SEARCH_API_URL = (
-  window.__ENV__?.VITE_FLIGHTS_SEARCH_API_URL ||
-  import.meta.env.VITE_FLIGHTS_SEARCH_API_URL ||
+const FLIGHTS_SEARCH_API_URL = resolveBackendUrl(
+  'VITE_FLIGHTS_SEARCH_API_URL',
   'http://127.0.0.1:8000'
-).replace(/\/$/, '');
+);
+const FLIGHTS_SEARCH_FALLBACK_API_URL = resolveBackendUrl(
+  'VITE_FLIGHTS_SEARCH_FALLBACK_API_URL',
+  ''
+);
 
 const MAJOR_CITIES = [
   "Abu Dhabi", "Auckland", "Amsterdam", "Athens", "Atlanta",
@@ -69,12 +73,11 @@ function App() {
     };
 
     try {
-      const response = await fetch(`${FLIGHTS_SEARCH_API_URL}/run-flights-search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const response = await postWithRegionalFailover({
+        primaryUrl: FLIGHTS_SEARCH_API_URL,
+        fallbackUrl: FLIGHTS_SEARCH_FALLBACK_API_URL,
+        path: '/run-flights-search',
+        payload,
       });
 
       if (!response.ok) {

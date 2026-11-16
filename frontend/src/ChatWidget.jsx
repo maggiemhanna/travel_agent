@@ -1,10 +1,14 @@
 import { useState } from 'react';
+import { postWithRegionalFailover, resolveBackendUrl } from './apiClient';
 
-const CONVERSATIONAL_API_URL = (
-  window.__ENV__?.VITE_CONVERSATIONAL_API_URL ||
-  import.meta.env.VITE_CONVERSATIONAL_API_URL ||
+const CONVERSATIONAL_API_URL = resolveBackendUrl(
+  'VITE_CONVERSATIONAL_API_URL',
   'http://127.0.0.1:8001'
-).replace(/\/$/, '');
+);
+const CONVERSATIONAL_FALLBACK_API_URL = resolveBackendUrl(
+  'VITE_CONVERSATIONAL_FALLBACK_API_URL',
+  ''
+);
 
 function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchFlights, setCurrentPage }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,12 +46,11 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
     };
 
     try {
-      const response = await fetch(`${CONVERSATIONAL_API_URL}/run-conversational`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const response = await postWithRegionalFailover({
+        primaryUrl: CONVERSATIONAL_API_URL,
+        fallbackUrl: CONVERSATIONAL_FALLBACK_API_URL,
+        path: '/run-conversational',
+        payload,
       });
 
       if (!response.ok) {
