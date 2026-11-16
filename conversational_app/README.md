@@ -22,8 +22,8 @@ graph TD
     Inspiration --> Finalize
     
     SmartFilter --> ParseSmart{"parse_filter_smart"}
-    ParseSmart -->|"Valid JSON (parsed)"| Finalize
-    ParseSmart -.->|"JSONDecodeError (repair_json)"| JSONParser["JSON Parser Sub-Agent (Self-Healing Repair)"]
+    ParseSmart -->|"Valid JSON & Schema (parsed)"| Finalize
+    ParseSmart -.->|"Syntax or Schema Error (repair_json)"| JSONParser["JSON Parser Sub-Agent (Self-Healing Repair)"]
     JSONParser --> Finalize
     
     Finalize --> ReturnClient(["Unified JSON Response to Frontend"])
@@ -39,7 +39,8 @@ graph TD
   - **Exponential Backoff Retries**: All 5 sub-agents configure `HttpRetryOptions(attempts=5, initial_delay=5.0, max_delay=60.0, exp_base=2.0)` on HTTP `408, 429, 500, 502, 503, 504`.
   - **Automatic Backup Gemini Model Failover (`gemini-3.6-flash`)**: Both the 5-agent workflow ([`app/agent.py`](app/agent.py)) and all 5 standalone sub-agent packages construct an isolated `fallback_app` bound to `gemini-3.6-flash`. If the primary model exhausts its 5 retry attempts or raises an upstream Vertex AI error, `execute_agent_run()` automatically fails over to `fallback_app` inside a fresh `InMemorySessionService` session.
   - **Standardized Liveness & Readiness Probes ([`app/app_utils/health.py`](app/app_utils/health.py))**: Both the main gateway (`:8001`) and all 5 standalone sub-agent servers (`:8002`–`:8006`) expose `GET /healthz` (process liveness) and `GET /readyz` (deep readiness verifying ADK `App` initialization, `GOOGLE_CLOUD_PROJECT`, and primary/fallback model configuration—returning `HTTP 503` if misconfigured) alongside legacy `GET /`.
-  - **Automatic JSON Repair Fallback**: Because `filter_smart` uses live `google_search` grounding, its output cannot simultaneously enforce strict JSON schema mode. `parse_filter_smart` first attempts fast regex extraction (`load_json_with_markdown`) and automatically routes malformed responses to `json_parser` (`repair_json`) without failing the user request.
+  - **Automatic JSON Syntax & Schema Repair Fallback**: Because `filter_smart` uses live `google_search` grounding, its output cannot simultaneously enforce strict JSON schema mode. `parse_filter_smart` first attempts fast extraction of markdown-fenced or preamble-wrapped JSON (`load_json_with_markdown`), validates strict `FilterSmartOutput` schema compliance, and automatically routes malformed or schema-mismatched responses to `json_parser` (`repair_json`) without failing the user request.
+  - **Input Boundary & Prompt Safety Guardrails**: [`app/schema.py`](app/schema.py) rejects blank/whitespace strings, oversized inputs (`> 4000` characters), negative stop/filter values, and out-of-range passenger counts (`< 1` or `> 9`) with `HTTP 422` before invoking Gemini, while `<SECURITY_GUARDRAILS>` in [`engage/prompt.py`](app/sub_agents/engage/prompt.py) and [`filter_smart/prompt.py`](app/sub_agents/filter_smart/prompt.py) defend against routing hijacks, system-prompt extraction, off-topic web searches, and flight/price tampering.
 - **Cross-Cutting ADK Runtime Plugin ([`app/app_utils/telemetry_plugin.py`](app/app_utils/telemetry_plugin.py))**:
   - Registers `ExecutionTelemetryPlugin(BasePlugin)` on the ADK `App` container (`ENABLE_TELEMETRY_PLUGIN=true`) to log per-sub-agent wall-clock latency, Gemini prompt/output token counts, and live Google Search grounding queries across every workflow invocation without modifying sub-agent packages.
 
@@ -54,7 +55,7 @@ conversational_app/
 │   ├── agent.py                 # Primary & fallback ADK v2 Workflow graphs (route_engage, parse_filter_smart, finalize_output)
 │   ├── config.py                # Centralized env configuration (primary/fallback models, per-agent overrides, URLs, CORS)
 │   ├── main.py                  # FastAPI gateway, /healthz & /readyz probes, CORS & ADK Runner failover execution
-│   ├── schema.py                # ConversationalInput, ConversationalOutput & ConversationalState schemas
+│   ├── schema.py                # ConversationalInput, ConversationalOutput & ConversationalState schemas + boundary rules
 │   ├── app_utils/               # health.py (/healthz & /readyz), logging.py & telemetry_plugin.py
 │   └── sub_agents/              # Specialized ADK Sub-Agents (each with agent.py, main.py, prompt.py, schema.py)
 │       ├── engage/              # Intent triage & routing (:8002)
@@ -63,11 +64,11 @@ conversational_app/
 │       ├── inspiration/         # Open-ended destination & date discovery (:8005)
 │       └── json_parser/         # Self-healing JSON structure repair (:8006)
 ├── tests/
-│   ├── fixtures/                # Sample JSON test inputs for orchestrator & each sub-agent
-│   ├── unit/                    # Fast offline health, readiness, model failover & 422 validation tests
-│   ├── integration/             # In-process FastAPI TestClient tests with live Gemini calls
+│   ├── fixtures/                # Functional payloads + 10-case adversarial red-team suite (red_team.json)
+│   ├── unit/                    # Offline health, failover, fault-injection, red-team boundary & brownout tests
+│   ├── integration/             # In-process TestClient tests with live Gemini calls + adversarial red-team suite
 │   ├── e2e/                     # Live HTTP client tests (configurable via *_BASE_URL env vars)
-│   └── eval/                    # 7-metric GEAP AI Quality, Non-Hallucination & Latency Evaluation Suite
+│   └── eval/                    # 7-metric GEAP AI Quality, Flight/Price Immutability & Latency Evaluation Suite
 │       ├── configs/             # eval_config.json, scenario_generation_config.json, session_input.json
 │       ├── datasets/            # 50-case synthetic travel benchmark (conversational_synthetic.evalset.json)
 │       ├── metrics/             # Custom Python & LLM-as-a-Judge evaluation metrics
@@ -395,10 +396,10 @@ python3 -m app.sub_agents.json_parser.main   # Port 8006
 ```bash
 cd conversational_app
 
-# 1. Unit tests (fast, offline health checks + Pydantic schema & 422 validation)
+# 1. Unit tests (offline health/readiness, failover, fault-injection, red-team boundary & brownout suites)
 python3 -m pytest tests/unit -v -s
 
-# 2. Integration tests (in-process TestClient with live Gemini calls across workflow & sub-agents)
+# 2. Integration tests (in-process TestClient with live Gemini calls + adversarial red-team suite)
 python3 -m pytest tests/integration -v -s
 
 # 3. End-to-End tests against local servers (:8001–:8006)
@@ -418,7 +419,7 @@ The [`tests/eval/`](tests/eval/) suite evaluates the full multi-agent workflow a
 | `multi_turn_trajectory_quality_v1` | Predefined Rubric | `>= 0.80` | Sub-agent routing accuracy (`engage` → specialist). |
 | `tool_use_quality` | Custom LLM Judge | `>= 0.80` | Appropriate `google_search` grounding usage on `filter_smart`. |
 | `coherence` | Predefined Rubric | `>= 0.80` | Logical clarity and helpfulness of `agent_response`. |
-| `schema_and_contract_valid` | Deterministic Python | `>= 0.95` | Strict `ConversationalOutput` schema validity, decision invariants & **zero hallucinated flights**. |
+| `schema_and_contract_valid` | Deterministic Python | `>= 0.95` | Strict `ConversationalOutput` schema validity, decision invariants, **zero hallucinated flights & exact flight/price immutability**. |
 | `conversation_plan_alignment` | Custom LLM Judge | `>= 0.80` | Alignment with expected ground-truth `conversation_plan`. |
 | `latency_seconds` | Deterministic Python | `<= 15.0s` | Single-turn end-to-end response latency (lower is better). |
 

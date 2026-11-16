@@ -17,8 +17,8 @@ The **Web Frontend** is a single-page React + Vite application (`:5173` locally,
     - `inspiration_agent`: Updates search parameters (`origin`, `destination`, dates) and automatically triggers a fresh flight search.
     - `continue`: Displays conversational guidance or clarifying questions.
   - **Independent Feature Isolation**: Network or backend errors from `conversational-app` are caught and shown gracefully inside the chat widget without interrupting flight search or manual filtering in `App.jsx`.
-- **Cross-Region Backend Failover Client ([`src/apiClient.js`](src/apiClient.js))**:
-  - Centralizes runtime URL resolution (`resolveBackendUrl`) and wraps backend `POST` calls from [`src/App.jsx`](src/App.jsx) and [`src/ChatWidget.jsx`](src/ChatWidget.jsx) with `postWithRegionalFailover()`.
+- **Cross-Region Backend Failover & Price Helper ([`src/apiClient.js`](src/apiClient.js))**:
+  - Centralizes runtime URL resolution (`resolveBackendUrl`), multi-currency price parsing (`parseFlightPrice` across `EUR`, `USD`, `$`, `€`, `£` for local filter sync), and wraps backend `POST` calls from [`src/App.jsx`](src/App.jsx) and [`src/ChatWidget.jsx`](src/ChatWidget.jsx) with `postWithRegionalFailover()`.
   - When a secondary regional backend URL is configured (`VITE_FLIGHTS_SEARCH_FALLBACK_API_URL` / `VITE_CONVERSATIONAL_FALLBACK_API_URL`, pointing to `europe-west1` in `prod`), network errors (`TypeError` / connection drop) or transient upstream gateway failures (`HTTP 502`, `503`, `504`) on the primary `europe-west9` backend automatically fail over to the warm `europe-west1` backend transparently—while never double-sending client validation errors (`HTTP 4xx`).
 
 ---
@@ -48,25 +48,29 @@ frontend/
 ├── src/
 │   ├── App.jsx              # Flight search form, manual filters & paginated itinerary cards
 │   ├── ChatWidget.jsx       # Conversational AI assistant & dynamic UI state sync
-│   ├── apiClient.js         # Runtime URL resolution & cross-region POST failover helper
+│   ├── apiClient.js         # Runtime URL resolution, cross-region POST failover & price helper
+│   ├── apiClient.test.js    # Unit & fault-injection tests for URL resolution, regional failover & price parsing
 │   ├── index.css            # Application & ChatWidget styling
 │   └── main.jsx             # React root entrypoint
 ├── index.html               # Loads /env-config.js before mounting React bundle
-├── Dockerfile               # Multi-stage Node build + Nginx runtime /env-config.js generator
+├── Dockerfile               # Multi-stage Node test/build + Nginx runtime /env-config.js generator
 ├── nginx.conf.template      # Cloud Run Nginx config ($PORT, /healthz, /readyz, SPA fallback & no-store env-config)
 ├── .env.example             # Template local primary & optional fallback backend API URLs
-├── package.json             # Dependencies & Vite scripts
+├── package.json             # Dependencies, test & Vite scripts
 └── vite.config.js           # Vite dev/build configuration
 ```
 
 ---
 
-## 🚀 Running Locally
+## 🚀 Running & Testing Locally
 
 ```bash
 cd frontend
 cp -n .env.example .env
 npm install
+
+# Run offline failover & price-parsing unit tests
+npm test
 
 # Start Vite dev server on http://localhost:5173
 npm run dev

@@ -14,7 +14,7 @@ The **Flights Search Agent Service** is an independent microservice built with *
   - Generates 15 realistic flight options per query across budget, standard, and flagship carriers.
   - Obeys route duration, timezone shifts, overnight arrival offsets (`+1` / `+2`), and real multi-airport city codes (e.g., `CDG`/`ORY`, `JFK`/`EWR`, `LHR`/`LGW`).
   - Strictly enforces requested `direct`, `max_price`, and `max_stops` constraints.
-- **Strict Pydantic Contracts ([`app/schema.py`](app/schema.py)):** Validates incoming requests via `FlightsSearchInput` (returning `422 Unprocessable Entity` on invalid payloads) and enforces agent output structure via `FlightsSearchOutput`.
+- **Strict Pydantic Contracts & Input Boundary Guardrails ([`app/schema.py`](app/schema.py)):** Validates incoming requests via `FlightsSearchInput`—rejecting missing fields, blank/whitespace strings, oversized inputs (`> 4000` characters), out-of-range passenger counts (`< 1` or `> 9`), and negative filter values with `422 Unprocessable Entity` before invoking Gemini—and enforces agent output structure via `FlightsSearchOutput`.
 
 ### 2. FastAPI Runtime & Cloud-Native Packaging
 - **Stateless Per-Request Isolation ([`app/main.py`](app/main.py)):** Generates an isolated `InMemorySessionService` and unique `session_id` / `user_id` (`uuid4()`) per HTTP request, with safe fallback handling if non-JSON text is returned.
@@ -35,11 +35,11 @@ flights_search_app/
 │   ├── config.py            # Centralized env configuration (primary/fallback models, host/port, URLs, CORS)
 │   ├── main.py              # FastAPI server, /healthz & /readyz probes, CORS & ADK Runner failover execution
 │   ├── prompt.py            # System instruction prompt & flight simulation rules
-│   ├── schema.py            # Pydantic contracts (Filters, FlightsSearchInput, Flight, FlightsSearchOutput)
+│   ├── schema.py            # Pydantic contracts & input boundary guardrails (Filters, FlightsSearchInput, Flight, FlightsSearchOutput)
 │   └── app_utils/           # health.py (/healthz & /readyz), logging.py & telemetry_plugin.py
 ├── tests/
 │   ├── fixtures/            # Sample test payloads (flights_search.json)
-│   ├── unit/                # Fast offline health, readiness, model failover & schema validation tests
+│   ├── unit/                # Offline health, readiness, model failover, fault-injection, boundary & brownout tests
 │   ├── integration/         # In-process FastAPI TestClient tests with live Gemini calls
 │   └── e2e/                 # Live HTTP client tests (configurable via FLIGHTS_SEARCH_BASE_URL)
 ├── Dockerfile               # Production non-root container image definition
@@ -176,7 +176,7 @@ curl -X POST "http://127.0.0.1:8000/run-flights-search" \
 Run from `flights_search_app/`:
 
 ```bash
-# 1. Unit tests (fast, offline health check + Pydantic schema & 422 validation)
+# 1. Unit tests (offline health/readiness, model failover, fault-injection, boundary & brownout suites)
 python3 -m pytest tests/unit -v -s
 
 # 2. Integration tests (in-process TestClient with live Gemini calls)
