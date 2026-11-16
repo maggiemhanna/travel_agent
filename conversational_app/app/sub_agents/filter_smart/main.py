@@ -58,8 +58,15 @@ def load_json_with_markdown(data):
     
     if match:
         data = match.group(1)
-    
-    return json.loads(data)
+
+    try:
+        return json.loads(data)
+    except json.JSONDecodeError:
+        brace_idx = data.find("{")
+        if brace_idx != -1:
+            obj, _ = json.JSONDecoder().raw_decode(data[brace_idx:])
+            return obj
+        raise
 
 
 @api.get("/", tags=["Health"])

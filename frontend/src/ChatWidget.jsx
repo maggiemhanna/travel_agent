@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { postWithRegionalFailover, resolveBackendUrl } from './apiClient';
+import { parseFlightPrice, postWithRegionalFailover, resolveBackendUrl } from './apiClient';
 
 const CONVERSATIONAL_API_URL = resolveBackendUrl(
   'VITE_CONVERSATIONAL_API_URL',
@@ -95,7 +95,7 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
 
               let filtered = [...flights];
               if (result.filter_type === 'price' || result.filter_type === 'max_price') {
-                filtered = flights.filter(f => parseFloat(f.price.replace('$', '')) <= value);
+                filtered = flights.filter(f => parseFlightPrice(f.price) <= value);
               } else if (result.filter_type === 'stops' || result.filter_type === 'max_stops') {
                 filtered = flights.filter(f => f.stops <= value);
               } else if (result.filter_type === 'direct') {

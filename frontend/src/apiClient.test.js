@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { postWithRegionalFailover, resolveBackendUrl } from './apiClient.js';
+import { parseFlightPrice, postWithRegionalFailover, resolveBackendUrl } from './apiClient.js';
 
 const PRIMARY_URL = 'https://flights-paris.a.run.app';
 const FALLBACK_URL = 'https://flights-belgium.a.run.app';
@@ -157,3 +157,31 @@ test('postWithRegionalFailover skips redundant retry when fallbackUrl is empty o
   );
   assert.equal(dualOutageCalls, 2);
 });
+
+test('parseFlightPrice handles multi-currency formats and safely rejects malformed/degraded strings', () => {
+  assert.equal(parseFlightPrice('520 EUR'), 520);
+  assert.equal(parseFlightPrice('$520'), 520);
+  assert.equal(parseFlightPrice('€520'), 520);
+  assert.equal(parseFlightPrice('£1,250.50'), 1250.5);
+  assert.equal(parseFlightPrice('USD 780'), 780);
+  assert.equal(parseFlightPrice(640), 640);
+
+  assert.ok(Number.isNaN(parseFlightPrice('')));
+  assert.ok(Number.isNaN(parseFlightPrice('N/A')));
+  assert.ok(Number.isNaN(parseFlightPrice('-50 USD')));
+  assert.ok(Number.isNaN(parseFlightPrice(null)));
+  assert.ok(Number.isNaN(parseFlightPrice(undefined)));
+
+  const sampleFlights = [
+    { flight_number: 'AF006', price: '€520' },
+    { flight_number: 'DL265', price: '$610' },
+    { flight_number: 'UA057', price: '820 EUR' },
+    { flight_number: 'BROKEN', price: 'unavailable' },
+  ];
+  const under650 = sampleFlights.filter((f) => parseFlightPrice(f.price) <= 650);
+  assert.deepEqual(
+    under650.map((f) => f.flight_number),
+    ['AF006', 'DL265']
+  );
+});
+

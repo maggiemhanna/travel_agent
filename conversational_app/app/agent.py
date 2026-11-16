@@ -40,12 +40,19 @@ APP_NAME = "conversational_app"
 
 
 def load_json_with_markdown(data: str) -> Dict[str, Any]:
-    """Extracts and parses JSON from raw text or markdown code blocks."""
+    """Extracts and parses JSON from raw text, markdown code blocks, or preamble-wrapped text."""
     cleaned = data.strip()
     match = re.search(r"```(?:json|JSON)?\s*(.*?)\s*```", cleaned, re.DOTALL)
     if match:
         cleaned = match.group(1)
-    return json.loads(cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        brace_idx = cleaned.find("{")
+        if brace_idx != -1:
+            obj, _ = json.JSONDecoder().raw_decode(cleaned[brace_idx:])
+            return obj
+        raise
 
 
 def _route_engage_fn(ctx: Context, node_input: EngageOutput) -> Event:
