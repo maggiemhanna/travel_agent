@@ -43,6 +43,9 @@ graph TD
   - **Input Boundary & Prompt Safety Guardrails**: [`app/schema.py`](app/schema.py) rejects blank/whitespace strings, oversized inputs (`> 4000` characters), negative stop/filter values, and out-of-range passenger counts (`< 1` or `> 9`) with `HTTP 422` before invoking Gemini, while `<SECURITY_GUARDRAILS>` in [`engage/prompt.py`](app/sub_agents/engage/prompt.py) and [`filter_smart/prompt.py`](app/sub_agents/filter_smart/prompt.py) defend against routing hijacks, system-prompt extraction, off-topic web searches, and flight/price tampering.
 - **Cross-Cutting ADK Runtime Plugin ([`app/app_utils/telemetry_plugin.py`](app/app_utils/telemetry_plugin.py))**:
   - Registers `ExecutionTelemetryPlugin(BasePlugin)` on the ADK `App` container (`ENABLE_TELEMETRY_PLUGIN=true`) to log per-sub-agent wall-clock latency, Gemini prompt/output token counts, and live Google Search grounding queries across every workflow invocation without modifying sub-agent packages.
+- **API Versioning, OpenAPI 3.1 Contracts & Schema Evolution ([`app/app_utils/versioning.py`](app/app_utils/versioning.py), [`openapi.json`](openapi.json))**:
+  - Exposes canonical `/api/v1/run-conversational` (and `/api/v1/run-<sub_agent>` across all 5 standalone servers) alongside backward-compatible `/run-*` aliases emitting `X-API-Version: 1.0.0` and RFC 8594 `Deprecation` / `Link` headers.
+  - Enforces typed HTTP response envelopes (`ConversationalResponse`), canonical deduplicated `Flight` and `FlightParams` schemas across sub-agents, safe container defaults (`conversational_history`, `flights_input`), Tolerant Reader configuration (`extra="ignore"`), and CI-verified OpenAPI 3.1 contract snapshots (`python3 -m app.export_openapi`).
 
 ---
 
@@ -54,9 +57,10 @@ conversational_app/
 │   ├── __init__.py
 │   ├── agent.py                 # Primary & fallback ADK v2 Workflow graphs (route_engage, parse_filter_smart, finalize_output)
 │   ├── config.py                # Centralized env configuration (primary/fallback models, per-agent overrides, URLs, CORS)
-│   ├── main.py                  # FastAPI gateway, /healthz & /readyz probes, CORS & ADK Runner failover execution
-│   ├── schema.py                # ConversationalInput, ConversationalOutput & ConversationalState schemas + boundary rules
-│   ├── app_utils/               # health.py (/healthz & /readyz), logging.py & telemetry_plugin.py
+│   ├── export_openapi.py        # Deterministic OpenAPI 3.1 contract snapshot exporter (openapi.json)
+│   ├── main.py                  # FastAPI gateway (/api/v1 + legacy routes), /healthz & /readyz probes, CORS & failover
+│   ├── schema.py                # Canonical Flight/FlightParams, ConversationalInput/Output/Response & boundary rules
+│   ├── app_utils/               # health.py, logging.py, telemetry_plugin.py & versioning.py (X-API-Version / Deprecation)
 │   └── sub_agents/              # Specialized ADK Sub-Agents (each with agent.py, main.py, prompt.py, schema.py)
 │       ├── engage/              # Intent triage & routing (:8002)
 │       ├── filter/              # Deterministic filter extraction (:8003)
@@ -65,7 +69,7 @@ conversational_app/
 │       └── json_parser/         # Self-healing JSON structure repair (:8006)
 ├── tests/
 │   ├── fixtures/                # Functional payloads + 10-case adversarial red-team suite (red_team.json)
-│   ├── unit/                    # Offline health, failover, fault-injection, red-team boundary & brownout tests
+│   ├── unit/                    # Offline health, contract/versioning, failover, fault-injection, red-team & brownout tests
 │   ├── integration/             # In-process TestClient tests with live Gemini calls + adversarial red-team suite
 │   ├── e2e/                     # Live HTTP client tests (configurable via *_BASE_URL env vars)
 │   └── eval/                    # 7-metric GEAP AI Quality, Flight/Price Immutability & Latency Evaluation Suite
@@ -74,6 +78,7 @@ conversational_app/
 │       ├── metrics/             # Custom Python & LLM-as-a-Judge evaluation metrics
 │       ├── results/             # Timestamped evaluation runs, traces & experiments_history.md
 │       └── scripts/             # generate_scenarios.py, run_evaluation.py, run_loss_analysis.py
+├── openapi.json                 # Committed OpenAPI 3.1 contract snapshot verified automatically in CI
 ├── Dockerfile                   # Production non-root Python 3.11 container for Cloud Run
 ├── .dockerignore                # Excludes local caches/tests from container build context
 ├── .env.example                 # Template environment, model & endpoint configuration
@@ -106,8 +111,8 @@ conversational_app/
 ## 🤖 Conversational Workflow & Sub-Agents Reference
 
 ### 1. Conversational Workflow (Entrypoint — Port `8001`)
-- **Location:** [`app/agent.py`](app/agent.py), [`app/main.py`](app/main.py), [`app/schema.py`](app/schema.py)
-- **Endpoints:** `POST /run-conversational` | Probes: `GET /healthz`, `GET /readyz`, `GET /`
+- **Location:** [`app/agent.py`](app/agent.py), [`app/main.py`](app/main.py), [`app/schema.py`](app/schema.py), [`openapi.json`](openapi.json)
+- **Endpoints:** `POST /api/v1/run-conversational` *(legacy alias: `POST /run-conversational`)* | Probes: `GET /healthz`, `GET /readyz`, `GET /`
 - **Execution Pipeline:**
   1. Runs **Engage** with `user_message` and `conversational_history` to classify user intent (`agent_decision`).
   2. Routes via `route_engage`:

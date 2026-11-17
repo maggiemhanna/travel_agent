@@ -185,3 +185,32 @@ test('parseFlightPrice handles multi-currency formats and safely rejects malform
   );
 });
 
+test('postWithRegionalFailover preserves /api/v1 versioned endpoint paths across primary and warm secondary regions', async () => {
+  const { API_V1_PREFIX } = await import('./apiClient.js');
+  assert.equal(API_V1_PREFIX, '/api/v1');
+
+  const calls = [];
+  const mockFetch = async (url) => {
+    calls.push(url);
+    if (url.startsWith(PRIMARY_URL)) {
+      return { ok: false, status: 502 };
+    }
+    return { ok: true, status: 200, json: async () => ({ status: 'success' }) };
+  };
+
+  const resp = await postWithRegionalFailover({
+    primaryUrl: `${PRIMARY_URL}/`,
+    fallbackUrl: `${FALLBACK_URL}/`,
+    path: `${API_V1_PREFIX}/run-flights-search`,
+    payload: { origin: 'Paris', destination: 'New York' },
+    fetchImpl: mockFetch,
+  });
+
+  assert.equal(resp.status, 200);
+  assert.deepEqual(calls, [
+    `${PRIMARY_URL}/api/v1/run-flights-search`,
+    `${FALLBACK_URL}/api/v1/run-flights-search`,
+  ]);
+});
+
+

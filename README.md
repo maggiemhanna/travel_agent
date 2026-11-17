@@ -4,11 +4,11 @@
 
 Instead of relying on a single monolithic prompt or static form filters, the platform pairs a realistic flight itinerary simulator with a coordinated multi-agent conversational assistant. Through the web dashboard or REST APIs, users can:
 
-- **Search Simulated Global Flights (`POST /run-flights-search`)**: Generate 15 realistic flight itineraries per search across budget, standard, and flagship airlines—accounting for real multi-airport city codes, route durations, timezone differences, overnight arrivals, and user filter preferences (direct flights, maximum price, and maximum stops).
-- **Refine Trips Through a Conversational Assistant (`POST /run-conversational`)**: Chat in natural language with a multi-agent workflow that interprets the user's request alongside their active flight search and routes the turn to the appropriate specialist agent.
-- **Apply Direct Filters via Natural Language (`POST /run-filter`)**: Convert everyday requests (such as *"show me direct flights under 600 euros"*) into structured price, stop, and direct-flight filters that immediately update the search controls and results on screen.
-- **Filter by Qualitative Amenities with Live Google Search (`POST /run-filter-smart`)**: Narrow down candidate flights by specific airlines, morning or afternoon departure windows, layover cities, or on-board amenities (such as reliable Wi-Fi for remote work, extra legroom, or in-flight entertainment) verified through live Google Search, backed by an automatic JSON repair step (`POST /run-json-parser`) if the response formatting needs cleanup.
-- **Explore Open-Ended Travel Ideas (`POST /run-inspiration`)**: Turn broad travel goals (such as *"somewhere warm and sunny in December"*) into concrete origin, destination, and date parameters that automatically trigger a fresh flight search in the dashboard.
+- **Search Simulated Global Flights (`POST /api/v1/run-flights-search`)**: Generate 15 realistic flight itineraries per search across budget, standard, and flagship airlines—accounting for real multi-airport city codes, route durations, timezone differences, overnight arrivals, and user filter preferences (direct flights, maximum price, and maximum stops).
+- **Refine Trips Through a Conversational Assistant (`POST /api/v1/run-conversational`)**: Chat in natural language with a multi-agent workflow that interprets the user's request alongside their active flight search and routes the turn to the appropriate specialist agent.
+- **Apply Direct Filters via Natural Language (`POST /api/v1/run-filter`)**: Convert everyday requests (such as *"show me direct flights under 600 euros"*) into structured price, stop, and direct-flight filters that immediately update the search controls and results on screen.
+- **Filter by Qualitative Amenities with Live Google Search (`POST /api/v1/run-filter-smart`)**: Narrow down candidate flights by specific airlines, morning or afternoon departure windows, layover cities, or on-board amenities (such as reliable Wi-Fi for remote work, extra legroom, or in-flight entertainment) verified through live Google Search, backed by an automatic JSON repair step (`POST /api/v1/run-json-parser`) if the response formatting needs cleanup.
+- **Explore Open-Ended Travel Ideas (`POST /api/v1/run-inspiration`)**: Turn broad travel goals (such as *"somewhere warm and sunny in December"*) into concrete origin, destination, and date parameters that automatically trigger a fresh flight search in the dashboard.
 
 ---
 
@@ -30,6 +30,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
     - [1. Configuration Management](#1-configuration-management)
     - [2. Modularity & Abstraction](#2-modularity--abstraction)
     - [3. Extensibility](#3-extensibility)
+    - [4. API Design & Versioning](#4-api-design--versioning)
   - [**IV/ Performance & Cost Optimization**](#iv-performance--cost-optimization)
     - [1. Scalability & Elasticity](#1-scalability--elasticity)
     - [2. Resource Efficiency](#2-resource-efficiency)
@@ -116,7 +117,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 
 ## 🏗 Cloud Architecture & Production Engineering Layers
 
-The platform is engineered for reproducible multi-environment deployment (`dev`, `staging`, `prod`) on **Google Cloud Platform (GCP)** across **6 architectural domains (`I`–`VI`) and 12 production engineering layers**, verified by the automated test, evaluation, resilience, and CI/CD suites in [`flights_search_app/tests/`](flights_search_app/tests/), [`conversational_app/tests/`](conversational_app/tests/), [`frontend/src/`](frontend/src/), [`deployment/`](deployment/), and [`.cloudbuild/`](.cloudbuild/):
+The platform is engineered for reproducible multi-environment deployment (`dev`, `staging`, `prod`) on **Google Cloud Platform (GCP)** across **6 architectural domains (`I`–`VI`) and 13 production engineering layers**, verified by the automated test, evaluation, resilience, and CI/CD suites in [`flights_search_app/tests/`](flights_search_app/tests/), [`conversational_app/tests/`](conversational_app/tests/), [`frontend/src/`](frontend/src/), [`deployment/`](deployment/), and [`.cloudbuild/`](.cloudbuild/):
 
 | Domain | Layer | Pillars & Focus Areas |
 | :--- | :--- | :--- |
@@ -127,6 +128,7 @@ The platform is engineered for reproducible multi-environment deployment (`dev`,
 | [**III. Designing for Change**](#iii-designing-for-change) | [**1. Configuration Management**](#1-configuration-management) | Externalized backend and Terraform settings, startup backend URL configuration for the web frontend, isolated `dev`/`staging`/`prod` vs. local environments, and feature/infrastructure toggles |
 | [**III. Designing for Change**](#iii-designing-for-change) | [**2. Modularity & Abstraction**](#2-modularity--abstraction) | Independent Flight Search, Chat, and Frontend services, 5 self-contained specialist agent folders, strict input/output validation, global and per-agent Gemini model switching, and reusable session setup |
 | [**III. Designing for Change**](#iii-designing-for-change) | [**3. Extensibility**](#3-extensibility) | Step-by-step event routing between agents, automatic performance and token-tracking plugins, plug-and-play specialist agent and evaluation folders, and GitHub webhook deployment triggers |
+| [**III. Designing for Change**](#iii-designing-for-change) | [**4. API Design & Versioning**](#4-api-design--versioning) | Versioned `/api/v1` endpoints with working legacy `/run-*` URLs and deprecation headers, explicit response schemas with CI-checked OpenAPI contract files, and safe field evolution with matching flight formats across services |
 | [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**1. Scalability & Elasticity**](#1-scalability--elasticity) | Independent scaling per service, running chat agents together without extra network calls, automatic container scaling (`0–5` dev, `0–10` staging, `2–20` prod Paris + `1–20` warm Belgium backup), configurable CPU/memory, Cloud Run HTTPS load balancing, and global Vertex AI capacity |
 | [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**2. Resource Efficiency**](#2-resource-efficiency) | Right-sized CPU & memory per service, fast default AI models & lean search/prompt usage, `$0` idle shutdown in `dev`/`staging` with pay-per-request CPU billing, and automatic cleanup of old container images with cached builds and Gzip compression |
 | [**V. Security, Privacy, and Compliance**](#v-security-privacy-and-compliance) | [**1. Authentication & Authorization**](#1-authentication--authorization) | Three separate Service Accounts per project, version-controlled permissions, automatic removal of extra permissions from default Google accounts, non-root backend containers, and keyless Vertex AI authentication with configurable allowed website origins |
@@ -145,8 +147,8 @@ The platform runs as three containerized services on **Google Cloud Run** in Par
 - **1.1 End-to-End Cloud Architecture & Request Routing**
   - **Three Independently Deployed Serverless Services:**
     - **Web Frontend (`frontend`):** Serves the React web app through Nginx (with built-in health checks) and writes a small startup config file containing the environment's live primary and backup backend URLs so the browser knows where to send requests.
-    - **Flights Search Service (`flights-search-app`):** Provides `POST /run-flights-search` (alongside health-check URLs) to generate 15 realistic flight itineraries per search.
-    - **Conversational Multi-Agent Service (`conversational-app`):** Provides `POST /run-conversational` (alongside health-check URLs) to run the five-agent chat workflow inside a single service.  
+    - **Flights Search Service (`flights-search-app`):** Provides `POST /api/v1/run-flights-search` (plus backward-compatible `/run-flights-search` and health-check URLs) to generate 15 realistic flight itineraries per search.
+    - **Conversational Multi-Agent Service (`conversational-app`):** Provides `POST /api/v1/run-conversational` (plus backward-compatible `/run-conversational` and health-check URLs) to run the five-agent chat workflow inside a single service.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf), [`deployment/terraform/outputs.tf`](deployment/terraform/outputs.tf) & [`deployment/terraform/envs/`](deployment/terraform/envs/)*  
     — *Implemented in [`frontend/Dockerfile`](frontend/Dockerfile), [`flights_search_app/app/main.py`](flights_search_app/app/main.py) & [`conversational_app/app/main.py`](conversational_app/app/main.py)*
 
@@ -359,6 +361,39 @@ New specialist agents, external tools, evaluation checks, and deployment pipelin
 
 > **Note on Unimplemented Pillars:**
 > - **Cloud Message Queues (Pub/Sub / Eventarc) & Outbound User Notifications (*Not Implemented — Relevant*):** While agents pass events inside the workflow, a monitoring plugin tracks agent activity, and GitHub triggers start deployments automatically, an external cloud message queue (such as Google Cloud Pub/Sub or Eventarc) and outbound webhook notifications (for example, background flight price alerts) are not yet set up and remain useful future additions.
+
+---
+
+### 4. API Design & Versioning
+
+Because Flight Search, the Conversational Assistant, and the Web Frontend deploy independently across Paris and Belgium—and users with already-open browser tabs pass flight results directly from one service to the other—all web APIs use explicit versioned URLs, version-controlled API contracts, and safe rules for evolving data fields over time:
+
+- **4.1 Pillar 1 — Backward Compatibility**
+  - **Versioned `/api/v1` Endpoints Alongside Working Legacy URLs:** Both main backend services and all five standalone specialist servers serve their endpoints under `/api/v1` (`POST /api/v1/run-flights-search` and `POST /api/v1/run-conversational`) while keeping the original `/run-*` addresses connected to the exact same logic. While the React web app calls `/api/v1/run-*`, already-open browser tabs, end-to-end test scripts, and regional failover drills calling the older `/run-*` URLs continue working without interruption.  
+    — *Implemented in [`flights_search_app/app/main.py`](flights_search_app/app/main.py), [`conversational_app/app/main.py`](conversational_app/app/main.py), [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/), [`frontend/src/apiClient.js`](frontend/src/apiClient.js), [`frontend/src/App.jsx`](frontend/src/App.jsx) & [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx)*  
+    — *Verified in [`flights_search_app/tests/unit/test_api_versioning_and_contracts.py`](flights_search_app/tests/unit/test_api_versioning_and_contracts.py), [`conversational_app/tests/unit/test_api_versioning_and_contracts.py`](conversational_app/tests/unit/test_api_versioning_and_contracts.py) & [`frontend/src/apiClient.test.js`](frontend/src/apiClient.test.js)*
+  - **Version & Deprecation Headers on Responses:** Every backend response includes an `X-API-Version: 1.0.0` header, and any request sent to an older `/run-*` URL automatically receives standard `Deprecation` and `Link` headers pointing callers to the `/api/v1` address—without changing the JSON response body.  
+    — *Implemented in [`flights_search_app/app/app_utils/versioning.py`](flights_search_app/app/app_utils/versioning.py) & [`conversational_app/app/app_utils/versioning.py`](conversational_app/app/app_utils/versioning.py)*
+  - **Sensible Defaults for Optional Request Lists & Filters:** Optional wrapper fields—such as search `filters` on Flight Search or `conversational_history` and `flights_input` on a user's first chat message—automatically default to empty values on each request rather than failing with `HTTP 422` when omitted.  
+    — *Implemented in [`flights_search_app/app/schema.py`](flights_search_app/app/schema.py), [`conversational_app/app/schema.py`](conversational_app/app/schema.py) & [`conversational_app/app/sub_agents/`](conversational_app/app/sub_agents/)*
+
+- **4.2 Pillar 2 — Contract-First Design**
+  - **Explicit Response & Health-Check Contracts:** Instead of returning untyped JSON dictionaries, every endpoint defines the exact structure of its HTTP responses—covering normal agent outputs, safe plain-text fallback replies, and `200`/`503` health and readiness checks—so every possible reply format is formally documented.  
+    — *Implemented in [`flights_search_app/app/schema.py`](flights_search_app/app/schema.py), [`conversational_app/app/schema.py`](conversational_app/app/schema.py), [`flights_search_app/app/app_utils/health.py`](flights_search_app/app/app_utils/health.py) & [`conversational_app/app/app_utils/health.py`](conversational_app/app/app_utils/health.py)*
+  - **Version-Controlled OpenAPI Contracts Checked in CI:** Both backend services store their complete **OpenAPI 3.1** specification in Git (`openapi.json`). Automated unit tests in every Pull Request and deployment pipeline compare the live server specification against the saved contract file, blocking accidental or unreviewed breaking API changes before containers are built.  
+    — *Implemented in [`flights_search_app/openapi.json`](flights_search_app/openapi.json), [`conversational_app/openapi.json`](conversational_app/openapi.json), [`flights_search_app/app/export_openapi.py`](flights_search_app/app/export_openapi.py) & [`conversational_app/app/export_openapi.py`](conversational_app/app/export_openapi.py)*  
+    — *Verified in [`flights_search_app/tests/unit/test_api_versioning_and_contracts.py`](flights_search_app/tests/unit/test_api_versioning_and_contracts.py), [`conversational_app/tests/unit/test_api_versioning_and_contracts.py`](conversational_app/tests/unit/test_api_versioning_and_contracts.py) & [`.cloudbuild/pr_checks.yaml`](.cloudbuild/pr_checks.yaml)*
+
+- **4.3 Pillar 3 — Schema Evolution**
+  - **Ignoring Unknown Future Fields & Supporting Field Aliases:** Request and flight schemas safely ignore unfamiliar extra fields sent by newer clients during rolling updates (while keeping AI output schemas strict for Gemini), and accept shorthand filter names (`price` and `stops`) alongside `max_price` and `max_stops` so minor naming differences never break callers.  
+    — *Implemented in [`flights_search_app/app/schema.py`](flights_search_app/app/schema.py) & [`conversational_app/app/schema.py`](conversational_app/app/schema.py)*
+  - **Shared Sub-Agent Definitions & Cross-Service Flight Matching:** Inside the Conversational service, all specialist agents share one central definition for flight cards and search parameters rather than maintaining separate copies, while automated tests verify that the flight format produced by Flight Search stays 100% compatible with what the Conversational service expects.  
+    — *Implemented in [`conversational_app/app/schema.py`](conversational_app/app/schema.py), [`conversational_app/app/sub_agents/filter_smart/schema.py`](conversational_app/app/sub_agents/filter_smart/schema.py), [`conversational_app/app/sub_agents/inspiration/schema.py`](conversational_app/app/sub_agents/inspiration/schema.py) & [`conversational_app/app/sub_agents/json_parser/schema.py`](conversational_app/app/sub_agents/json_parser/schema.py)*  
+    — *Verified in [`flights_search_app/tests/unit/test_api_versioning_and_contracts.py`](flights_search_app/tests/unit/test_api_versioning_and_contracts.py) & [`conversational_app/tests/unit/test_api_versioning_and_contracts.py`](conversational_app/tests/unit/test_api_versioning_and_contracts.py)*
+
+> **Note on Unimplemented / Non-Relevant Pillars:**
+> - **Database Schema Migrations (*Not Implemented — Not Relevant*):** Database migration tools (such as Alembic or Flyway) do not apply because none of the services store records in a database—all flight lists and chat messages are sent in each request and processed in temporary memory.
+> - **Running Multiple Major API Versions (`v1` + `v2`) & External API Gateways (*Not Implemented — Relevant*):** While `/api/v1` URLs and legacy `/run-*` aliases protect rolling updates and existing scripts, running separate `v1` and `v2` business logic side-by-side or placing an external API gateway (such as Google Cloud API Gateway or Apigee) in front for third-party developer keys and rate quotas remains a future step if public partner APIs are opened.
 
 ---
 
@@ -633,18 +668,21 @@ travel_agent/
 │   ├── app/
 │   │   ├── agent.py                    # Primary & fallback flights_search ADK Agents & App containers
 │   │   ├── config.py                   # Externalized primary/fallback models, location, host/port, base URL, CORS & plugin config
-│   │   ├── main.py                     # FastAPI server, /healthz & /readyz probes, CORS & ADK Runner failover execution
+│   │   ├── export_openapi.py           # Deterministic OpenAPI 3.1 contract snapshot exporter (openapi.json)
+│   │   ├── main.py                     # FastAPI server (/api/v1 + legacy routes), /healthz & /readyz probes, CORS & failover
 │   │   ├── prompt.py                   # Flight simulation system instructions & realism rules
-│   │   ├── schema.py                   # Validated request & response schemas + input safety rules
+│   │   ├── schema.py                   # Validated request & response envelopes, Tolerant Reader config & boundary rules
 │   │   └── app_utils/
 │   │       ├── health.py               # Standardized /healthz liveness & /readyz deep readiness payload builders
 │   │       ├── logging.py              # Structured logging & table formatting helpers
-│   │       └── telemetry_plugin.py     # ADK ExecutionTelemetryPlugin (latency & token telemetry)
+│   │       ├── telemetry_plugin.py     # ADK ExecutionTelemetryPlugin (latency & token telemetry)
+│   │       └── versioning.py           # X-API-Version & RFC 8594 Deprecation/Link header middleware
 │   ├── tests/
 │   │   ├── fixtures/                   # Sample search payloads (flights_search.json)
-│   │   ├── unit/                       # Offline health, failover, failure-injection, input-boundary & slowdown tests
+│   │   ├── unit/                       # Offline health, API contract/versioning, failover, fault-injection & boundary tests (5 modules)
 │   │   ├── integration/                # In-process TestClient tests with live Vertex AI Gemini inference
 │   │   └── e2e/                        # Live HTTP client tests (configurable via FLIGHTS_SEARCH_BASE_URL)
+│   ├── openapi.json                    # Committed OpenAPI 3.1 contract snapshot verified automatically in CI
 │   ├── Dockerfile                      # Hardened non-root (appuser) Python 3.11 container image
 │   ├── .env.example                    # Template environment & model variables
 │   ├── requirements.txt                # Pinned Python runtime dependencies
@@ -653,12 +691,14 @@ travel_agent/
 │   ├── app/
 │   │   ├── agent.py                    # Primary & fallback ADK v2 Workflow graphs, self-healing routing steps & App containers
 │   │   ├── config.py                   # Externalized global & per-sub-agent primary/fallback models, ports, URLs & CORS
-│   │   ├── main.py                     # FastAPI gateway (POST /run-conversational, /healthz, /readyz) & ADK Runner failover
-│   │   ├── schema.py                   # Validated workflow input, output & shared state schemas + input safety rules
+│   │   ├── export_openapi.py           # Deterministic OpenAPI 3.1 contract snapshot exporter (openapi.json)
+│   │   ├── main.py                     # FastAPI gateway (/api/v1 + legacy routes, /healthz, /readyz) & ADK Runner failover
+│   │   ├── schema.py                   # Canonical Flight/FlightParams, workflow state, response envelopes & boundary rules
 │   │   ├── app_utils/
 │   │   │   ├── health.py               # Standardized /healthz liveness & /readyz deep readiness payload builders
 │   │   │   ├── logging.py              # Structured logging & table formatting helpers
-│   │   │   └── telemetry_plugin.py     # ADK ExecutionTelemetryPlugin (latency, token & search grounding telemetry)
+│   │   │   ├── telemetry_plugin.py     # ADK ExecutionTelemetryPlugin (latency, token & search grounding telemetry)
+│   │   │   └── versioning.py           # X-API-Version & RFC 8594 Deprecation/Link header middleware
 │   │   └── sub_agents/                 # 5 Self-Contained Specialist Sub-Agents (each with agent.py, main.py, prompt.py, schema.py)
 │   │       ├── engage/                 # Intent triage & safety-hardened routing specialist (:8002)
 │   │       ├── filter/                 # Deterministic hard filter extractor (:8003)
@@ -667,7 +707,7 @@ travel_agent/
 │   │       └── json_parser/            # Self-healing JSON structure repair specialist (:8006)
 │   ├── tests/
 │   │   ├── fixtures/                   # Functional payloads + 10-case red-team safety suite (red_team.json)
-│   │   ├── unit/                       # Offline health, failover, failure-injection, red-team & slowdown tests (9 modules)
+│   │   ├── unit/                       # Offline health, API contract/versioning, failover, fault-injection & red-team tests (10 modules)
 │   │   ├── integration/                # Live Gemini integration + red-team prompt-safety tests (test_red_team.py)
 │   │   ├── e2e/                        # Live HTTP client tests against :8001–:8006 or Cloud Run (6 test modules)
 │   │   └── eval/                       # 7-Metric GEAP AI Quality, Flight/Price Protection & Latency Evaluation Suite
@@ -676,6 +716,7 @@ travel_agent/
 │   │       ├── metrics/                # Custom deterministic Python & LLM-as-a-Judge metrics (custom_metrics.py)
 │   │       ├── results/                # Timestamped evaluation runs, traces, loss clusters & experiments_history.md
 │   │       └── scripts/                # generate_scenarios.py, run_evaluation.py, run_loss_analysis.py
+│   ├── openapi.json                    # Committed OpenAPI 3.1 contract snapshot verified automatically in CI
 │   ├── Dockerfile                      # Hardened non-root (appuser) Python 3.11 container image
 │   ├── .env.example                    # Template environment, per-agent model & endpoint configuration
 │   ├── requirements.txt                # Pinned Python runtime dependencies
@@ -684,8 +725,8 @@ travel_agent/
     ├── src/
     │   ├── App.jsx                     # Flight search form, manual filter controls & paginated itinerary cards
     │   ├── ChatWidget.jsx              # Conversational AI widget & multi-currency UI filter synchronization
-    │   ├── apiClient.js                # Runtime URL resolver, cross-region failover & multi-currency price helper
-    │   ├── apiClient.test.js           # Offline unit & regional-failover tests for apiClient.js
+    │   ├── apiClient.js                # /api/v1 prefix, runtime URL resolver, cross-region failover & price helper
+    │   ├── apiClient.test.js           # Offline unit, /api/v1 path & regional-failover tests for apiClient.js
     │   ├── index.css                   # Application & ChatWidget styling
     │   └── main.jsx                    # React root entrypoint
     ├── index.html                      # Loads runtime /env-config.js before mounting React bundle
@@ -780,11 +821,11 @@ Open **http://localhost:5173** in your browser.
 In standard operation, `conversational_app` (`:8001`) executes all 5 sub-agents in-process inside its workflow. To debug individual sub-agents over HTTP or run sub-agent-specific HTTP E2E tests (`conversational_app/tests/e2e/test_<sub_agent>.py`), launch them from `conversational_app/`:
 ```bash
 cd conversational_app
-python3 -m app.sub_agents.engage.main        # Port 8002 (POST /run-engage)
-python3 -m app.sub_agents.filter.main        # Port 8003 (POST /run-filter)
-python3 -m app.sub_agents.filter_smart.main  # Port 8004 (POST /run-filter-smart)
-python3 -m app.sub_agents.inspiration.main   # Port 8005 (POST /run-inspiration)
-python3 -m app.sub_agents.json_parser.main   # Port 8006 (POST /run-json-parser)
+python3 -m app.sub_agents.engage.main        # Port 8002 (POST /api/v1/run-engage | legacy /run-engage)
+python3 -m app.sub_agents.filter.main        # Port 8003 (POST /api/v1/run-filter | legacy /run-filter)
+python3 -m app.sub_agents.filter_smart.main  # Port 8004 (POST /api/v1/run-filter-smart | legacy /run-filter-smart)
+python3 -m app.sub_agents.inspiration.main   # Port 8005 (POST /api/v1/run-inspiration | legacy /run-inspiration)
+python3 -m app.sub_agents.json_parser.main   # Port 8006 (POST /api/v1/run-json-parser | legacy /run-json-parser)
 ```
 </details>
 
@@ -827,7 +868,7 @@ The scripts in [`deployment/`](deployment/) automate project bootstrapping, leas
 ## 🧪 Testing, AI Evaluation & Verification
 
 ### 1. Offline Unit Test Suites
-Run the fast offline unit, failure-simulation, safety-boundary, and slowdown suites across both backend applications and the React web frontend (no running servers or live cloud calls required):
+Run the fast offline unit, API contract/versioning, failure-simulation, safety-boundary, and slowdown suites across both backend applications and the React web frontend (no running servers or live cloud calls required):
 ```bash
 (cd flights_search_app && python3 -m pytest tests/unit -v -s)
 (cd conversational_app && python3 -m pytest tests/unit -v -s)
@@ -880,11 +921,11 @@ python3 -m tests.eval.scripts.run_loss_analysis
 ```
 
 ### 4. Manual API Testing via `curl`
-With `flights_search_app` running on port `8000` and `conversational_app` running on port `8001` (or substituting your deployed Cloud Run URLs):
+With `flights_search_app` running on port `8000` and `conversational_app` running on port `8001` (or substituting your deployed Cloud Run URLs; legacy unversioned `/run-*` paths also remain supported with RFC 8594 `Deprecation` headers):
 
 ```bash
 # 1. Generate 15 simulated flights from Paris to New York (flights_search_app on port 8000)
-curl -X POST "http://127.0.0.1:8000/run-flights-search" \
+curl -X POST "http://127.0.0.1:8000/api/v1/run-flights-search" \
   -H "Content-Type: application/json" \
   -d '{
     "origin": "Paris",
@@ -896,7 +937,7 @@ curl -X POST "http://127.0.0.1:8000/run-flights-search" \
   }'
 
 # 2. Filter flights semantically with live Google Search amenity grounding (conversational_app on port 8001)
-curl -X POST "http://127.0.0.1:8001/run-conversational" \
+curl -X POST "http://127.0.0.1:8001/api/v1/run-conversational" \
   -H "Content-Type: application/json" \
   -d '{
     "user_message": "I only want morning flights that have reliable Wi-Fi for remote work.",

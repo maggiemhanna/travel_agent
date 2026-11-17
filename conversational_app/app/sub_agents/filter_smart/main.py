@@ -8,7 +8,7 @@ import requests
 
 from dotenv import load_dotenv
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -20,10 +20,22 @@ from app.config import (
     FILTER_SMART_PORT,
     JSON_PARSER_BASE_URL,
 )
+from app.schema import RootInfoResponse
 from app.sub_agents.filter_smart.agent import app, fallback_app, filter_smart
-from app.sub_agents.filter_smart.schema import FilterSmartInput
-from app.app_utils.health import build_liveness_payload, evaluate_readiness
+from app.sub_agents.filter_smart.schema import FilterSmartInput, FilterSmartResponse
+from app.app_utils.health import (
+    LivenessResponse,
+    ReadinessResponse,
+    UnreadyResponse,
+    build_liveness_payload,
+    evaluate_readiness,
+)
 from app.app_utils.logging import format_dict_for_logs, setup_logging
+from app.app_utils.versioning import (
+    API_V1_PREFIX,
+    API_VERSION,
+    register_versioning_middleware,
+)
 
 # --- Configuration & Setup ---
 logger = setup_logging(name=__name__)
@@ -31,14 +43,22 @@ logger = setup_logging(name=__name__)
 APP_NAME = "filter_smart"
 
 def call_json_parser_api(api_inputs):
-    response = requests.post(f"{JSON_PARSER_BASE_URL}/run-json-parser", json=api_inputs)
+    response = requests.post(
+        f"{JSON_PARSER_BASE_URL}{API_V1_PREFIX}/run-json-parser", json=api_inputs
+    )
     return response.json()
 
 
 # --- FastAPI Application ---
 api = FastAPI(
     title="Filter Smart Agent Service",
-    description="API for running the Filter Smart Agent."
+    description="API for running the Filter Smart Agent.",
+    version=API_VERSION,
+)
+
+register_versioning_middleware(
+    api,
+    deprecated_route_map={"/run-filter-smart": f"{API_V1_PREFIX}/run-filter-smart"},
 )
 
 import re
@@ -69,15 +89,20 @@ def load_json_with_markdown(data):
         raise
 
 
-@api.get("/", tags=["Health"])
+@api.get("/", response_model=RootInfoResponse, tags=["Health"])
 async def root() -> Dict[str, str]:
     return {"message": "Filter Smart Agent Service is running. Use the /run-filter-smart endpoint via POST."}
 
-@api.get("/healthz", tags=["Health"])
+@api.get("/healthz", response_model=LivenessResponse, tags=["Health"])
 async def healthz() -> Dict[str, str]:
     return build_liveness_payload(APP_NAME)
 
-@api.get("/readyz", tags=["Health"])
+@api.get(
+    "/readyz",
+    response_model=ReadinessResponse,
+    responses={503: {"model": UnreadyResponse}},
+    tags=["Health"],
+)
 async def readyz():
     return evaluate_readiness(
         service_name=APP_NAME,
@@ -171,7 +196,14 @@ async def execute_agent_run(user_input: FilterSmartInput) -> List[Dict[str, Any]
         return parsed_responses
 
 # --- FastAPI Endpoints ---
-@api.post("/run-filter-smart", response_model=Dict[str, Any], tags=["Agent"])
+v1_router = APIRouter(prefix=API_V1_PREFIX, tags=["Agent v1"])
+
+@v1_router.post(
+    "/run-filter-smart",
+    response_model=FilterSmartResponse,
+    response_model_exclude_none=True,
+    operation_id="run_filter_smart_v1",
+)
 async def run_filter_smart(user_input: FilterSmartInput) -> Dict[str, Any]:
     """
     Triggers the filter agent with the provided user input.
@@ -192,6 +224,19 @@ async def run_filter_smart(user_input: FilterSmartInput) -> Dict[str, Any]:
             status_code=500, 
             detail="Internal Server Error during request processing."
         )
+
+api.include_router(v1_router)
+
+api.add_api_route(
+    "/run-filter-smart",
+    run_filter_smart,
+    methods=["POST"],
+    response_model=FilterSmartResponse,
+    response_model_exclude_none=True,
+    deprecated=True,
+    tags=["Agent (Legacy)"],
+    operation_id="run_filter_smart_legacy",
+)
 
 # --- Running the Server ---
 if __name__ == "__main__":

@@ -7,16 +7,28 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 from app.config import JSON_PARSER_FALLBACK_MODEL, JSON_PARSER_MODEL
+from app.schema import RootInfoResponse
 from app.sub_agents.json_parser.agent import app, fallback_app, json_parser
-from app.sub_agents.json_parser.schema import JSONParserInput
-from app.app_utils.health import build_liveness_payload, evaluate_readiness
+from app.sub_agents.json_parser.schema import JSONParserInput, JSONParserResponse
+from app.app_utils.health import (
+    LivenessResponse,
+    ReadinessResponse,
+    UnreadyResponse,
+    build_liveness_payload,
+    evaluate_readiness,
+)
 from app.app_utils.logging import format_dict_for_logs, setup_logging
+from app.app_utils.versioning import (
+    API_V1_PREFIX,
+    API_VERSION,
+    register_versioning_middleware,
+)
 
 # --- Configuration & Setup ---
 logger = setup_logging(name=__name__)
@@ -29,18 +41,29 @@ load_dotenv()
 # --- FastAPI Application ---
 api = FastAPI(
     title="JSON Parser Agent Service",
-    description="API for running the JSON Parser Agent."
+    description="API for running the JSON Parser Agent.",
+    version=API_VERSION,
 )
 
-@api.get("/", tags=["Health"])
+register_versioning_middleware(
+    api,
+    deprecated_route_map={"/run-json-parser": f"{API_V1_PREFIX}/run-json-parser"},
+)
+
+@api.get("/", response_model=RootInfoResponse, tags=["Health"])
 async def root() -> Dict[str, str]:
     return {"message": "JSON Parser Agent Service is running. Use the /run-json-parser endpoint via POST."}
 
-@api.get("/healthz", tags=["Health"])
+@api.get("/healthz", response_model=LivenessResponse, tags=["Health"])
 async def healthz() -> Dict[str, str]:
     return build_liveness_payload(APP_NAME)
 
-@api.get("/readyz", tags=["Health"])
+@api.get(
+    "/readyz",
+    response_model=ReadinessResponse,
+    responses={503: {"model": UnreadyResponse}},
+    tags=["Health"],
+)
 async def readyz():
     return evaluate_readiness(
         service_name=APP_NAME,
@@ -129,7 +152,14 @@ async def execute_agent_run(user_input: JSONParserInput) -> List[Dict[str, Any]]
         return parsed_responses
 
 # --- FastAPI Endpoints ---
-@api.post("/run-json-parser", response_model=Dict[str, Any], tags=["Agent"])
+v1_router = APIRouter(prefix=API_V1_PREFIX, tags=["Agent v1"])
+
+@v1_router.post(
+    "/run-json-parser",
+    response_model=JSONParserResponse,
+    response_model_exclude_none=True,
+    operation_id="run_json_parser_v1",
+)
 async def run_json_parser(user_input: JSONParserInput) -> Dict[str, Any]:
     """
     Triggers the json_parser agent with the provided user input.
@@ -150,6 +180,19 @@ async def run_json_parser(user_input: JSONParserInput) -> Dict[str, Any]:
             status_code=500, 
             detail="Internal Server Error during request processing."
         )
+
+api.include_router(v1_router)
+
+api.add_api_route(
+    "/run-json-parser",
+    run_json_parser,
+    methods=["POST"],
+    response_model=JSONParserResponse,
+    response_model_exclude_none=True,
+    deprecated=True,
+    tags=["Agent (Legacy)"],
+    operation_id="run_json_parser_legacy",
+)
 
 # --- Running the Server ---
 if __name__ == "__main__":

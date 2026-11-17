@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from google.adk.runners import Runner
@@ -22,9 +22,21 @@ from app.config import (
     HOST,
     PORT,
 )
-from app.schema import FlightsSearchInput
-from app.app_utils.health import build_liveness_payload, evaluate_readiness
+from app.schema import FlightsSearchInput, FlightsSearchResponse, RootInfoResponse
+from app.app_utils.health import (
+    LivenessResponse,
+    ReadinessResponse,
+    UnreadyResponse,
+    build_liveness_payload,
+    evaluate_readiness,
+)
 from app.app_utils.logging import format_dict_for_logs, setup_logging
+from app.app_utils.versioning import (
+    API_V1_PREFIX,
+    API_VERSION,
+    VERSIONING_EXPOSED_HEADERS,
+    register_versioning_middleware,
+)
 
 # --- Configuration & Setup ---
 logger = setup_logging(name=__name__)
@@ -35,7 +47,8 @@ SERVICE_NAME = "flights-search-app"
 # --- FastAPI Application ---
 api = FastAPI(
     title="Flights Search Agent Service",
-    description="API for running the Flights Search Agent."
+    description="API for running the Flights Search Agent.",
+    version=API_VERSION,
 )
 
 api.add_middleware(
@@ -44,18 +57,31 @@ api.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=VERSIONING_EXPOSED_HEADERS,
 )
 
-@api.get("/", tags=["Health"])
+register_versioning_middleware(
+    api,
+    deprecated_route_map={
+        "/run-flights-search": f"{API_V1_PREFIX}/run-flights-search",
+    },
+)
+
+@api.get("/", response_model=RootInfoResponse, tags=["Health"])
 async def root() -> Dict[str, str]:
     return {"message": "Flights Search Agent Service is running. Use the /run-flights-search endpoint via POST."}
 
-@api.get("/healthz", tags=["Health"])
+@api.get("/healthz", response_model=LivenessResponse, tags=["Health"])
 async def healthz() -> Dict[str, str]:
     """Cloud Run liveness probe endpoint."""
     return build_liveness_payload(SERVICE_NAME)
 
-@api.get("/readyz", tags=["Health"])
+@api.get(
+    "/readyz",
+    response_model=ReadinessResponse,
+    responses={503: {"model": UnreadyResponse}},
+    tags=["Health"],
+)
 async def readyz():
     """Cloud Run startup/readiness probe endpoint."""
     return evaluate_readiness(
@@ -156,7 +182,14 @@ async def execute_agent_run(user_input: FlightsSearchInput) -> List[Dict[str, An
             raise
 
 # --- FastAPI Endpoints ---
-@api.post("/run-flights-search", response_model=Dict[str, Any], tags=["Agent"])
+v1_router = APIRouter(prefix=API_V1_PREFIX, tags=["Agent v1"])
+
+@v1_router.post(
+    "/run-flights-search",
+    response_model=FlightsSearchResponse,
+    response_model_exclude_none=True,
+    operation_id="run_flights_search_v1",
+)
 async def run_flights_search(user_input: FlightsSearchInput) -> Dict[str, Any]:
     """
     Triggers the flights search agent with the provided user input.
@@ -177,6 +210,20 @@ async def run_flights_search(user_input: FlightsSearchInput) -> Dict[str, Any]:
             status_code=500, 
             detail="Internal Server Error during request processing."
         )
+
+api.include_router(v1_router)
+
+# Backward-compatible unversioned alias (emits RFC 8594 Deprecation + Link headers)
+api.add_api_route(
+    "/run-flights-search",
+    run_flights_search,
+    methods=["POST"],
+    response_model=FlightsSearchResponse,
+    response_model_exclude_none=True,
+    deprecated=True,
+    tags=["Agent (Legacy)"],
+    operation_id="run_flights_search_legacy",
+)
 
 # --- Running the Server ---
 if __name__ == "__main__":

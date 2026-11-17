@@ -1,3 +1,5 @@
+export const API_V1_PREFIX = '/api/v1';
+
 /**
  * Resolves a frontend environment URL using 3-tier precedence:
  * 1. Cloud Run runtime injection (window.__ENV__)

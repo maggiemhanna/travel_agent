@@ -1,67 +1,27 @@
-from typing import Literal, List
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Literal, Union
+from pydantic import BaseModel, ConfigDict, Field
 
-class Flight(BaseModel):
-    origin: str = Field(
-        ..., 
-        description="The origin city for the flight search."
-    )
-    destination: str = Field(
-        ..., 
-        description="The destination city for the flight search."
-    )
-    departure_date: str = Field(
-        ..., 
-        description="The departure date for the flight search."
-    )
-    return_date: str = Field(
-        ..., 
-        description="The return date for the flight search."
-    )
-    departure_time: str = Field(
-        ..., 
-        description="The departure time for the flight search."
-    )
-    arrival_time: str = Field(
-        ..., 
-        description="The arrival time for the flight search."
-    )
-    return_time: str = Field(
-        ..., 
-        description="The return time for the flight search."
-    )
-    return_arrival_time: str = Field(
-        ..., 
-        description="The return arrival time for the flight search."
-    )
-    price: str = Field(
-        ..., 
-        description="The price of the flight."
-    )
-    airline: str = Field(
-        ..., 
-        description="The airline of the flight."
-    )
-    flight_number: str = Field(
-        ..., 
-        description="The flight number of the flight."
-    )
-    stops: int = Field(
-        ..., 
-        description="The number of stops on the flight."
-    )
-    stopover_cities: List[str] = Field(
-        ..., 
-        description="The cities where the flight stops."
-    )
+from app.schema import Flight, RawTextFallback
 
 class FilterSmartInput(BaseModel):
     """Input schema for the Filter Agent."""
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     user_message: str = Field(..., description="The message from the user.")
-    conversational_history: List[str] = Field(..., description="The history of the conversation where each string is formatted as 'role: message' (e.g., 'bot: Hello' or 'user: flights under $500').")
-    flights_input: List[Flight] = Field(..., description="The flights to filter.")
+    conversational_history: List[str] = Field(default_factory=list, description="The history of the conversation where each string is formatted as 'role: message' (e.g., 'bot: Hello' or 'user: flights under $500').")
+    flights_input: List[Flight] = Field(default_factory=list, description="The flights to filter.")
 
 class FilterSmartOutput(BaseModel):
     """Output schema for the Filter Agent."""
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     agent_response: str = Field(..., description="The response from the agent.")
     flights_output: List[Flight] = Field(..., description="The flights to filter.")
+
+
+class FilterSmartResponse(BaseModel):
+    """HTTP response envelope for standalone Filter Smart service."""
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    status: Literal["success"] = Field("success", description="Execution status indicator.")
+    results: List[Union[FilterSmartOutput, RawTextFallback, Dict[str, Any]]] = Field(..., description="Filter Smart agent response list.")

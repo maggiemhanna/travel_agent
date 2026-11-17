@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ChatWidget from './ChatWidget';
-import { postWithRegionalFailover, resolveBackendUrl } from './apiClient';
+import { API_V1_PREFIX, postWithRegionalFailover, resolveBackendUrl } from './apiClient';
 
 const FLIGHTS_SEARCH_API_URL = resolveBackendUrl(
   'VITE_FLIGHTS_SEARCH_API_URL',
@@ -76,7 +76,7 @@ function App() {
       const response = await postWithRegionalFailover({
         primaryUrl: FLIGHTS_SEARCH_API_URL,
         fallbackUrl: FLIGHTS_SEARCH_FALLBACK_API_URL,
-        path: '/run-flights-search',
+        path: `${API_V1_PREFIX}/run-flights-search`,
         payload,
       });
 

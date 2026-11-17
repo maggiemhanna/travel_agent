@@ -14,13 +14,14 @@ The **Flights Search Agent Service** is an independent microservice built with *
   - Generates 15 realistic flight options per query across budget, standard, and flagship carriers.
   - Obeys route duration, timezone shifts, overnight arrival offsets (`+1` / `+2`), and real multi-airport city codes (e.g., `CDG`/`ORY`, `JFK`/`EWR`, `LHR`/`LGW`).
   - Strictly enforces requested `direct`, `max_price`, and `max_stops` constraints.
-- **Strict Pydantic Contracts & Input Boundary Guardrails ([`app/schema.py`](app/schema.py)):** Validates incoming requests via `FlightsSearchInput`—rejecting missing fields, blank/whitespace strings, oversized inputs (`> 4000` characters), out-of-range passenger counts (`< 1` or `> 9`), and negative filter values with `422 Unprocessable Entity` before invoking Gemini—and enforces agent output structure via `FlightsSearchOutput`.
+- **Strict Pydantic Contracts, Tolerant Reader Evolution & Input Boundary Guardrails ([`app/schema.py`](app/schema.py)):** Validates incoming requests via `FlightsSearchInput` (`ConfigDict(extra="ignore", populate_by_name=True)`, safe `filters` container default, and `AliasChoices` accepting `"price"`/`"max_price"` and `"stops"`/`"max_stops"`)—rejecting blank/whitespace strings, oversized inputs (`> 200` characters), out-of-range passenger counts (`< 1` or `> 9`), and negative filter values with `422 Unprocessable Entity` before invoking Gemini—and enforces typed HTTP response envelopes (`FlightsSearchResponse`) alongside committed OpenAPI 3.1 contract snapshots ([`openapi.json`](openapi.json)).
 
-### 2. FastAPI Runtime & Cloud-Native Packaging
-- **Stateless Per-Request Isolation ([`app/main.py`](app/main.py)):** Generates an isolated `InMemorySessionService` and unique `session_id` / `user_id` (`uuid4()`) per HTTP request, with safe fallback handling if non-JSON text is returned.
-- **Standardized Liveness & Readiness Probes ([`app/app_utils/health.py`](app/app_utils/health.py)):** Exposes `GET /healthz` (lightweight process liveness) and `GET /readyz` (deep readiness checking ADK `App` initialization, `GOOGLE_CLOUD_PROJECT`, and primary/fallback model configuration—returning `HTTP 503` if misconfigured) for Cloud Run `liveness_probe` and `startup_probe` enforcement, while preserving `GET /`.
+### 2. FastAPI Runtime, API Versioning & Cloud-Native Packaging
+- **Versioned Endpoints & Backward-Compatible Legacy Alias ([`app/main.py`](app/main.py), [`app/app_utils/versioning.py`](app/app_utils/versioning.py)):** Exposes canonical `POST /api/v1/run-flights-search` alongside a deprecated legacy `POST /run-flights-search` alias bound to the same handler. Every HTTP response emits `X-API-Version: 1.0.0`, while calls to legacy `/run-flights-search` also emit RFC 8594 `Deprecation: true` and `Link: </api/v1/run-flights-search>; rel="successor-version"` headers.
+- **Stateless Per-Request Isolation ([`app/main.py`](app/main.py)):** Generates an isolated `InMemorySessionService` and unique `session_id` / `user_id` (`uuid4()`) per HTTP request, with safe fallback handling (`RawTextFallback`) if non-JSON text is returned.
+- **Standardized Liveness & Readiness Probes ([`app/app_utils/health.py`](app/app_utils/health.py)):** Exposes `GET /healthz` (`LivenessResponse`) and `GET /readyz` (`ReadinessResponse` / `UnreadyResponse` checking ADK `App` initialization, `GOOGLE_CLOUD_PROJECT`, and primary/fallback model configuration—returning `HTTP 503` if misconfigured) for Cloud Run `liveness_probe` and `startup_probe` enforcement, while preserving `GET /`.
 - **Cross-Cutting ADK Runtime Plugin ([`app/app_utils/telemetry_plugin.py`](app/app_utils/telemetry_plugin.py)):** Registers `ExecutionTelemetryPlugin(BasePlugin)` on the ADK `App` container (`ENABLE_TELEMETRY_PLUGIN=true`) to log execution latency and Gemini prompt/output token counts per flight search invocation.
-- **Configurable Server & CORS:** Reads `HOST`, `PORT`, and comma-separated `ALLOWED_ORIGINS` from [`app/config.py`](app/config.py).
+- **Configurable Server & CORS:** Reads `HOST`, `PORT`, and comma-separated `ALLOWED_ORIGINS` from [`app/config.py`](app/config.py) and exposes `X-API-Version`, `Deprecation`, and `Link` headers via CORS.
 - **Hardened Container ([`Dockerfile`](Dockerfile)):** Uses `python:3.11-slim`, runs under an unprivileged `appuser` (`UID 1000`), and executes on Cloud Run under the least-privilege `travel-agent-runtime` Service Account (`roles/aiplatform.user`, `roles/logging.logWriter`, `roles/cloudtrace.agent`).
 
 ---
@@ -33,15 +34,17 @@ flights_search_app/
 │   ├── __init__.py
 │   ├── agent.py             # Primary & fallback ADK Agent / App definitions (reads models from app/config.py)
 │   ├── config.py            # Centralized env configuration (primary/fallback models, host/port, URLs, CORS)
-│   ├── main.py              # FastAPI server, /healthz & /readyz probes, CORS & ADK Runner failover execution
+│   ├── export_openapi.py    # Deterministic OpenAPI 3.1 contract snapshot exporter (openapi.json)
+│   ├── main.py              # FastAPI server (/api/v1 + legacy routes), /healthz & /readyz probes, CORS & failover
 │   ├── prompt.py            # System instruction prompt & flight simulation rules
-│   ├── schema.py            # Pydantic contracts & input boundary guardrails (Filters, FlightsSearchInput, Flight, FlightsSearchOutput)
-│   └── app_utils/           # health.py (/healthz & /readyz), logging.py & telemetry_plugin.py
+│   ├── schema.py            # Pydantic request/response contracts, Tolerant Reader config & boundary guardrails
+│   └── app_utils/           # health.py, logging.py, telemetry_plugin.py & versioning.py (X-API-Version / Deprecation)
 ├── tests/
 │   ├── fixtures/            # Sample test payloads (flights_search.json)
-│   ├── unit/                # Offline health, readiness, model failover, fault-injection, boundary & brownout tests
+│   ├── unit/                # Offline health, contract/versioning, model failover, fault-injection, boundary & brownout tests
 │   ├── integration/         # In-process FastAPI TestClient tests with live Gemini calls
 │   └── e2e/                 # Live HTTP client tests (configurable via FLIGHTS_SEARCH_BASE_URL)
+├── openapi.json             # Committed OpenAPI 3.1 contract snapshot verified automatically in CI
 ├── Dockerfile               # Production non-root container image definition
 ├── .dockerignore            # Excludes local caches/tests from container build context
 ├── .env.example             # Template environment & model variables
@@ -68,7 +71,7 @@ flights_search_app/
 
 ---
 
-## 🔌 API Reference
+## 🔌 API Reference (`v1.0.0` — [`openapi.json`](openapi.json))
 
 ### 1. Health & Readiness Probes — `GET /`, `GET /healthz`, `GET /readyz`
 - **`GET /`** *(legacy informational check)*:
@@ -77,28 +80,30 @@ flights_search_app/
     "message": "Flights Search Agent Service is running. Use the /run-flights-search endpoint via POST."
   }
   ```
-- **`GET /healthz`** *(Cloud Run `liveness_probe`)*:
+- **`GET /healthz`** *(Cloud Run `liveness_probe` — `LivenessResponse`)*:
   ```json
   {
     "status": "ok",
-    "service": "flights_search_app"
+    "service": "flights-search-app"
   }
   ```
-- **`GET /readyz`** *(Cloud Run `startup_probe` — returns `HTTP 200` when ready or `HTTP 503` if misconfigured)*:
+- **`GET /readyz`** *(Cloud Run `startup_probe` — `ReadinessResponse` `HTTP 200` when ready or `UnreadyResponse` `HTTP 503` if misconfigured)*:
   ```json
   {
     "status": "ready",
-    "service": "flights_search_app",
-    "project": "travel-agent-511710",
-    "location": "global",
-    "primary_model": "gemini-3.5-flash-lite",
+    "service": "flights-search-app",
+    "models": {
+      "flights_search": "gemini-3.5-flash-lite"
+    },
     "fallback_model": "gemini-3.6-flash"
   }
   ```
 
-### 2. Search Flights — `POST /run-flights-search`
+### 2. Search Flights — `POST /api/v1/run-flights-search` *(Legacy alias: `POST /run-flights-search`)*
 
-**Request (`FlightsSearchInput`):**
+*Response Headers:* `X-API-Version: 1.0.0` *(plus `Deprecation: true` and `Link: </api/v1/run-flights-search>; rel="successor-version"` on legacy `/run-flights-search`)*.
+
+**Request (`FlightsSearchInput` — `filters` optional, defaults to `{}`):**
 ```json
 {
   "origin": "Paris",
@@ -114,7 +119,7 @@ flights_search_app/
 }
 ```
 
-**Response (`FlightsSearchOutput` Envelope):**
+**Response (`FlightsSearchResponse` Envelope):**
 ```json
 {
   "status": "success",
@@ -142,6 +147,11 @@ flights_search_app/
 }
 ```
 
+*Updating the OpenAPI Snapshot after intentional contract changes:*
+```bash
+python3 -m app.export_openapi
+```
+
 ---
 
 ## 🚀 Running Locally
@@ -157,7 +167,7 @@ python3 -m app.main
 
 Example request:
 ```bash
-curl -X POST "http://127.0.0.1:8000/run-flights-search" \
+curl -i -X POST "http://127.0.0.1:8000/api/v1/run-flights-search" \
   -H "Content-Type: application/json" \
   -d '{
     "origin": "Paris",

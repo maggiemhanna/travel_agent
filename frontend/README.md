@@ -10,15 +10,15 @@ The **Web Frontend** is a single-page React + Vite application (`:5173` locally,
   - Autocomplete city selector, departure/return dates, passenger count, and manual filter controls (`direct`, `max_price`, `max_stops`).
   - Client-side pagination (5 itineraries per page) and responsive itinerary cards displaying carrier, flight number, airport codes, overnight `+1`/`+2` offsets, stopovers, and pricing.
 - **Conversational AI Assistant ([`src/ChatWidget.jsx`](src/ChatWidget.jsx))**:
-  - Floating chat widget connected to `POST /run-conversational`.
+  - Floating chat widget connected to `POST /api/v1/run-conversational`.
   - Dynamically updates UI state based on `agent_decision`:
     - `filter`: Updates top-level filter controls and filters displayed flights instantaneously.
     - `filter_smart`: Updates displayed flights with semantically filtered / Google Search-verified itineraries.
     - `inspiration_agent`: Updates search parameters (`origin`, `destination`, dates) and automatically triggers a fresh flight search.
     - `continue`: Displays conversational guidance or clarifying questions.
   - **Independent Feature Isolation**: Network or backend errors from `conversational-app` are caught and shown gracefully inside the chat widget without interrupting flight search or manual filtering in `App.jsx`.
-- **Cross-Region Backend Failover & Price Helper ([`src/apiClient.js`](src/apiClient.js))**:
-  - Centralizes runtime URL resolution (`resolveBackendUrl`), multi-currency price parsing (`parseFlightPrice` across `EUR`, `USD`, `$`, `€`, `£` for local filter sync), and wraps backend `POST` calls from [`src/App.jsx`](src/App.jsx) and [`src/ChatWidget.jsx`](src/ChatWidget.jsx) with `postWithRegionalFailover()`.
+- **Versioned API Client, Cross-Region Backend Failover & Price Helper ([`src/apiClient.js`](src/apiClient.js))**:
+  - Centralizes the canonical `/api/v1` API prefix (`API_V1_PREFIX`), runtime URL resolution (`resolveBackendUrl`), multi-currency price parsing (`parseFlightPrice` across `EUR`, `USD`, `$`, `€`, `£` for local filter sync), and wraps backend `POST /api/v1/run-*` calls from [`src/App.jsx`](src/App.jsx) and [`src/ChatWidget.jsx`](src/ChatWidget.jsx) with `postWithRegionalFailover()`.
   - When a secondary regional backend URL is configured (`VITE_FLIGHTS_SEARCH_FALLBACK_API_URL` / `VITE_CONVERSATIONAL_FALLBACK_API_URL`, pointing to `europe-west1` in `prod`), network errors (`TypeError` / connection drop) or transient upstream gateway failures (`HTTP 502`, `503`, `504`) on the primary `europe-west9` backend automatically fail over to the warm `europe-west1` backend transparently—while never double-sending client validation errors (`HTTP 4xx`).
 
 ---

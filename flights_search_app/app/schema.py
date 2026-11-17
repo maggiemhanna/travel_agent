@@ -1,20 +1,24 @@
-from typing import List, Optional
-from pydantic import BaseModel, Field, field_validator
+from typing import Any, Dict, List, Literal, Optional, Union
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 class Filters(BaseModel):
     """
     The structure for the user's initial filters.
     """
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     direct: Optional[bool] = Field(
         None, 
         description="Whether the flight should be direct."
     )
     max_price: Optional[int] = Field(
         None, 
+        validation_alias=AliasChoices("max_price", "price"),
         description="The maximum price of the flight."
     )
     max_stops: Optional[int] = Field(
         None, 
+        validation_alias=AliasChoices("max_stops", "stops"),
         description="The maximum number of stops on the flight."
     )
 
@@ -30,6 +34,8 @@ class FlightsSearchInput(BaseModel):
     """
     The structure for the user's raw request provided to the Flight Search agent.
     """
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     origin: str = Field(
         ..., 
         description="The origin city for the flight search."
@@ -51,7 +57,7 @@ class FlightsSearchInput(BaseModel):
         description="The number of passengers for the flight search."
     )
     filters: Filters = Field(
-        ..., 
+        default_factory=Filters, 
         description="The filters for the flight search."
     )
 
@@ -71,6 +77,8 @@ class FlightsSearchInput(BaseModel):
         return value
     
 class Flight(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     origin: str = Field(
         ..., 
         description="The origin city for the flight search."
@@ -135,8 +143,41 @@ class FlightsSearchOutput(BaseModel):
     """
     The structure for the final output of the flight search agent.
     """
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     flights: List[Flight] = Field(
         ..., 
         description="A list of flights that match the search criteria."
     )
+
+
+class RawTextFallback(BaseModel):
+    """Fallback payload returned when an upstream LLM emits non-JSON plain text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    raw_text: str = Field(
+        ...,
+        description="Unparsed plain-text response returned safely when JSON decoding fails.",
+    )
+
+
+class FlightsSearchResponse(BaseModel):
+    """HTTP response envelope for POST /api/v1/run-flights-search (and legacy /run-flights-search)."""
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    status: Literal["success"] = Field(
+        "success",
+        description="Execution status indicator.",
+    )
+    results: List[Union[FlightsSearchOutput, RawTextFallback, Dict[str, Any]]] = Field(
+        ...,
+        description="Structured flight search output items (or graceful plain-text fallback).",
+    )
+
+
+class RootInfoResponse(BaseModel):
+    """Informational root endpoint banner payload."""
+
+    message: str = Field(..., description="Service status banner message.")

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parseFlightPrice, postWithRegionalFailover, resolveBackendUrl } from './apiClient';
+import { API_V1_PREFIX, parseFlightPrice, postWithRegionalFailover, resolveBackendUrl } from './apiClient';
 
 const CONVERSATIONAL_API_URL = resolveBackendUrl(
   'VITE_CONVERSATIONAL_API_URL',
@@ -49,7 +49,7 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
       const response = await postWithRegionalFailover({
         primaryUrl: CONVERSATIONAL_API_URL,
         fallbackUrl: CONVERSATIONAL_FALLBACK_API_URL,
-        path: '/run-conversational',
+        path: `${API_V1_PREFIX}/run-conversational`,
         payload,
       });
 

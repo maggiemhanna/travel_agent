@@ -6,11 +6,44 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Mapping
+from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 _TRUTHY = {"1", "true", "yes", "on"}
+
+
+class LivenessResponse(BaseModel):
+    """HTTP 200 liveness payload contract for GET /healthz."""
+
+    status: Literal["ok"] = Field("ok", description="Liveness status indicator.")
+    service: str = Field(..., description="Logical Cloud Run service identifier.")
+
+
+class ReadinessResponse(BaseModel):
+    """HTTP 200 readiness payload contract for GET /readyz."""
+
+    status: Literal["ready"] = Field("ready", description="Readiness status indicator.")
+    service: str = Field(..., description="Logical Cloud Run service identifier.")
+    models: Dict[str, str] = Field(
+        ..., description="Configured primary Gemini models keyed by agent role."
+    )
+    fallback_model: Optional[str] = Field(
+        None, description="Configured automatic backup Gemini model, when enabled."
+    )
+
+
+class UnreadyResponse(BaseModel):
+    """HTTP 503 readiness failure contract for GET /readyz."""
+
+    status: Literal["not_ready"] = Field(
+        "not_ready", description="Unready status indicator."
+    )
+    service: str = Field(..., description="Logical Cloud Run service identifier.")
+    errors: List[str] = Field(
+        ..., description="Startup or configuration validation errors."
+    )
 
 
 def build_liveness_payload(service_name: str) -> Dict[str, str]:
