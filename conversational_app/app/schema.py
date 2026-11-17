@@ -1,61 +1,23 @@
-from typing import Any, Dict, Literal, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 
 class Flight(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    origin: str = Field(
-        ..., 
-        description="The origin city for the flight search."
-    )
-    destination: str = Field(
-        ..., 
-        description="The destination city for the flight search."
-    )
-    departure_date: str = Field(
-        ..., 
-        description="The departure date for the flight search."
-    )
-    return_date: str = Field(
-        ..., 
-        description="The return date for the flight search."
-    )
-    departure_time: str = Field(
-        ..., 
-        description="The departure time for the flight search."
-    )
-    arrival_time: str = Field(
-        ..., 
-        description="The arrival time for the flight search."
-    )
-    return_time: str = Field(
-        ..., 
-        description="The return time for the flight search."
-    )
-    return_arrival_time: str = Field(
-        ..., 
-        description="The return arrival time for the flight search."
-    )
-    price: str = Field(
-        ..., 
-        description="The price of the flight."
-    )
-    airline: str = Field(
-        ..., 
-        description="The airline of the flight."
-    )
-    flight_number: str = Field(
-        ..., 
-        description="The flight number of the flight."
-    )
-    stops: int = Field(
-        ..., 
-        description="The number of stops on the flight."
-    )
-    stopover_cities: List[str] = Field(
-        ..., 
-        description="The cities where the flight stops."
-    )
+    origin: str = Field(..., description="The origin city for the flight search.")
+    destination: str = Field(..., description="The destination city for the flight search.")
+    departure_date: str = Field(..., description="The departure date for the flight search.")
+    return_date: str = Field(..., description="The return date for the flight search.")
+    departure_time: str = Field(..., description="The departure time for the flight search.")
+    arrival_time: str = Field(..., description="The arrival time for the flight search.")
+    return_time: str = Field(..., description="The return time for the flight search.")
+    return_arrival_time: str = Field(..., description="The return arrival time for the flight search.")
+    price: str = Field(..., description="The price of the flight.")
+    airline: str = Field(..., description="The airline of the flight.")
+    flight_number: str = Field(..., description="The flight number of the flight.")
+    stops: int = Field(..., description="The number of stops on the flight.")
+    stopover_cities: List[str] = Field(..., description="The cities where the flight stops.")
 
     @field_validator("stops")
     @classmethod
@@ -64,29 +26,15 @@ class Flight(BaseModel):
             raise ValueError("stops must be >= 0.")
         return value
 
+
 class FlightParams(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    origin: str = Field(
-        ..., 
-        description="The origin city for the flight search."
-    )
-    destination: str = Field(
-        ..., 
-        description="The destination city for the flight search."
-    )
-    departure_date: str = Field(
-        ..., 
-        description="The departure date for the flight search."
-    )
-    return_date: str = Field(
-        ..., 
-        description="The return date for the flight search."
-    )
-    passengers: int = Field(
-        ..., 
-        description="The number of passengers for the flight search."
-    )
+    origin: str = Field(..., description="The origin city for the flight search.")
+    destination: str = Field(..., description="The destination city for the flight search.")
+    departure_date: str = Field(..., description="The departure date for the flight search.")
+    return_date: str = Field(..., description="The return date for the flight search.")
+    passengers: int = Field(..., description="The number of passengers for the flight search.")
 
     @field_validator("origin", "destination", "departure_date", "return_date")
     @classmethod
@@ -103,12 +51,20 @@ class FlightParams(BaseModel):
             raise ValueError("passengers must be between 1 and 9.")
         return value
 
+
 class ConversationalInput(BaseModel):
     """Input schema for the Conversational Agent."""
+
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     user_message: str = Field(..., description="The message from the user.")
-    conversational_history: List[str] = Field(default_factory=list, description="The history of the conversation where each string is formatted as 'role: message' (e.g., 'bot: Hello' or 'user: flights under $500').")
+    conversational_history: List[str] = Field(
+        default_factory=list,
+        description=(
+            "The history of the conversation where each string is formatted as "
+            "'role: message' (e.g., 'bot: Hello' or 'user: flights under $500')."
+        ),
+    )
     flights_input: List[Flight] = Field(default_factory=list, description="The flights to filter.")
     flights_search_input: FlightParams = Field(..., description="The flights search input.")
 
@@ -120,23 +76,33 @@ class ConversationalInput(BaseModel):
             raise ValueError("user_message must be a non-empty string up to 4000 characters.")
         return value
 
+
 class ConversationalOutput(BaseModel):
     """Output schema for the Conversational Agent."""
+
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     agent_response: str = Field(..., description="The response from the agent.")
-    agent_decision: Literal["filter", "filter_smart", "inspiration_agent", "continue"] = Field(..., description="The decision of the agent.")
-    filter_type: Optional[Literal["direct", "max_price", "max_stops"]] = Field(None, description="The type of filter to apply.")
+    agent_decision: Literal["filter", "filter_smart", "inspiration_agent", "continue"] = Field(
+        ..., description="The decision of the agent."
+    )
+    filter_type: Optional[Literal["direct", "max_price", "max_stops"]] = Field(
+        None, description="The type of filter to apply."
+    )
     filter_value: Optional[int] = Field(None, description="The value of the filter to apply.")
     flights_output: Optional[List[Flight]] = Field(None, description="The flights filtered by the smart filter.")
     flights_search_output: Optional[FlightParams] = Field(None, description="The flights search output.")
 
+
 class ConversationalState(ConversationalInput, ConversationalOutput):
     """State schema for the Conversational Workflow combining ConversationalInput and ConversationalOutput."""
+
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     agent_response: Optional[str] = Field(None, description="The response from the agent.")
-    agent_decision: Optional[Literal["filter", "filter_smart", "inspiration_agent", "continue"]] = Field(None, description="The decision of the agent.")
+    agent_decision: Optional[Literal["filter", "filter_smart", "inspiration_agent", "continue"]] = Field(
+        None, description="The decision of the agent."
+    )
 
 
 class RawTextFallback(BaseModel):
@@ -144,10 +110,7 @@ class RawTextFallback(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    raw_text: str = Field(
-        ...,
-        description="Unparsed plain-text response returned safely when JSON decoding fails.",
-    )
+    raw_text: str = Field(..., description="Unparsed plain-text response returned safely when JSON decoding fails.")
 
 
 class ConversationalResponse(BaseModel):
@@ -155,13 +118,9 @@ class ConversationalResponse(BaseModel):
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    status: Literal["success"] = Field(
-        "success",
-        description="Execution status indicator.",
-    )
+    status: Literal["success"] = Field("success", description="Execution status indicator.")
     results: Union[ConversationalOutput, RawTextFallback, Dict[str, Any]] = Field(
-        ...,
-        description="Normalized multi-agent workflow output (or graceful plain-text fallback).",
+        ..., description="Normalized multi-agent workflow output (or graceful plain-text fallback)."
     )
 
 
