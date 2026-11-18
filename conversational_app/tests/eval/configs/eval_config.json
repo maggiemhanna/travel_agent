@@ -1,6 +1,7 @@
 {
   "eval_set_id": "conversational_synthetic",
   "judge_model": "gemini-2.5-flash",
+  "pricing_config_path": "../../app/app_utils/pricing_config.json",
   "evaluation_service_qps": 5.0,
   "inference_concurrency": 4,
   "metrics": [
@@ -50,6 +51,30 @@
       "unit": "s",
       "threshold": 15.0,
       "description": "End-to-end 1-turn application response latency in seconds (lower is better; threshold is max acceptable latency in seconds)."
+    },
+    {
+      "name": "cost_per_1k_requests_usd",
+      "type": "custom_python",
+      "direction": "lower_is_better",
+      "unit": " USD/1k",
+      "threshold": 15.0,
+      "description": "Estimated Vertex AI Standard PayGo total SUT cost per 1,000 requests in USD, combining LLM input/cached/output/thinking tokens and Gemini 3 per-query Google Search grounding ($14/1k queries)."
+    },
+    {
+      "name": "llm_token_cost_per_1k_usd",
+      "type": "custom_python",
+      "direction": "lower_is_better",
+      "unit": " USD/1k",
+      "threshold": 5.0,
+      "description": "Estimated Vertex AI Standard PayGo LLM token-only cost per 1,000 requests in USD (isolating model, prompt, caching, and thinking token efficiency from Google Search grounding fees)."
+    },
+    {
+      "name": "total_billable_tokens",
+      "type": "custom_python",
+      "direction": "lower_is_better",
+      "unit": " tok",
+      "threshold": 6000.0,
+      "description": "Total LLM tokens consumed per request across all executed sub-agents (prompt + tool_use_prompt + candidates_output + thoughts)."
     }
   ]
 }

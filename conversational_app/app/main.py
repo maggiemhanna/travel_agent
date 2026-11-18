@@ -36,6 +36,13 @@ from app.app_utils.health import (
     evaluate_readiness,
 )
 from app.app_utils.logging import format_dict_for_logs, setup_logging
+from app.app_utils.cost_tracker import aggregate_invocation_cost
+from app.app_utils.telemetry_plugin import (
+    TELEMETRY_HEADER_NAME,
+    begin_request_telemetry_scope,
+    end_request_telemetry_scope,
+    is_telemetry_header_enabled,
+)
 from app.app_utils.versioning import (
     API_V1_PREFIX,
     API_VERSION,
@@ -61,7 +68,7 @@ api.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=VERSIONING_EXPOSED_HEADERS,
+    expose_headers=[*VERSIONING_EXPOSED_HEADERS, TELEMETRY_HEADER_NAME],
 )
 
 register_versioning_middleware(
@@ -70,6 +77,41 @@ register_versioning_middleware(
         "/run-conversational": f"{API_V1_PREFIX}/run-conversational",
     },
 )
+
+
+@api.middleware("http")
+async def _ai_telemetry_header_middleware(request, call_next):
+    if not is_telemetry_header_enabled():
+        return await call_next(request)
+    scope_token = begin_request_telemetry_scope()
+    try:
+        response = await call_next(request)
+    finally:
+        collected = end_request_telemetry_scope(scope_token)
+    if collected:
+        all_steps = [
+            step
+            for inv_rec in collected
+            for step in (inv_rec.get("steps") or [])
+        ]
+        summary = aggregate_invocation_cost(all_steps)
+        header_payload = {
+            "invocations": len(collected),
+            "llm_calls": summary["llm_calls_count"],
+            "total_tokens": summary["total_tokens"],
+            "prompt_tokens": summary["prompt_tokens"],
+            "cached_input_tokens": summary["cached_input_tokens"],
+            "candidates_output_tokens": summary["candidates_output_tokens"],
+            "thoughts_tokens": summary["thoughts_tokens"],
+            "search_queries": summary["search_queries_count"],
+            "total_cost_usd": summary["total_cost_usd"],
+            "cost_per_1k_requests_usd": summary["cost_per_1k_requests_usd"],
+        }
+        response.headers[TELEMETRY_HEADER_NAME] = json.dumps(
+            header_payload, separators=(",", ":")
+        )
+    return response
+
 
 @api.get("/", response_model=RootInfoResponse, tags=["Health"])
 async def root() -> Dict[str, str]:

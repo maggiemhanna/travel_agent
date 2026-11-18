@@ -1,7 +1,7 @@
 # Copyright (c) 2024 Maggie Mhanna
 # All rights reserved.
 
-"""Step 2: Run 1-turn agent inference and GEAP evaluation."""
+"""Step 2: Run 1-turn agent inference, AI cost estimation, and GEAP evaluation."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ import asyncio
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 import re
-import shutil
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -31,8 +31,20 @@ import vertexai
 from vertexai import types as vertex_types
 
 from app.agent import APP_NAME, app, conversational
+from app.app_utils.cost_tracker import (
+    DEFAULT_PRICING_CONFIG_PATH,
+    aggregate_invocation_cost,
+    build_dataset_cost_overview,
+    extract_step_usage_and_cost,
+    load_pricing_catalog,
+    parse_model_overrides,
+    reprice_traced_records,
+)
 from app.app_utils.logging import format_table_for_logs, setup_logging
-from tests.eval.metrics.custom_metrics import build_evaluation_metrics
+from tests.eval.metrics.custom_metrics import (
+    CUSTOM_PYTHON_METRICS_REGISTRY,
+    build_evaluation_metrics,
+)
 from tests.eval.scripts.generate_scenarios import build_agent_adapter_from_workflow
 
 logger = setup_logging(name=__name__)
@@ -54,6 +66,43 @@ TRACES_FILENAME = "eval_dataset_with_traces.json"
 RESULTS_FILENAME = "eval_results.json"
 SUMMARY_FILENAME = "eval_summary.md"
 METADATA_FILENAME = "run_metadata.json"
+
+
+def resolve_pricing_catalog_for_eval(
+    eval_config: Mapping[str, Any],
+    eval_config_path: str = DEFAULT_EVAL_CONFIG_PATH,
+    pricing_config_override: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Resolves and loads pricing_config.json from CLI override, env, eval_config, or app defaults."""
+    if pricing_config_override:
+        return load_pricing_catalog(pricing_config_override)
+    if os.getenv("PRICING_CONFIG_PATH"):
+        return load_pricing_catalog(os.getenv("PRICING_CONFIG_PATH"))
+    rel_or_abs = eval_config.get("pricing_config_path")
+    if isinstance(rel_or_abs, str) and rel_or_abs.strip():
+        candidate = (
+            rel_or_abs
+            if os.path.isabs(rel_or_abs)
+            else os.path.normpath(
+                os.path.join(os.path.dirname(eval_config_path), rel_or_abs)
+            )
+        )
+        if os.path.isfile(candidate):
+            return load_pricing_catalog(candidate)
+    return load_pricing_catalog(DEFAULT_PRICING_CONFIG_PATH)
+
+
+def extract_agent_models_map(workflow: Workflow) -> Dict[str, str]:
+    """Maps each workflow sub-agent name to its configured Gemini model string."""
+    models_map: Dict[str, str] = {}
+    graph = workflow._require_graph()
+    for node in graph.nodes:
+        if not isinstance(node, Agent):
+            continue
+        model_obj = getattr(node, "model", None)
+        model_name = getattr(model_obj, "model", str(model_obj))
+        models_map[node.name] = str(model_name)
+    return models_map
 
 
 def build_agent_info() -> vertex_types.evals.AgentInfo:
@@ -123,7 +172,9 @@ def extract_grounding_search_events(
     if not queries and not sources and not grounded_claims:
         return [], [], []
 
-    combined_query = " | ".join(queries) if queries else "airline flight amenities research"
+    combined_query = (
+        " | ".join(queries) if queries else "airline flight amenities research"
+    )
     response_payload: Dict[str, Any] = {
         "queries": queries,
         "sources": sources,
@@ -195,12 +246,16 @@ async def run_single_case_inference(
     agents_map: Dict[str, vertex_types.evals.AgentConfig],
     semaphore: asyncio.Semaphore,
     max_retries: int = 3,
+    agent_models_map: Optional[Mapping[str, str]] = None,
+    pricing_catalog: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Executes 1-turn inference for a single EvalCase and builds its trace record."""
+    """Executes 1-turn inference for a single EvalCase and builds its trace & cost record."""
     eval_id = eval_case.eval_id or str(uuid4())[:8]
     scenario = eval_case.conversation_scenario
     starting_prompt = scenario.starting_prompt if scenario else ""
     conversation_plan = scenario.conversation_plan if scenario else ""
+    models_lookup = dict(agent_models_map or extract_agent_models_map(conversational))
+    catalog = pricing_catalog or load_pricing_catalog()
 
     session_input_dict = (
         eval_case.session_input.model_dump(mode="json", exclude_none=True)
@@ -247,6 +302,7 @@ async def run_single_case_inference(
                 ]
                 intermediate_events: List[Dict[str, Any]] = []
                 sub_agent_latencies: List[Dict[str, Any]] = []
+                sub_agent_usages: List[Dict[str, Any]] = []
                 tool_calls_made: List[Dict[str, Any]] = []
                 final_response_text = ""
 
@@ -258,22 +314,58 @@ async def run_single_case_inference(
                     session_id=session_id,
                     new_message=user_content,
                 ):
-                    if not raw_event or not raw_event.content or not raw_event.content.parts:
+                    if not raw_event or getattr(raw_event, "partial", False):
                         continue
 
-                    author = raw_event.author or "conversational"
+                    raw_author = raw_event.author or "conversational"
+                    now_perf = time.perf_counter()
+                    step_elapsed = round(now_perf - last_step_perf, 4)
+
+                    has_llm_telemetry = (
+                        raw_author
+                        not in {
+                            "user",
+                            "finalize_output",
+                            "route_engage",
+                            "parse_filter_smart",
+                        }
+                        and (
+                            getattr(raw_event, "usage_metadata", None) is not None
+                            or getattr(raw_event, "grounding_metadata", None)
+                            is not None
+                            or bool(
+                                (
+                                    getattr(raw_event, "custom_metadata", None)
+                                    or {}
+                                ).get("response_cache_hit")
+                            )
+                        )
+                    )
+                    if has_llm_telemetry:
+                        sub_agent_usages.append(
+                            extract_step_usage_and_cost(
+                                author=raw_author,
+                                llm_response=raw_event,
+                                configured_model=models_lookup.get(raw_author),
+                                latency_seconds=step_elapsed,
+                                catalog=catalog,
+                            )
+                        )
+
+                    if not raw_event.content or not raw_event.content.parts:
+                        continue
+
+                    author = raw_author
                     if author == "finalize_output":
                         author = "conversational"
                     elif author in {"route_engage", "parse_filter_smart"}:
                         continue
 
-                    now_perf = time.perf_counter()
-                    step_latency_sec = round(now_perf - last_step_perf, 4)
                     last_step_perf = now_perf
                     sub_agent_latencies.append(
                         {
                             "author": author,
-                            "latency_seconds": step_latency_sec,
+                            "latency_seconds": step_elapsed,
                         }
                     )
 
@@ -282,9 +374,13 @@ async def run_single_case_inference(
                     )
                     if author != "user":
                         content_dump["role"] = "model"
-                    validated_content = genai_types.Content.model_validate(content_dump)
+                    validated_content = genai_types.Content.model_validate(
+                        content_dump
+                    )
                     event_time = (
-                        datetime.fromtimestamp(raw_event.timestamp, tz=timezone.utc)
+                        datetime.fromtimestamp(
+                            raw_event.timestamp, tz=timezone.utc
+                        )
                         if getattr(raw_event, "timestamp", None)
                         else datetime.now(timezone.utc)
                     )
@@ -317,14 +413,17 @@ async def run_single_case_inference(
 
                     intermediate_events.append(
                         {
-                            "event_id": getattr(raw_event, "id", None) or str(uuid4())[:8],
+                            "event_id": getattr(raw_event, "id", None)
+                            or str(uuid4())[:8],
                             "author": author,
                             "content": content_dump,
                             "creation_timestamp": event_time.isoformat(),
                         }
                     )
 
-                total_latency_sec = round(time.perf_counter() - turn_start_perf, 4)
+                total_latency_sec = round(
+                    time.perf_counter() - turn_start_perf, 4
+                )
 
                 if len(intermediate_events) > 1:
                     intermediate_events = intermediate_events[:-1]
@@ -346,19 +445,26 @@ async def run_single_case_inference(
                         )
                     ],
                 )
+                cost_summary = aggregate_invocation_cost(sub_agent_usages)
 
                 return {
                     "eval_id": eval_id,
                     "prompt": starting_prompt,
                     "conversation_plan": conversation_plan,
                     "context": context_str,
-                    "tool_calls": json.dumps(tool_calls_made, ensure_ascii=False),
+                    "tool_calls": json.dumps(
+                        tool_calls_made, ensure_ascii=False
+                    ),
                     "session_inputs": session_input_dict,
                     "response": final_response_text,
                     "latency_seconds": total_latency_sec,
                     "sub_agent_latencies_seconds": sub_agent_latencies,
+                    "sub_agent_usages": sub_agent_usages,
+                    "cost_summary": cost_summary,
                     "intermediate_events": intermediate_events,
-                    "agent_data": agent_data.model_dump(mode="json", exclude_none=True),
+                    "agent_data": agent_data.model_dump(
+                        mode="json", exclude_none=True
+                    ),
                 }
 
             except Exception as exc:
@@ -370,8 +476,12 @@ async def run_single_case_inference(
                     )
                     await asyncio.sleep(backoff)
                 else:
-                    total_latency_sec = round(time.perf_counter() - turn_start_perf, 4)
-                    logger.error(f"Case {eval_id} failed after {max_retries} attempts: {exc}")
+                    total_latency_sec = round(
+                        time.perf_counter() - turn_start_perf, 4
+                    )
+                    logger.error(
+                        f"Case {eval_id} failed after {max_retries} attempts: {exc}"
+                    )
                     error_json = json.dumps({"error": str(exc)})
                     user_content = genai_types.Content(
                         role="user",
@@ -392,7 +502,8 @@ async def run_single_case_inference(
                                         author="user", content=user_content
                                     ),
                                     vertex_types.evals.AgentEvent(
-                                        author="conversational", content=model_content
+                                        author="conversational",
+                                        content=model_content,
                                     ),
                                 ],
                             )
@@ -402,12 +513,16 @@ async def run_single_case_inference(
                         "eval_id": eval_id,
                         "prompt": starting_prompt,
                         "conversation_plan": conversation_plan,
-                        "context": json.dumps(base_context_payload, ensure_ascii=False),
+                        "context": json.dumps(
+                            base_context_payload, ensure_ascii=False
+                        ),
                         "tool_calls": "[]",
                         "session_inputs": session_input_dict,
                         "response": error_json,
                         "latency_seconds": total_latency_sec,
                         "sub_agent_latencies_seconds": [],
+                        "sub_agent_usages": [],
+                        "cost_summary": aggregate_invocation_cost([]),
                         "intermediate_events": [],
                         "agent_data": fallback_agent_data.model_dump(
                             mode="json", exclude_none=True
@@ -420,6 +535,7 @@ async def run_batch_inference(
     agent_info: vertex_types.evals.AgentInfo,
     limit: Optional[int] = None,
     concurrency: int = 4,
+    pricing_catalog: Optional[Mapping[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """Runs 1-turn inference across EvalSet cases with bounded concurrency."""
     cases = eval_set.eval_cases
@@ -431,8 +547,19 @@ async def run_batch_inference(
     )
     semaphore = asyncio.Semaphore(concurrency)
     agents_map = agent_info.agents or {}
+    agent_models_map = extract_agent_models_map(conversational)
+    catalog = pricing_catalog or load_pricing_catalog()
 
-    tasks = [run_single_case_inference(case, agents_map, semaphore) for case in cases]
+    tasks = [
+        run_single_case_inference(
+            case,
+            agents_map,
+            semaphore,
+            agent_models_map=agent_models_map,
+            pricing_catalog=catalog,
+        )
+        for case in cases
+    ]
 
     results: List[Dict[str, Any]] = []
     for coro in tqdm(
@@ -586,9 +713,29 @@ def resolve_traces_source_path(
             candidate = os.path.join(reuse_run, TRACES_FILENAME)
             if os.path.isfile(candidate):
                 return candidate
-        candidate_in_results = os.path.join(results_dir, reuse_run, TRACES_FILENAME)
+        candidate_in_results = os.path.join(
+            results_dir, reuse_run, TRACES_FILENAME
+        )
         if os.path.isfile(candidate_in_results):
             return candidate_in_results
+        if os.path.isdir(results_dir):
+            suffix_matches = sorted(
+                [
+                    d
+                    for d in os.listdir(results_dir)
+                    if d != exclude_run_id
+                    and os.path.isdir(os.path.join(results_dir, d))
+                    and d.endswith(f"_{reuse_run}")
+                    and os.path.isfile(
+                        os.path.join(results_dir, d, TRACES_FILENAME)
+                    )
+                ],
+                reverse=True,
+            )
+            if suffix_matches:
+                return os.path.join(
+                    results_dir, suffix_matches[0], TRACES_FILENAME
+                )
         raise FileNotFoundError(
             f"Could not find {TRACES_FILENAME} for --reuse-run '{reuse_run}'"
         )
@@ -620,7 +767,9 @@ def load_reference_baseline(
         elif os.path.isdir(baseline_run):
             target_path = os.path.join(baseline_run, RESULTS_FILENAME)
         else:
-            target_path = os.path.join(results_dir, baseline_run, RESULTS_FILENAME)
+            target_path = os.path.join(
+                results_dir, baseline_run, RESULTS_FILENAME
+            )
         if os.path.isfile(target_path):
             with open(target_path, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -631,11 +780,121 @@ def load_reference_baseline(
         results_dir=results_dir, exclude_run_id=exclude_run_id
     )
     if latest_base_dir:
-        default_baseline_results = os.path.join(latest_base_dir, RESULTS_FILENAME)
+        default_baseline_results = os.path.join(
+            latest_base_dir, RESULTS_FILENAME
+        )
         if os.path.isfile(default_baseline_results):
             with open(default_baseline_results, "r", encoding="utf-8") as f:
                 return json.load(f)
     return None
+
+
+def evaluate_local_python_metrics_only(
+    traced_records: List[Dict[str, Any]],
+    eval_config: Mapping[str, Any],
+    existing_source_report: Optional[Mapping[str, Any]] = None,
+) -> vertex_types.EvaluationResult:
+    """Evaluates deterministic custom_python metrics locally at $0 API cost (preserving existing LLM scores if available)."""
+    prior_case_metrics: Dict[int, Dict[str, Any]] = {}
+    if existing_source_report:
+        for c in existing_source_report.get("eval_case_results") or []:
+            c_idx = int(c.get("eval_case_index", -1))
+            if c_idx >= 0 and isinstance(c.get("metric_results"), dict):
+                prior_case_metrics[c_idx] = c["metric_results"]
+
+    configured_metrics = list(eval_config.get("metrics") or [])
+    scores_by_metric: Dict[str, List[float]] = {}
+    errors_by_metric: Dict[str, int] = {}
+    eval_case_results: List[vertex_types.common.EvalCaseResult] = []
+
+    for idx, rec in enumerate(traced_records):
+        instance = dict(rec)
+        # Match Vertex Eval SDK instance format for response text when evaluate_schema_and_contract runs
+        resp_val = instance.get("response")
+        if isinstance(resp_val, str):
+            instance["response"] = {"parts": [{"text": resp_val}]}
+
+        sdk_metric_results: Dict[str, Any] = {}
+        prior_map = prior_case_metrics.get(idx, {})
+
+        for m_cfg in configured_metrics:
+            m_name = m_cfg.get("name")
+            m_type = m_cfg.get("type")
+            if not m_name:
+                continue
+
+            if m_type == "custom_python" and m_name in CUSTOM_PYTHON_METRICS_REGISTRY:
+                fn = CUSTOM_PYTHON_METRICS_REGISTRY[m_name]
+                out = fn(instance)
+                score_val = float(out.get("score", 0.0))
+                sdk_metric_results[m_name] = (
+                    vertex_types.common.EvalCaseMetricResult(
+                        metric_name=m_name,
+                        score=score_val,
+                        explanation=str(out.get("explanation") or ""),
+                    )
+                )
+                scores_by_metric.setdefault(m_name, []).append(score_val)
+            elif m_name in prior_map and isinstance(prior_map[m_name], dict):
+                restored = (
+                    vertex_types.common.EvalCaseMetricResult.model_validate(
+                        prior_map[m_name]
+                    )
+                )
+                sdk_metric_results[m_name] = restored
+                if restored.score is not None and restored.error_message is None:
+                    scores_by_metric.setdefault(m_name, []).append(
+                        float(restored.score)
+                    )
+                elif restored.error_message:
+                    errors_by_metric[m_name] = errors_by_metric.get(m_name, 0) + 1
+
+        eval_case_results.append(
+            vertex_types.common.EvalCaseResult(
+                eval_case_index=idx,
+                response_candidate_results=[
+                    vertex_types.common.ResponseCandidateResult(
+                        response_index=0,
+                        metric_results=sdk_metric_results,
+                    )
+                ],
+            )
+        )
+
+    summary_metrics: List[vertex_types.common.AggregatedMetricResult] = []
+    n_total = len(traced_records)
+    for m_cfg in configured_metrics:
+        m_name = m_cfg.get("name")
+        if not m_name:
+            continue
+        vals = scores_by_metric.get(m_name, [])
+        err_cnt = errors_by_metric.get(m_name, 0)
+        if not vals and m_cfg.get("type") != "custom_python":
+            continue
+        mean_s = (sum(vals) / len(vals)) if vals else None
+        if len(vals) >= 2 and mean_s is not None:
+            variance = sum((v - mean_s) ** 2 for v in vals) / (len(vals) - 1)
+            stdev_s = math.sqrt(variance)
+        elif len(vals) == 1:
+            stdev_s = 0.0
+        else:
+            stdev_s = None
+
+        summary_metrics.append(
+            vertex_types.common.AggregatedMetricResult(
+                metric_name=m_name,
+                mean_score=mean_s,
+                stdev_score=stdev_s,
+                num_cases_total=n_total,
+                num_cases_valid=len(vals),
+                num_cases_error=err_cnt,
+            )
+        )
+
+    return vertex_types.EvaluationResult(
+        eval_case_results=eval_case_results,
+        summary_metrics=summary_metrics,
+    )
 
 
 def serialize_evaluation_results(
@@ -647,16 +906,19 @@ def serialize_evaluation_results(
     description: str,
     timestamp_iso: str,
     baseline_report: Optional[Dict[str, Any]] = None,
+    pricing_catalog: Optional[Mapping[str, Any]] = None,
+    inference_reused: bool = False,
+    evaluation_executed: bool = True,
 ) -> Dict[str, Any]:
-    """Combines summary metrics, baseline deltas, and per-case results into a JSON report."""
-    metric_cfg_map = {
-        m["name"]: m for m in eval_config.get("metrics", [])
-    }
+    """Combines summary metrics, baseline deltas, AI cost overview, and per-case results into a JSON report."""
+    metric_cfg_map = {m["name"]: m for m in eval_config.get("metrics", [])}
 
     baseline_scores: Dict[str, Optional[float]] = {}
     baseline_run_id: Optional[str] = None
+    baseline_cost_overview: Optional[Dict[str, Any]] = None
     if baseline_report and baseline_report.get("run_id") != run_id:
         baseline_run_id = baseline_report.get("run_id", "baseline")
+        baseline_cost_overview = baseline_report.get("cost_overview")
         for b_item in baseline_report.get("summary_metrics", []):
             baseline_scores[b_item["metric_name"]] = b_item.get("mean_score")
 
@@ -691,7 +953,9 @@ def serialize_evaluation_results(
         metric_map: Dict[str, Any] = {}
         if cand_results and cand_results[0].metric_results:
             for m_name, m_res in cand_results[0].metric_results.items():
-                metric_map[m_name] = m_res.model_dump(mode="json", exclude_none=True)
+                metric_map[m_name] = m_res.model_dump(
+                    mode="json", exclude_none=True
+                )
                 if m_res.score is not None and m_res.error_message is None:
                     case_scores_by_metric.setdefault(m_name, []).append(
                         float(m_res.score)
@@ -709,12 +973,16 @@ def serialize_evaluation_results(
                 "sub_agent_latencies_seconds": record.get(
                     "sub_agent_latencies_seconds"
                 ),
+                "sub_agent_usages": record.get("sub_agent_usages"),
+                "cost_summary": record.get("cost_summary"),
                 "response": record.get("response"),
                 "metric_results": metric_map,
             }
         )
 
     summary_list: List[Dict[str, Any]] = []
+    task_success_mean: Optional[float] = None
+
     for agg in eval_result.summary_metrics or []:
         m_name = agg.metric_name or "unknown"
         m_cfg = metric_cfg_map.get(m_name, {})
@@ -722,6 +990,8 @@ def serialize_evaluation_results(
         direction = m_cfg.get("direction", "higher_is_better")
         unit = m_cfg.get("unit", "")
         mean_val = agg.mean_score
+        if m_name == "multi_turn_task_success_v1" and mean_val is not None:
+            task_success_mean = float(mean_val)
 
         if mean_val is not None:
             if direction == "lower_is_better":
@@ -736,9 +1006,13 @@ def serialize_evaluation_results(
             valid_scores = case_scores_by_metric.get(m_name, [])
             if valid_scores:
                 if direction == "lower_is_better":
-                    passing_count = sum(1 for s in valid_scores if s <= threshold)
+                    passing_count = sum(
+                        1 for s in valid_scores if s <= threshold
+                    )
                 else:
-                    passing_count = sum(1 for s in valid_scores if s >= threshold)
+                    passing_count = sum(
+                        1 for s in valid_scores if s >= threshold
+                    )
                 pass_rate = passing_count / len(valid_scores)
 
         base_val = baseline_scores.get(m_name)
@@ -766,17 +1040,244 @@ def serialize_evaluation_results(
             }
         )
 
+    cost_overview = build_dataset_cost_overview(
+        traced_records=traced_records,
+        eval_config=eval_config,
+        catalog=pricing_catalog,
+        task_success_mean_score=task_success_mean,
+        inference_reused=inference_reused,
+        evaluation_executed=evaluation_executed,
+    )
+
     return {
         "run_id": run_id,
         "run_name": run_name,
         "description": description,
         "baseline_run_id": baseline_run_id,
-        "eval_set_id": eval_config.get("eval_set_id", "conversational_synthetic"),
+        "eval_set_id": eval_config.get(
+            "eval_set_id", "conversational_synthetic"
+        ),
         "timestamp": timestamp_iso,
         "num_cases_evaluated": len(traced_records),
         "summary_metrics": summary_list,
+        "cost_overview": cost_overview,
+        "baseline_cost_overview": baseline_cost_overview,
         "eval_case_results": per_case_list,
     }
+
+
+def _build_cost_markdown_sections(report: Mapping[str, Any]) -> str:
+    """Formats AI cost breakdown, sub-agent attribution, and analytical caching tables for eval_summary.md."""
+    cost_ov = report.get("cost_overview")
+    if not isinstance(cost_ov, dict):
+        return ""
+
+    base_ov = report.get("baseline_cost_overview")
+    has_base_cost = isinstance(base_ov, dict) and "cost_per_1k_requests_usd" in base_ov
+
+    def _fmt_usd_delta(cur: Optional[float], base_key: str) -> tuple[str, str]:
+        if not has_base_cost or not isinstance(base_ov, dict):
+            return "-", "-"
+        b_val = base_ov.get(base_key)
+        if cur is None or b_val is None:
+            return "N/A", "N/A"
+        diff = float(cur) - float(b_val)
+        return f"${float(b_val):.4f}", f"{diff:+.4f}"
+
+    cost_1k = float(cost_ov.get("cost_per_1k_requests_usd", 0.0))
+    tok_1k = float(cost_ov.get("llm_token_cost_per_1k_usd", 0.0))
+    gnd_1k = float(cost_ov.get("search_grounding_cost_per_1k_usd", 0.0))
+    qual_adj = cost_ov.get("cost_per_1k_successful_tasks_usd")
+    tok_avgs = cost_ov.get("token_averages_per_request") or {}
+    wf_eff = cost_ov.get("workflow_efficiency") or {}
+    judge_est = cost_ov.get("eval_judge_overhead_estimate") or {}
+
+    kpi_rows = [
+        [
+            "Total SUT Cost / 1,000 Requests",
+            f"${cost_1k:.4f}",
+            *_fmt_usd_delta(cost_1k, "cost_per_1k_requests_usd"),
+            "LLM tokens + Gemini 3 Google Search grounding ($14/1k queries)",
+        ],
+        [
+            "LLM Token-Only Cost / 1,000 Requests",
+            f"${tok_1k:.4f} ({cost_ov.get('llm_token_share_of_cost_pct', 0.0):.1f}%)",
+            *_fmt_usd_delta(tok_1k, "llm_token_cost_per_1k_usd"),
+            "Uncached input + cached input + visible output + thinking tokens",
+        ],
+        [
+            "Google Search Grounding Cost / 1,000 Requests",
+            f"${gnd_1k:.4f} ({cost_ov.get('search_grounding_share_of_cost_pct', 0.0):.1f}%)",
+            *_fmt_usd_delta(gnd_1k, "search_grounding_cost_per_1k_usd"),
+            f"Grounded turns: {wf_eff.get('grounded_turn_rate_pct', 0.0):.1f}% (avg {wf_eff.get('mean_search_queries_per_request', 0.0):.2f} queries/req)",
+        ],
+        [
+            "Quality-Adjusted Cost / 1,000 Successful Tasks",
+            f"${float(qual_adj):.4f}" if qual_adj is not None else "N/A",
+            *_fmt_usd_delta(qual_adj, "cost_per_1k_successful_tasks_usd"),
+            "Total Cost/1k divided by multi_turn_task_success_v1 mean score",
+        ],
+        [
+            "Per-Request Cost Distribution (Mean / P50 / P95 / Max)",
+            (
+                f"${cost_ov.get('mean_cost_per_request_usd', 0.0):.5f} / "
+                f"${cost_ov.get('p50_cost_per_request_usd', 0.0):.5f} / "
+                f"${cost_ov.get('p95_cost_per_request_usd', 0.0):.5f} / "
+                f"${cost_ov.get('max_cost_per_request_usd', 0.0):.5f}"
+            ),
+            "-",
+            "-",
+            f"Modeled {cost_ov.get('num_cases', 0)}-case batch SUT total: ${cost_ov.get('sut_modeled_run_cost_usd', 0.0):.5f}",
+        ],
+        [
+            "Mean Tokens / Request (Prompt / Cached / Out / Thoughts)",
+            (
+                f"{tok_avgs.get('mean_prompt_tokens', 0.0):.0f} / "
+                f"{tok_avgs.get('mean_cached_input_tokens', 0.0):.0f} / "
+                f"{tok_avgs.get('mean_candidates_output_tokens', 0.0):.0f} / "
+                f"{tok_avgs.get('mean_thoughts_tokens', 0.0):.0f}"
+            ),
+            "-",
+            "-",
+            f"Total avg: {tok_avgs.get('mean_total_tokens', 0.0):.0f} tok (thinking = {tok_avgs.get('thoughts_share_of_output_pct', 0.0):.1f}% of billable output)",
+        ],
+        [
+            "Workflow Calls & Self-Healing JSON Repair Rate",
+            f"{wf_eff.get('mean_llm_calls_per_request', 0.0):.2f} calls/req",
+            "-",
+            "-",
+            f"json_parser fallback rate: {wf_eff.get('json_repair_rate_pct', 0.0):.1f}%",
+        ],
+    ]
+    if not has_base_cost:
+        kpi_rows = [[r[0], r[1], r[4]] for r in kpi_rows]
+        kpi_headers = ["Cost / Efficiency Dimension", "Current Run", "Notes"]
+    else:
+        kpi_headers = [
+            "Cost / Efficiency Dimension",
+            "Current Run",
+            "Baseline",
+            "Delta (Δ)",
+            "Notes",
+        ]
+
+    kpi_md = tabulate(kpi_rows, headers=kpi_headers, tablefmt="github")
+
+    # Per-sub-agent attribution table
+    sub_agent_rows = []
+    for ag_name, ag_stats in (cost_ov.get("per_sub_agent_breakdown") or {}).items():
+        models_str = ", ".join(ag_stats.get("models") or [])
+        sub_agent_rows.append(
+            [
+                f"`{ag_name}`",
+                f"`{models_str}`",
+                f"{ag_stats.get('calls', 0)} ({ag_stats.get('case_invocation_rate_pct', 0.0):.1f}%)",
+                f"{ag_stats.get('mean_prompt_tokens_per_call', 0.0):.0f}",
+                f"{ag_stats.get('mean_output_tokens_per_call', 0.0):.0f}",
+                f"{ag_stats.get('mean_thoughts_tokens_per_call', 0.0):.0f}",
+                str(ag_stats.get("total_search_queries", 0)),
+                f"${ag_stats.get('amortized_cost_per_1k_requests_usd', 0.0):.4f}",
+                f"{ag_stats.get('share_of_total_sut_cost_pct', 0.0):.1f}%",
+            ]
+        )
+    sub_agent_md = (
+        tabulate(
+            sub_agent_rows,
+            headers=[
+                "Sub-Agent",
+                "Model(s)",
+                "Calls (Case %)",
+                "Avg Prompt Tok",
+                "Avg Out Tok",
+                "Avg Thoughts Tok",
+                "Search Queries",
+                "Amortized $/1k Reqs",
+                "Share of Cost",
+            ],
+            tablefmt="github",
+        )
+        if sub_agent_rows
+        else "_No LLM sub-agent telemetry recorded in traces._"
+    )
+
+    # Analytical cache-hit projections
+    projections = cost_ov.get("analytical_cache_projections") or {}
+    resp_proj_rows = [
+        [
+            f"{p.get('hit_rate_pct', 0.0):.0f}%",
+            f"${p.get('effective_cost_per_1k_usd', 0.0):.4f}",
+            f"-${p.get('savings_per_1k_usd', 0.0):.4f} (-{p.get('cost_reduction_pct', 0.0):.1f}%)",
+            f"{p.get('effective_mean_latency_seconds', 0.0):.3f}s",
+        ]
+        for p in (projections.get("response_cache_sensitivity") or [])
+    ]
+    resp_proj_md = tabulate(
+        resp_proj_rows,
+        headers=[
+            "Response Cache Hit Rate",
+            "Projected Cost / 1k Reqs",
+            "Projected Savings / 1k Reqs",
+            "Projected Mean AI Latency",
+        ],
+        tablefmt="github",
+    )
+
+    ctx_proj_rows = [
+        [
+            f"{p.get('prefix_hit_rate_pct', 0.0):.0f}%",
+            f"${p.get('theoretical_effective_cost_per_1k_usd', 0.0):.4f} (-{p.get('theoretical_cost_reduction_pct', 0.0):.1f}%)",
+            f"${p.get('threshold_gated_effective_cost_per_1k_usd', 0.0):.4f} (-{p.get('threshold_gated_cost_reduction_pct', 0.0):.1f}%)",
+            f"-${p.get('theoretical_input_savings_per_1k_usd', 0.0):.4f}",
+        ]
+        for p in (projections.get("context_cache_prefix_sensitivity") or [])
+    ]
+    ctx_proj_md = tabulate(
+        ctx_proj_rows,
+        headers=[
+            "Prefix Cache Hit Rate",
+            "Theoretical Cost / 1k (All Prompts)",
+            "Threshold-Gated Cost / 1k (>= Min Tok)",
+            "Max Input Token Savings / 1k",
+        ],
+        tablefmt="github",
+    )
+
+    elig_map = projections.get("agent_context_cache_eligibility") or {}
+    elig_notes = [
+        (
+            f"`{ag}`: avg `{info.get('mean_prompt_tokens', 0.0):.0f}` prompt tok "
+            f"(max `{info.get('max_prompt_tokens', 0)}`, min required `{info.get('min_cache_tokens_required', 4096)}` "
+            f"-> `{info.get('eligible_call_rate_pct', 0.0):.0f}%` calls eligible)"
+        )
+        for ag, info in elig_map.items()
+    ]
+    elig_line = (
+        "\n- **Context Cache Prefix Threshold Eligibility**: "
+        + "; ".join(elig_notes)
+        + "\n"
+        if elig_notes
+        else ""
+    )
+
+    sut_live_spend = float(cost_ov.get("sut_live_inference_spend_usd", 0.0))
+    judge_spend = float(judge_est.get("estimated_judge_cost_usd", 0.0))
+    judge_calls = int(judge_est.get("estimated_judge_calls", 0))
+    judge_model = judge_est.get("judge_model", "gemini-2.5-flash")
+
+    return (
+        f"## AI Cost & Token Breakdown (`{cost_ov.get('pricing_catalog_version')}` — Standard PayGo)\n\n"
+        f"{kpi_md}\n\n"
+        f"- **Evaluation Run Spend Separation**: SUT live inference spend = `${sut_live_spend:.5f}` "
+        f"| Estimated Phase 2B Judge overhead (`{judge_model}`, ~{judge_calls} judge evaluations) = `${judge_spend:.5f}` _(excluded from SUT production cost metrics)_.\n\n"
+        f"### Per-Sub-Agent Cost & Token Attribution\n\n"
+        f"{sub_agent_md}\n\n"
+        f"### Analytical Cache-Hit Sensitivity Projections (Cold-Run Baseline Extrapolation)\n\n"
+        f"#### 1. Application / Semantic Response Caching (Short-Circuits LLM + Google Search Grounding)\n\n"
+        f"{resp_proj_md}\n\n"
+        f"#### 2. Gemini Context Caching (Discounts Cached Input Prefix Tokens Only; Output & Search Unchanged)\n\n"
+        f"{ctx_proj_md}\n"
+        f"{elig_line}\n"
+    )
 
 
 def log_summary_table(
@@ -784,7 +1285,7 @@ def log_summary_table(
     run_metadata: Dict[str, Any],
     summary_output_path: Optional[str] = None,
 ) -> None:
-    """Logs a formatted summary table and saves a Markdown report to the run directory."""
+    """Logs formatted summary & cost tables and saves a Markdown report to the run directory."""
     has_baseline = report.get("baseline_run_id") is not None
     rows = []
 
@@ -878,16 +1379,29 @@ def log_summary_table(
             title=title,
             rows=rows,
             headers=headers,
-            width=110 if has_baseline else 95,
+            width=118 if has_baseline else 100,
         )
     )
+
+    cost_ov = report.get("cost_overview") or {}
+    if cost_ov:
+        logger.info(
+            f"AI COST SUMMARY ({cost_ov.get('pricing_catalog_version')}) — "
+            f"Total SUT Cost: ${cost_ov.get('cost_per_1k_requests_usd', 0.0):.4f}/1k reqs "
+            f"(LLM tokens: ${cost_ov.get('llm_token_cost_per_1k_usd', 0.0):.4f}/1k, "
+            f"Google Search grounding: ${cost_ov.get('search_grounding_cost_per_1k_usd', 0.0):.4f}/1k) | "
+            f"Judge Est.: ${(cost_ov.get('eval_judge_overhead_estimate') or {}).get('estimated_judge_cost_usd', 0.0):.5f}"
+        )
 
     if summary_output_path:
         os.makedirs(os.path.dirname(summary_output_path), exist_ok=True)
         md_table = tabulate(rows, headers=headers, tablefmt="github")
+        cost_sections_md = _build_cost_markdown_sections(report)
 
         agent_rows = []
-        for agent_name, cfg in (run_metadata.get("agent_configs") or {}).items():
+        for agent_name, cfg in (
+            run_metadata.get("agent_configs") or {}
+        ).items():
             tools_str = ", ".join(cfg.get("tools") or []) or "none"
             agent_rows.append(
                 [
@@ -928,6 +1442,7 @@ def log_summary_table(
             f"- **Git Revision**: {git_str}\n\n"
             f"## Aggregated Metric Scores\n\n"
             f"{md_table}\n\n"
+            f"{cost_sections_md}"
             f"## Agent Configuration Snapshot\n\n"
             f"{agent_md_table}\n"
         )
@@ -936,12 +1451,47 @@ def log_summary_table(
         logger.info(f"Saved formatted summary report to {summary_output_path}")
 
 
+def _parse_existing_markdown_table(
+    md_text: str,
+) -> tuple[List[str], List[Dict[str, str]], str]:
+    """Parses a GitHub Markdown table into ``(headers, row_dicts, preamble_text)``."""
+    lines = md_text.splitlines()
+    table_start = None
+    for idx, line in enumerate(lines):
+        if line.strip().startswith("|") and idx + 1 < len(lines):
+            sep = lines[idx + 1].strip()
+            if sep.startswith("|") and "-" in sep:
+                table_start = idx
+                break
+
+    if table_start is None:
+        return [], [], md_text
+
+    preamble = "\n".join(lines[:table_start]).rstrip()
+    header_cells = [
+        c.strip() for c in lines[table_start].strip().strip("|").split("|")
+    ]
+    parsed_rows: List[Dict[str, str]] = []
+    for row_line in lines[table_start + 2 :]:
+        stripped = row_line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        row_map = {
+            header_cells[i]: (cells[i] if i < len(cells) else "N/A")
+            for i in range(len(header_cells))
+        }
+        parsed_rows.append(row_map)
+
+    return header_cells, parsed_rows, preamble
+
+
 def append_to_experiments_history(
     report: Dict[str, Any],
     run_metadata: Dict[str, Any],
     history_path: str = DEFAULT_HISTORY_PATH,
 ) -> None:
-    """Appends a single-row summary of the run to tests/eval/results/experiments_history.md."""
+    """Appends a single-row summary to experiments_history.md, expanding columns safely when new metrics are added."""
     os.makedirs(os.path.dirname(history_path), exist_ok=True)
     metric_names = [m["metric_name"] for m in report.get("summary_metrics", [])]
     score_map = {
@@ -959,9 +1509,11 @@ def append_to_experiments_history(
         commit_tag += "*"
 
     is_base_str = "Yes" if run_metadata.get("is_baseline") else "No"
-    desc_clean = (report.get("description") or "-").replace("|", "/").replace("\n", " ")
+    desc_clean = (
+        (report.get("description") or "-").replace("|", "/").replace("\n", " ")
+    )
 
-    headers = [
+    desired_headers = [
         "Run ID",
         "Run Name",
         "Baseline",
@@ -970,29 +1522,50 @@ def append_to_experiments_history(
         *metric_names,
         "Description",
     ]
-    row = [
-        f"`{report.get('run_id')}`",
-        f"`{report.get('run_name')}`",
-        is_base_str,
-        str(report.get("num_cases_evaluated")),
-        f"`{commit_tag}`",
-        *[score_map.get(m, "N/A") for m in metric_names],
-        desc_clean,
-    ]
+    new_row_map: Dict[str, str] = {
+        "Run ID": f"`{report.get('run_id')}`",
+        "Run Name": f"`{report.get('run_name')}`",
+        "Baseline": is_base_str,
+        "Cases": str(report.get("num_cases_evaluated")),
+        "Git": f"`{commit_tag}`",
+        **{m: score_map.get(m, "N/A") for m in metric_names},
+        "Description": desc_clean,
+    }
 
-    if not os.path.isfile(history_path):
-        table_str = tabulate([row], headers=headers, tablefmt="github")
-        content = (
-            "# GEAP Evaluation Experiments History\n\n"
-            "Cumulative leaderboard of evaluation runs across model, prompt, and architecture changes.\n\n"
-            f"{table_str}\n"
+    default_preamble = (
+        "# GEAP Evaluation Experiments History\n\n"
+        "Cumulative leaderboard of evaluation runs across model, prompt, caching, and architecture changes."
+    )
+
+    if os.path.isfile(history_path):
+        with open(history_path, "r", encoding="utf-8") as f:
+            existing_text = f.read()
+        existing_headers, existing_rows, preamble = (
+            _parse_existing_markdown_table(existing_text)
         )
-        with open(history_path, "w", encoding="utf-8") as f:
-            f.write(content)
     else:
-        row_line = "| " + " | ".join(row) + " |\n"
-        with open(history_path, "a", encoding="utf-8") as f:
-            f.write(row_line)
+        existing_headers, existing_rows, preamble = [], [], default_preamble
+
+    if existing_headers:
+        merged_headers: List[str] = []
+        for h in existing_headers:
+            if h != "Description" and h not in merged_headers:
+                merged_headers.append(h)
+        for h in desired_headers:
+            if h != "Description" and h not in merged_headers:
+                merged_headers.append(h)
+        merged_headers.append("Description")
+    else:
+        merged_headers = desired_headers
+
+    all_row_maps = [*existing_rows, new_row_map]
+    matrix = [
+        [rm.get(col, "N/A") for col in merged_headers] for rm in all_row_maps
+    ]
+    table_str = tabulate(matrix, headers=merged_headers, tablefmt="github")
+    final_preamble = preamble.strip() or default_preamble
+    with open(history_path, "w", encoding="utf-8") as f:
+        f.write(f"{final_preamble}\n\n{table_str}\n")
 
     logger.info(f"Updated cumulative experiment leaderboard at {history_path}")
 
@@ -1010,14 +1583,25 @@ def run_evaluation(
     skip_inference: bool = False,
     concurrency_override: Optional[int] = None,
     location_override: Optional[str] = None,
+    pricing_config_path: Optional[str] = None,
+    reprice_only: bool = False,
+    model_overrides: Optional[List[str]] = None,
+    no_history: bool = False,
 ) -> Dict[str, Any]:
-    """Executes Phase 2A (1-turn inference) and Phase 2B (GEAP evaluation) in an isolated run directory."""
+    """Executes Phase 2A (1-turn inference + cost capture) and Phase 2B (GEAP evaluation) in an isolated run directory."""
     load_dotenv()
 
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 
     with open(eval_config_path, "r", encoding="utf-8") as f:
         eval_config = json.load(f)
+
+    pricing_catalog = resolve_pricing_catalog_for_eval(
+        eval_config=eval_config,
+        eval_config_path=eval_config_path,
+        pricing_config_override=pricing_config_path,
+    )
+    parsed_overrides = parse_model_overrides(model_overrides)
 
     location = location_override or eval_config.get(
         "evaluation_location", "us-central1"
@@ -1042,11 +1626,12 @@ def run_evaluation(
     agent_info = build_agent_info()
     traces_source = resolve_traces_source_path(
         reuse_run=reuse_run,
-        skip_inference=skip_inference,
+        skip_inference=skip_inference or reprice_only,
         results_dir=results_dir,
         exclude_run_id=run_id,
     )
 
+    existing_source_report: Optional[Dict[str, Any]] = None
     if traces_source:
         logger.info(f"Reusing existing agent traces from {traces_source}...")
         with open(traces_source, "r", encoding="utf-8") as f:
@@ -1056,8 +1641,24 @@ def run_evaluation(
         for rec in traced_records:
             for turn in (rec.get("agent_data") or {}).get("turns") or []:
                 for ev in turn.get("events") or []:
-                    if ev.get("author") != "user" and isinstance(ev.get("content"), dict):
+                    if ev.get("author") != "user" and isinstance(
+                        ev.get("content"), dict
+                    ):
                         ev["content"]["role"] = "model"
+        traced_records = reprice_traced_records(
+            traced_records=traced_records,
+            catalog=pricing_catalog,
+            model_overrides=parsed_overrides,
+        )
+        sibling_results = os.path.join(
+            os.path.dirname(traces_source), RESULTS_FILENAME
+        )
+        if os.path.isfile(sibling_results):
+            try:
+                with open(sibling_results, "r", encoding="utf-8") as f:
+                    existing_source_report = json.load(f)
+            except Exception:
+                existing_source_report = None
     else:
         with open(evalset_path, "r", encoding="utf-8") as f:
             eval_set = EvalSet.model_validate_json(f.read())
@@ -1071,8 +1672,15 @@ def run_evaluation(
                 agent_info=agent_info,
                 limit=limit,
                 concurrency=concurrency,
+                pricing_catalog=pricing_catalog,
             )
         )
+        if parsed_overrides:
+            traced_records = reprice_traced_records(
+                traced_records=traced_records,
+                catalog=pricing_catalog,
+                model_overrides=parsed_overrides,
+            )
 
     with open(traces_output_path, "w", encoding="utf-8") as f:
         json.dump(traced_records, f, indent=2, ensure_ascii=False)
@@ -1100,50 +1708,65 @@ def run_evaluation(
         "run_name": safe_name,
         "description": description,
         "timestamp": timestamp_iso,
-        "eval_set_id": eval_config.get("eval_set_id", "conversational_synthetic"),
+        "eval_set_id": eval_config.get(
+            "eval_set_id", "conversational_synthetic"
+        ),
         "num_cases_evaluated": len(traced_records),
         "is_baseline": become_baseline,
         "reused_traces_from": traces_source,
+        "reprice_only": bool(reprice_only),
+        "pricing_model_overrides": parsed_overrides or None,
         "git_info": extract_git_info(),
         "agent_configs": extract_agent_config_snapshot(conversational),
+        "pricing_catalog": pricing_catalog,
         "eval_config": eval_config,
     }
     with open(metadata_output_path, "w", encoding="utf-8") as f:
         json.dump(run_metadata, f, indent=2, ensure_ascii=False)
-    logger.info(f"Saved run metadata & agent snapshot to {metadata_output_path}")
+    logger.info(f"Saved run metadata & pricing snapshot to {metadata_output_path}")
 
-    logger.info(
-        f"Initializing Vertex AI Client (project={project_id}, location={location})..."
-    )
-    client = vertexai.Client(
-        project=project_id,
-        location=location,
-        http_options=genai_types.HttpOptions(timeout=180_000),
-    )
-    metrics = build_evaluation_metrics(client=client, eval_config=eval_config)
+    if reprice_only:
+        logger.info(
+            "Running offline deterministic Python & cost metrics only (--reprice-only; $0 API spend)..."
+        )
+        eval_result = evaluate_local_python_metrics_only(
+            traced_records=traced_records,
+            eval_config=eval_config,
+            existing_source_report=existing_source_report,
+        )
+    else:
+        logger.info(
+            f"Initializing Vertex AI Client (project={project_id}, location={location})..."
+        )
+        client = vertexai.Client(
+            project=project_id,
+            location=location,
+            http_options=genai_types.HttpOptions(timeout=180_000),
+        )
+        metrics = build_evaluation_metrics(client=client, eval_config=eval_config)
 
-    eval_df = pd.DataFrame(traced_records)
-    eval_dataset = vertex_types.EvaluationDataset(
-        eval_dataset_df=eval_df,
-        candidate_name=APP_NAME,
-    )
+        eval_df = pd.DataFrame(traced_records)
+        eval_dataset = vertex_types.EvaluationDataset(
+            eval_dataset_df=eval_df,
+            candidate_name=APP_NAME,
+        )
 
-    qps = float(eval_config.get("evaluation_service_qps", 5.0))
-    from vertexai._genai import _evals_common
+        qps = float(eval_config.get("evaluation_service_qps", 5.0))
+        from vertexai._genai import _evals_common
 
-    _evals_common.MAX_WORKERS = 20
-    logger.info(
-        f"Running GEAP evaluation across {len(traced_records)} case(s) with {len(metrics)} metrics "
-        f"(qps={qps}, workers={_evals_common.MAX_WORKERS})..."
-    )
-    eval_result = client.evals.evaluate(
-        dataset=eval_dataset,
-        metrics=metrics,
-        agent_info=agent_info,
-        config=vertex_types.EvaluateMethodConfig(
-            evaluation_service_qps=qps,
-        ),
-    )
+        _evals_common.MAX_WORKERS = 20
+        logger.info(
+            f"Running GEAP evaluation across {len(traced_records)} case(s) with {len(metrics)} metrics "
+            f"(qps={qps}, workers={_evals_common.MAX_WORKERS})..."
+        )
+        eval_result = client.evals.evaluate(
+            dataset=eval_dataset,
+            metrics=metrics,
+            agent_info=agent_info,
+            config=vertex_types.EvaluateMethodConfig(
+                evaluation_service_qps=qps,
+            ),
+        )
 
     report = serialize_evaluation_results(
         eval_result=eval_result,
@@ -1154,6 +1777,9 @@ def run_evaluation(
         description=description,
         timestamp_iso=timestamp_iso,
         baseline_report=baseline_report,
+        pricing_catalog=pricing_catalog,
+        inference_reused=bool(traces_source),
+        evaluation_executed=not reprice_only,
     )
 
     with open(results_output_path, "w", encoding="utf-8") as f:
@@ -1171,17 +1797,18 @@ def run_evaluation(
             f"Marked run '{run_id}' as the active reference baseline (is_baseline=True in {metadata_output_path})"
         )
 
-    append_to_experiments_history(
-        report=report,
-        run_metadata=run_metadata,
-        history_path=os.path.join(results_dir, "experiments_history.md"),
-    )
+    if not no_history:
+        append_to_experiments_history(
+            report=report,
+            run_metadata=run_metadata,
+            history_path=os.path.join(results_dir, "experiments_history.md"),
+        )
     return report
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Step 2: Run 1-turn agent inference and GEAP evaluation."
+        description="Step 2: Run 1-turn agent inference, AI cost estimation, and GEAP evaluation."
     )
     parser.add_argument(
         "--run-name",
@@ -1219,6 +1846,27 @@ def main() -> None:
         help="Path to eval_config.json",
     )
     parser.add_argument(
+        "--pricing-config",
+        default=None,
+        help="Optional path to custom pricing_config.json catalog",
+    )
+    parser.add_argument(
+        "--reprice-only",
+        action="store_true",
+        help="Offline $0 mode: reprice existing traces and run deterministic Python metrics without calling Vertex Eval API",
+    )
+    parser.add_argument(
+        "--override-model",
+        action="append",
+        default=None,
+        help="Counterfactual pricing override: 'model_id' (all sub-agents) or 'agent_name=model_id' (repeatable)",
+    )
+    parser.add_argument(
+        "--no-history",
+        action="store_true",
+        help="Do not append this run to experiments_history.md (useful for quick counterfactual repricing checks)",
+    )
+    parser.add_argument(
         "--results-dir",
         default=DEFAULT_RESULTS_DIR,
         help="Base directory where timestamped run folders are created",
@@ -1232,7 +1880,7 @@ def main() -> None:
     parser.add_argument(
         "--skip-inference",
         action="store_true",
-        help="Skip agent inference and reuse traces from results/baseline/",
+        help="Skip agent inference and reuse traces from the latest baseline run",
     )
     parser.add_argument(
         "--concurrency",
@@ -1260,6 +1908,10 @@ def main() -> None:
         skip_inference=args.skip_inference,
         concurrency_override=args.concurrency,
         location_override=args.location,
+        pricing_config_path=args.pricing_config,
+        reprice_only=args.reprice_only,
+        model_overrides=args.override_model,
+        no_history=args.no_history,
     )
 
 

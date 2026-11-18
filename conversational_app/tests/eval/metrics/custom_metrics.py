@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import ValidationError
 import vertexai
@@ -362,9 +362,144 @@ def evaluate_latency_seconds(instance: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _coerce_json_dict(raw_val: Any) -> Dict[str, Any]:
+    if isinstance(raw_val, dict):
+        return raw_val
+    if isinstance(raw_val, str) and raw_val.strip():
+        try:
+            parsed = json.loads(raw_val)
+            return parsed if isinstance(parsed, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def _coerce_json_list(raw_val: Any) -> List[Dict[str, Any]]:
+    if isinstance(raw_val, list):
+        return [x for x in raw_val if isinstance(x, dict)]
+    if isinstance(raw_val, str) and raw_val.strip():
+        try:
+            parsed = json.loads(raw_val)
+            return (
+                [x for x in parsed if isinstance(x, dict)]
+                if isinstance(parsed, list)
+                else []
+            )
+        except json.JSONDecodeError:
+            return []
+    return []
+
+
+def _resolve_case_cost_summary(instance: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    from app.app_utils.cost_tracker import aggregate_invocation_cost
+
+    cost_summary = _coerce_json_dict(instance.get("cost_summary"))
+    if cost_summary and "total_cost_usd" in cost_summary:
+        return cost_summary
+
+    steps = _coerce_json_list(instance.get("sub_agent_usages"))
+    if steps:
+        return aggregate_invocation_cost(steps)
+
+    return None
+
+
+def evaluate_cost_per_1k_requests_usd(
+    instance: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Custom deterministic Python metric returning total SUT cost per 1,000 requests in USD."""
+    summary = _resolve_case_cost_summary(instance)
+    if summary is None:
+        return {
+            "score": 0.0,
+            "explanation": "Cost telemetry unavailable in trace record.",
+        }
+
+    cost_1k = round(float(summary.get("cost_per_1k_requests_usd", 0.0)), 6)
+    tok_1k = float(summary.get("llm_token_cost_per_1k_usd", 0.0))
+    gnd_1k = float(summary.get("search_grounding_cost_per_1k_usd", 0.0))
+    queries = int(summary.get("search_queries_count", 0))
+
+    by_agent = _coerce_json_dict(summary.get("by_agent"))
+    agent_parts = [
+        f"{ag}: ${float(info.get('total_cost_usd', 0.0)) * 1000.0:.3f}/1k"
+        for ag, info in by_agent.items()
+        if isinstance(info, dict)
+    ]
+    breakdown_str = f" [{', '.join(agent_parts)}]" if agent_parts else ""
+
+    return {
+        "score": cost_1k,
+        "explanation": (
+            f"Estimated SUT cost: ${cost_1k:.4f} / 1k reqs "
+            f"(LLM tokens: ${tok_1k:.4f}/1k, Google Search grounding ({queries} q): ${gnd_1k:.4f}/1k)"
+            f"{breakdown_str}."
+        ),
+    }
+
+
+def evaluate_llm_token_cost_per_1k_usd(
+    instance: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Custom deterministic Python metric returning LLM token-only cost per 1,000 requests in USD."""
+    summary = _resolve_case_cost_summary(instance)
+    if summary is None:
+        return {
+            "score": 0.0,
+            "explanation": "Token cost telemetry unavailable in trace record.",
+        }
+
+    tok_1k = round(float(summary.get("llm_token_cost_per_1k_usd", 0.0)), 6)
+    in_cost_1k = float(summary.get("uncached_input_cost_usd", 0.0)) * 1000.0
+    cached_cost_1k = float(summary.get("cached_input_cost_usd", 0.0)) * 1000.0
+    out_cost_1k = float(summary.get("candidates_output_cost_usd", 0.0)) * 1000.0
+    th_cost_1k = float(summary.get("thoughts_cost_usd", 0.0)) * 1000.0
+
+    return {
+        "score": tok_1k,
+        "explanation": (
+            f"Estimated LLM token cost: ${tok_1k:.4f} / 1k reqs "
+            f"(uncached_in=${in_cost_1k:.4f}, cached_in=${cached_cost_1k:.4f}, "
+            f"out=${out_cost_1k:.4f}, thoughts=${th_cost_1k:.4f} per 1k reqs)."
+        ),
+    }
+
+
+def evaluate_total_billable_tokens(
+    instance: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Custom deterministic Python metric returning total tokens consumed across all workflow sub-agents."""
+    summary = _resolve_case_cost_summary(instance)
+    if summary is None:
+        return {
+            "score": 0.0,
+            "explanation": "Token count telemetry unavailable in trace record.",
+        }
+
+    total_tok = int(summary.get("total_tokens", 0))
+    prompt_tok = int(summary.get("prompt_tokens", 0))
+    cached_tok = int(summary.get("cached_input_tokens", 0))
+    tool_in_tok = int(summary.get("tool_use_prompt_tokens", 0))
+    out_tok = int(summary.get("candidates_output_tokens", 0))
+    thoughts_tok = int(summary.get("thoughts_tokens", 0))
+    calls = int(summary.get("llm_calls_count", 0))
+
+    return {
+        "score": float(total_tok),
+        "explanation": (
+            f"Total tokens: {total_tok} across {calls} LLM call(s) "
+            f"(prompt={prompt_tok} [cached={cached_tok}], tool_in={tool_in_tok}, "
+            f"out={out_tok}, thoughts={thoughts_tok})."
+        ),
+    }
+
+
 CUSTOM_PYTHON_METRICS_REGISTRY = {
     "schema_and_contract_valid": evaluate_schema_and_contract,
     "latency_seconds": evaluate_latency_seconds,
+    "cost_per_1k_requests_usd": evaluate_cost_per_1k_requests_usd,
+    "llm_token_cost_per_1k_usd": evaluate_llm_token_cost_per_1k_usd,
+    "total_billable_tokens": evaluate_total_billable_tokens,
 }
 
 CUSTOM_LLM_TEMPLATES_REGISTRY = {
