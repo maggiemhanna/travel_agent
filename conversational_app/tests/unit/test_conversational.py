@@ -300,6 +300,103 @@ def test_automatic_backup_model_failover():
             assert seen_sub_apps == [engage_app, engage_fallback_app]
 
 
+def test_inspiration_workflow_routing_and_contract():
+    """Verify end-to-end ADK Workflow routing for agent_decision='inspiration' and contract metric alignment."""
+    from google.adk.models.google_llm import Gemini
+    from tests.eval.metrics.custom_metrics import evaluate_schema_and_contract
+    from tests.eval.scripts.run_evaluation import build_agent_info
+
+    call_index = 0
+
+    async def _fake_generate_content_async(self, llm_request, stream=False):
+        nonlocal call_index
+        call_index += 1
+        if call_index == 1:
+            body = {
+                "agent_response": "Let me suggest a warm destination!",
+                "agent_decision": "inspiration",
+            }
+        else:
+            body = {
+                "agent_response": "How about Lisbon in May for sunny coastal weather?",
+                "flights_search_output": {
+                    "origin": "Paris",
+                    "destination": "Lisbon",
+                    "departure_date": "2026-05-10",
+                    "return_date": "2026-05-20",
+                    "passengers": 1,
+                },
+            }
+        yield LlmResponse(
+            content=genai_types.Content(
+                role="model",
+                parts=[genai_types.Part.from_text(text=json.dumps(body))],
+            ),
+            partial=False,
+        )
+
+    payload = {
+        "user_message": "Take me somewhere warm and sunny in Europe instead",
+        "conversational_history": [],
+        "flights_search_input": {
+            "origin": "Paris",
+            "destination": "New York",
+            "departure_date": "2026-05-10",
+            "return_date": "2026-05-20",
+            "passengers": 1,
+        },
+        "flights_input": [],
+    }
+
+    with patch.object(Gemini, "generate_content_async", new=_fake_generate_content_async):
+        with TestClient(api) as client:
+            resp = client.post("/api/v1/run-conversational", json=payload)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    results = data["results"]
+    assert call_index == 2
+    assert results["agent_decision"] == "inspiration"
+    assert results["agent_response"] == "How about Lisbon in May for sunny coastal weather?"
+    assert results["flights_search_output"] == {
+        "origin": "Paris",
+        "destination": "Lisbon",
+        "departure_date": "2026-05-10",
+        "return_date": "2026-05-20",
+        "passengers": 1,
+    }
+
+    # Verify custom_metrics accepts 'inspiration' and rejects legacy 'inspiration_agent'
+    valid_eval = evaluate_schema_and_contract(
+        {
+            "response": {"parts": [{"text": json.dumps(results)}]},
+            "session_inputs": {"state": {"flights_input": []}},
+        }
+    )
+    assert valid_eval["score"] == 1.0
+
+    legacy_eval = evaluate_schema_and_contract(
+        {
+            "response": {
+                "parts": [
+                    {
+                        "text": json.dumps(
+                            {**results, "agent_decision": "inspiration_agent"}
+                        )
+                    }
+                ]
+            },
+            "session_inputs": {"state": {"flights_input": []}},
+        }
+    )
+    assert legacy_eval["score"] == 0.0
+
+    agent_info = build_agent_info()
+    assert "inspiration" in agent_info.agents
+    assert "inspiration" in agent_info.agents["engage"].sub_agents
+
+
 # --- Manual Execution Block ---
 if __name__ == "__main__":
     logger.info("Running unit tests manually without pytest...")
@@ -324,6 +421,10 @@ if __name__ == "__main__":
         logger.info("Running test_automatic_backup_model_failover...")
         test_automatic_backup_model_failover()
         logger.info("✅ test_automatic_backup_model_failover passed!")
+
+        logger.info("Running test_inspiration_workflow_routing_and_contract...")
+        test_inspiration_workflow_routing_and_contract()
+        logger.info("✅ test_inspiration_workflow_routing_and_contract passed!")
 
         logger.info("🎉 All tests completed successfully!")
 

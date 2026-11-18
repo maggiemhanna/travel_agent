@@ -868,7 +868,7 @@
       "eval_case_index": 4,
       "eval_id": "c553057e",
       "prompt": "You know what, New York sounds a bit too busy. For those same dates, could you suggest somewhere sunny and relaxing in the Mediterranean instead?",
-      "conversation_plan": "The user wants to change the destination. The simulator will provide the agent with a 'flights_search_input' context including 'origin: Paris', 'departure_date: 2026-05-10', 'return_date: 2026-05-20', and 'passengers: 1'. The user then requests a sunny, relaxing Mediterranean location, preserving these details. The expected ConversationalOutput should have agent_decision: 'inspiration', and 'flights_search_output' should reflect the preserved origin, dates, and passengers, with a new Mediterranean destination (e.g., 'Barcelona', 'Rome', 'Athens', or 'Nice').",
+      "conversation_plan": "The user wants to change the destination. The simulator will provide the agent with a 'flights_search_input' context including 'origin: Paris', 'departure_date: 2026-05-10', 'return_date: 2026-05-20', and 'passengers: 1'. The user then requests a sunny, relaxing Mediterranean location, preserving these details. The expected ConversationalOutput should have agent_decision: 'inspiration_agent', and 'flights_search_output' should reflect the preserved origin, dates, and passengers, with a new Mediterranean destination (e.g., 'Barcelona', 'Rome', 'Athens', or 'Nice').",
       "agent_trajectory": [
         "engage",
         "inspiration",
@@ -890,7 +890,7 @@
           "latency_seconds": 0.0031
         }
       ],
-      "response": "{\"agent_response\": \"If New York feels too bustling, let's trade the concrete jungle for the sun-drenched shores of the Mediterranean! I have updated your trip to Palma de Mallorca for the exact same dates, offering you beautiful beaches, relaxing coastal vibes, and plenty of Mediterranean sunshine.\", \"agent_decision\": \"inspiration\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Palma de Mallorca\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
+      "response": "{\"agent_response\": \"If New York feels too bustling, let's trade the concrete jungle for the sun-drenched shores of the Mediterranean! I have updated your trip to Palma de Mallorca for the exact same dates, offering you beautiful beaches, relaxing coastal vibes, and plenty of Mediterranean sunshine.\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Palma de Mallorca\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
       "metric_results": {
         "multi_turn_task_success_v1": {
           "metric_name": "multi_turn_task_success_v1",
@@ -993,14 +993,14 @@
                 "rubric_id": "7ab40af7",
                 "content": {
                   "property": {
-                    "description": "The agent must classify the request as an inspiration intent and route it to the 'inspiration' sub-agent by setting 'agent_decision' to 'inspiration'."
+                    "description": "The agent must classify the request as an inspiration intent and route it to the 'inspiration' sub-agent by setting 'agent_decision' to 'inspiration_agent'."
                   }
                 },
                 "type": "",
                 "importance": "HIGH"
               },
               "verdict": true,
-              "reasoning": "The agent correctly identified the intent as an inspiration request and set the decision field to \"inspiration\"."
+              "reasoning": "The agent correctly identified the intent as an inspiration request and set the decision field to \"inspiration_agent\"."
             },
             {
               "evaluated_rubric": {
@@ -1087,7 +1087,7 @@
         "schema_and_contract_valid": {
           "metric_name": "schema_and_contract_valid",
           "score": 1.0,
-          "explanation": "Valid ConversationalOutput for decision='inspiration' (Paris -> Palma de Mallorca, 2026-05-10 to 2026-05-20)."
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> Palma de Mallorca, 2026-05-10 to 2026-05-20)."
         },
         "conversation_plan_alignment": {
           "metric_name": "conversation_plan_alignment",
@@ -3154,7 +3154,7 @@
           "latency_seconds": 0.005
         }
       ],
-      "response": "{\"agent_response\": \"For a gorgeous, sun-soaked September escape departing from Paris, I recommend heading to Miami! September brings warm ocean breezes, plenty of sunshine, and a vibrant beach culture just as the summer crowds start to thin out.\", \"agent_decision\": \"inspiration\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Miami\", \"departure_date\": \"2026-09-10\", \"return_date\": \"2026-09-20\", \"passengers\": 1}}",
+      "response": "{\"agent_response\": \"For a gorgeous, sun-soaked September escape departing from Paris, I recommend heading to Miami! September brings warm ocean breezes, plenty of sunshine, and a vibrant beach culture just as the summer crowds start to thin out.\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Miami\", \"departure_date\": \"2026-09-10\", \"return_date\": \"2026-09-20\", \"passengers\": 1}}",
       "metric_results": {
         "multi_turn_task_success_v1": {
           "metric_name": "multi_turn_task_success_v1",
@@ -3215,14 +3215,14 @@
                 "rubric_id": "9799a232",
                 "content": {
                   "property": {
-                    "description": "The agent's output must set the 'agent_decision' field to 'inspiration' to correctly route the open-ended travel request."
+                    "description": "The agent's output must set the 'agent_decision' field to 'inspiration_agent' to correctly route the open-ended travel request."
                   }
                 },
                 "type": "",
                 "importance": "HIGH"
               },
               "verdict": true,
-              "reasoning": "The agent correctly identified the intent as an inspiration request and set the agent_decision field to 'inspiration'."
+              "reasoning": "The agent correctly identified the intent as an inspiration request and set the agent_decision field to 'inspiration_agent'."
             },
             {
               "evaluated_rubric": {
@@ -3276,17 +3276,17 @@
         "coherence": {
           "metric_name": "coherence",
           "score": 1.0,
-          "explanation": "The `agent_response` is clear, well-structured, and provides a logical recommendation for a 'sunny September' trip. It clearly states the inferred origin ('departing from Paris') and destination ('Miami'), along with a compelling reason for the choice. All information presented in the `agent_response` (origin, destination, month) is perfectly consistent with the corresponding `flights_search_output` fields (`origin: Paris`, `destination: Miami`, `departure_date` in September). The `agent_decision` as 'inspiration' is also appropriate for the open-ended prompt."
+          "explanation": "The `agent_response` is clear, well-structured, and provides a logical recommendation for a 'sunny September' trip. It clearly states the inferred origin ('departing from Paris') and destination ('Miami'), along with a compelling reason for the choice. All information presented in the `agent_response` (origin, destination, month) is perfectly consistent with the corresponding `flights_search_output` fields (`origin: Paris`, `destination: Miami`, `departure_date` in September). The `agent_decision` as 'inspiration_agent' is also appropriate for the open-ended prompt."
         },
         "schema_and_contract_valid": {
           "metric_name": "schema_and_contract_valid",
           "score": 1.0,
-          "explanation": "Valid ConversationalOutput for decision='inspiration' (Paris -> Miami, 2026-09-10 to 2026-09-20)."
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> Miami, 2026-09-10 to 2026-09-20)."
         },
         "conversation_plan_alignment": {
           "metric_name": "conversation_plan_alignment",
           "score": 1.0,
-          "explanation": "The `agent_decision` is correctly 'inspiration'. The `flights_search_output` accurately suggests 'Miami' as a sunny destination and provides concrete `departure_date` and `return_date` within September 2026, consistent with the user's request and the expected plan. The `origin` and `passengers` are correctly carried over from the session context. The `agent_response` also aligns with the suggested inspiration."
+          "explanation": "The `agent_decision` is correctly 'inspiration_agent'. The `flights_search_output` accurately suggests 'Miami' as a sunny destination and provides concrete `departure_date` and `return_date` within September 2026, consistent with the user's request and the expected plan. The `origin` and `passengers` are correctly carried over from the session context. The `agent_response` also aligns with the suggested inspiration."
         },
         "latency_seconds": {
           "metric_name": "latency_seconds",
@@ -3947,7 +3947,7 @@
       "eval_case_index": 23,
       "eval_id": "abafee6e",
       "prompt": "This Paris to New York trip looks good, but can we push the return date to the end of May, say May 30th, 2026?",
-      "conversation_plan": "The user, having an existing search for Paris to New York departing on '2026-05-10' with 1 passenger, requests to change the return date to '2026-05-30'. The user expects the agent to process this as an 'inspiration' request. The user will then verify that the \"flights_search_output\" correctly reflects \"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-30\", and \"passengers\": 1. The user expects the agent's response to confirm the new return date.",
+      "conversation_plan": "The user, having an existing search for Paris to New York departing on '2026-05-10' with 1 passenger, requests to change the return date to '2026-05-30'. The user expects the agent to process this as an 'inspiration_agent' request. The user will then verify that the \"flights_search_output\" correctly reflects \"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-30\", and \"passengers\": 1. The user expects the agent's response to confirm the new return date.",
       "agent_trajectory": [
         "engage",
         "inspiration",
@@ -3969,7 +3969,7 @@
           "latency_seconds": 0.0043
         }
       ],
-      "response": "{\"agent_response\": \"I have updated your return date to the end of May, giving you a bit more time to enjoy New York while keeping your departure on May 10th, 2026.\", \"agent_decision\": \"inspiration\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-30\", \"passengers\": 1}}",
+      "response": "{\"agent_response\": \"I have updated your return date to the end of May, giving you a bit more time to enjoy New York while keeping your departure on May 10th, 2026.\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-30\", \"passengers\": 1}}",
       "metric_results": {
         "multi_turn_task_success_v1": {
           "metric_name": "multi_turn_task_success_v1",
@@ -4030,14 +4030,14 @@
                 "rubric_id": "05bdeed5",
                 "content": {
                   "property": {
-                    "description": "The agent must set 'agent_decision' to 'inspiration' in its output to correctly route and process the date shift request."
+                    "description": "The agent must set 'agent_decision' to 'inspiration_agent' in its output to correctly route and process the date shift request."
                   }
                 },
                 "type": "",
                 "importance": "HIGH"
               },
               "verdict": true,
-              "reasoning": "The final output explicitly sets the 'agent_decision' to 'inspiration', which is the correct routing for a request to modify travel dates."
+              "reasoning": "The final output explicitly sets the 'agent_decision' to 'inspiration_agent', which is the correct routing for a request to modify travel dates."
             },
             {
               "evaluated_rubric": {
@@ -4096,12 +4096,12 @@
         "schema_and_contract_valid": {
           "metric_name": "schema_and_contract_valid",
           "score": 1.0,
-          "explanation": "Valid ConversationalOutput for decision='inspiration' (Paris -> New York, 2026-05-10 to 2026-05-30)."
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> New York, 2026-05-10 to 2026-05-30)."
         },
         "conversation_plan_alignment": {
           "metric_name": "conversation_plan_alignment",
           "score": 1.0,
-          "explanation": "The `agent_decision` is correctly 'inspiration'. The `flights_search_output` accurately updates the `return_date` to '2026-05-30' while retaining other parameters from the session context. The `agent_response` clearly confirms the updated return date, aligning with the expected conversation plan."
+          "explanation": "The `agent_decision` is correctly 'inspiration_agent'. The `flights_search_output` accurately updates the `return_date` to '2026-05-30' while retaining other parameters from the session context. The `agent_response` clearly confirms the updated return date, aligning with the expected conversation plan."
         },
         "latency_seconds": {
           "metric_name": "latency_seconds",
@@ -4603,7 +4603,7 @@
           "latency_seconds": 0.0043
         }
       ],
-      "response": "{\"agent_response\": \"Swapping the big apple for the Magic City! I have updated your destination to Miami while keeping your travel dates from May 10 to May 20, 2026, for 1 passenger. Get ready for some sunshine and beaches!\", \"agent_decision\": \"inspiration\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Miami\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
+      "response": "{\"agent_response\": \"Swapping the big apple for the Magic City! I have updated your destination to Miami while keeping your travel dates from May 10 to May 20, 2026, for 1 passenger. Get ready for some sunshine and beaches!\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Miami\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
       "metric_results": {
         "multi_turn_task_success_v1": {
           "metric_name": "multi_turn_task_success_v1",
@@ -4692,7 +4692,7 @@
                 "rubric_id": "9e63e084",
                 "content": {
                   "property": {
-                    "description": "The agent must set the `agent_decision` to 'inspiration' to process the destination change."
+                    "description": "The agent must set the `agent_decision` to 'inspiration_agent' to process the destination change."
                   }
                 },
                 "type": "",
@@ -4786,12 +4786,12 @@
         "schema_and_contract_valid": {
           "metric_name": "schema_and_contract_valid",
           "score": 1.0,
-          "explanation": "Valid ConversationalOutput for decision='inspiration' (Paris -> Miami, 2026-05-10 to 2026-05-20)."
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> Miami, 2026-05-10 to 2026-05-20)."
         },
         "conversation_plan_alignment": {
           "metric_name": "conversation_plan_alignment",
           "score": 1.0,
-          "explanation": "The `agent_decision` is correctly 'inspiration' as the user requested to change the destination. The `flights_search_output` accurately reflects the updated destination to 'Miami' while retaining all other original search parameters as requested. The `agent_response` is engaging and clearly communicates the changes made to the user."
+          "explanation": "The `agent_decision` is correctly 'inspiration_agent' as the user requested to change the destination. The `flights_search_output` accurately reflects the updated destination to 'Miami' while retaining all other original search parameters as requested. The `agent_response` is engaging and clearly communicates the changes made to the user."
         },
         "latency_seconds": {
           "metric_name": "latency_seconds",
@@ -5649,7 +5649,7 @@
       "eval_case_index": 33,
       "eval_id": "38922d06",
       "prompt": "Can we look at these flights for next month instead, say June 10th to June 20th?",
-      "conversation_plan": "The user wants to change the dates for an existing flight search. The simulator will provide the agent with the following `flights_search_input`: { \"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-15\", \"return_date\": \"2026-05-25\", \"passengers\": 1 }. The user expects the agent to correctly route to `inspiration` and update the search parameters to reflect the new dates (June 10th to June 20th).",
+      "conversation_plan": "The user wants to change the dates for an existing flight search. The simulator will provide the agent with the following `flights_search_input`: { \"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-15\", \"return_date\": \"2026-05-25\", \"passengers\": 1 }. The user expects the agent to correctly route to `inspiration_agent` and update the search parameters to reflect the new dates (June 10th to June 20th).",
       "agent_trajectory": [
         "engage",
         "inspiration",
@@ -5671,7 +5671,7 @@
           "latency_seconds": 0.0039
         }
       ],
-      "response": "{\"agent_response\": \"I have updated your trip from Paris to New York to take place from June 10th to June 20th, right at the start of the vibrant early summer season in the city.\", \"agent_decision\": \"inspiration\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-06-10\", \"return_date\": \"2026-06-20\", \"passengers\": 1}}",
+      "response": "{\"agent_response\": \"I have updated your trip from Paris to New York to take place from June 10th to June 20th, right at the start of the vibrant early summer season in the city.\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-06-10\", \"return_date\": \"2026-06-20\", \"passengers\": 1}}",
       "metric_results": {
         "multi_turn_task_success_v1": {
           "metric_name": "multi_turn_task_success_v1",
@@ -5690,7 +5690,7 @@
                 "importance": "HIGH"
               },
               "verdict": true,
-              "reasoning": "The agent correctly identified the user's request to change the dates to June 10th–20th. While it did not list individual flights (which, according to the workflow instructions for the `inspiration` and `conversational` orchestrator, is not the intended output for an inspiration decision), it provided the updated search parameters (\"options\") for the requested trip. The agent also correctly maintained the origin (Paris) and destination (New York) from the context."
+              "reasoning": "The agent correctly identified the user's request to change the dates to June 10th–20th. While it did not list individual flights (which, according to the workflow instructions for the `inspiration_agent` and `conversational` orchestrator, is not the intended output for an inspiration decision), it provided the updated search parameters (\"options\") for the requested trip. The agent also correctly maintained the origin (Paris) and destination (New York) from the context."
             }
           ]
         },
@@ -5704,14 +5704,14 @@
                 "rubric_id": "2a636658",
                 "content": {
                   "property": {
-                    "description": "The agent must classify the intent as a new search or discovery request by setting `agent_decision` to 'inspiration' (or routing to the inspiration sub-agent)."
+                    "description": "The agent must classify the intent as a new search or discovery request by setting `agent_decision` to 'inspiration_agent' (or routing to the inspiration sub-agent)."
                   }
                 },
                 "type": "",
                 "importance": "HIGH"
               },
               "verdict": true,
-              "reasoning": "The agent correctly identified the intent to change travel dates as an inspiration request and set the agent_decision to 'inspiration'."
+              "reasoning": "The agent correctly identified the intent to change travel dates as an inspiration request and set the agent_decision to 'inspiration_agent'."
             },
             {
               "evaluated_rubric": {
@@ -5812,12 +5812,12 @@
         "schema_and_contract_valid": {
           "metric_name": "schema_and_contract_valid",
           "score": 1.0,
-          "explanation": "Valid ConversationalOutput for decision='inspiration' (Paris -> New York, 2026-06-10 to 2026-06-20)."
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> New York, 2026-06-10 to 2026-06-20)."
         },
         "conversation_plan_alignment": {
           "metric_name": "conversation_plan_alignment",
           "score": 1.0,
-          "explanation": "The agent correctly identified the user's intent to update the flight search dates and routed to `inspiration`. The `flights_search_output` accurately reflects the new departure and return dates (June 10th to June 20th, 2026), and the `agent_response` is appropriate and informative."
+          "explanation": "The agent correctly identified the user's intent to update the flight search dates and routed to `inspiration_agent`. The `flights_search_output` accurately reflects the new departure and return dates (June 10th to June 20th, 2026), and the `agent_response` is appropriate and informative."
         },
         "latency_seconds": {
           "metric_name": "latency_seconds",
@@ -5893,7 +5893,7 @@
                 "rubric_id": "63cf47b7",
                 "content": {
                   "property": {
-                    "description": "The JSON output must contain an 'agent_decision' field strictly set to one of the following literal values: 'filter', 'filter_smart', 'inspiration', or 'continue'."
+                    "description": "The JSON output must contain an 'agent_decision' field strictly set to one of the following literal values: 'filter', 'filter_smart', 'inspiration_agent', or 'continue'."
                   }
                 },
                 "type": "",
@@ -5933,13 +5933,13 @@
                 "rubric_id": "82ee124c",
                 "content": {
                   "property": {
-                    "description": "If 'agent_decision' is 'inspiration', the JSON output must include a 'flights_search_output' object containing the suggested flight parameters."
+                    "description": "If 'agent_decision' is 'inspiration_agent', the JSON output must include a 'flights_search_output' object containing the suggested flight parameters."
                   }
                 },
                 "type": "",
                 "importance": "HIGH"
               },
-              "reasoning": "The 'agent_decision' was set to \"continue\", not \"inspiration\", so no search output was required."
+              "reasoning": "The 'agent_decision' was set to \"continue\", not \"inspiration_agent\", so no search output was required."
             },
             {
               "evaluated_rubric": {
@@ -6068,7 +6068,7 @@
                 "type": "",
                 "importance": "HIGH"
               },
-              "reasoning": "The agent failed to capture or acknowledge the origin (Paris) and destination (New York) in either the natural language response or the structured output. According to the system instructions, the `filter` decision output does not support origin/destination parameters, and the agent did not use the `inspiration` route (which does support `flights_search_output`) or provide a response that confirms the route. Therefore, the search request for that specific route was not resolved."
+              "reasoning": "The agent failed to capture or acknowledge the origin (Paris) and destination (New York) in either the natural language response or the structured output. According to the system instructions, the `filter` decision output does not support origin/destination parameters, and the agent did not use the `inspiration_agent` route (which does support `flights_search_output`) or provide a response that confirms the route. Therefore, the search request for that specific route was not resolved."
             },
             {
               "evaluated_rubric": {
@@ -6124,7 +6124,7 @@
                 "rubric_id": "7fc190f6",
                 "content": {
                   "property": {
-                    "description": "The agent must set 'agent_decision' to 'filter' (to apply the price constraint) or 'continue' (to request missing information like travel dates), and must NOT route to 'inspiration' or 'filter_smart' since the route is specific and no qualitative amenities are requested."
+                    "description": "The agent must set 'agent_decision' to 'filter' (to apply the price constraint) or 'continue' (to request missing information like travel dates), and must NOT route to 'inspiration_agent' or 'filter_smart' since the route is specific and no qualitative amenities are requested."
                   }
                 },
                 "type": "",
@@ -6664,7 +6664,7 @@
       "eval_case_index": 38,
       "eval_id": "57b32f5f",
       "prompt": "I'm thinking of moving my Paris to New York trip. Instead of May, can we look for dates in September 2026? Perhaps from the 10th to the 20th?",
-      "conversation_plan": "The user wants to change the dates for the currently displayed Paris to New York flight search. The User Simulator must provide the inspiration with the flights_search_input representing the current search: {'origin': 'Paris', 'destination': 'New York', 'departure_date': '2024-05-15', 'return_date': '2024-05-22', 'passengers': 1}. The agent should respond with agent_decision: 'inspiration'. The flights_search_output must be updated to {'origin': 'Paris', 'destination': 'New York', 'departure_date': '2026-09-10', 'return_date': '2026-09-20', 'passengers': 1}. The agent_response should be an engaging message about the new search. Other output fields like filter_type, filter_value, or flights_output should be null/omitted.",
+      "conversation_plan": "The user wants to change the dates for the currently displayed Paris to New York flight search. The User Simulator must provide the inspiration_agent with the flights_search_input representing the current search: {'origin': 'Paris', 'destination': 'New York', 'departure_date': '2024-05-15', 'return_date': '2024-05-22', 'passengers': 1}. The agent should respond with agent_decision: 'inspiration_agent'. The flights_search_output must be updated to {'origin': 'Paris', 'destination': 'New York', 'departure_date': '2026-09-10', 'return_date': '2026-09-20', 'passengers': 1}. The agent_response should be an engaging message about the new search. Other output fields like filter_type, filter_value, or flights_output should be null/omitted.",
       "agent_trajectory": [
         "engage",
         "inspiration",
@@ -6686,7 +6686,7 @@
           "latency_seconds": 0.0064
         }
       ],
-      "response": "{\"agent_response\": \"September is a fantastic time to visit New York! The summer humidity begins to fade, making it ideal for exploring the city streets comfortably. I've updated your dates from Paris to New York for September 10th to September 20th, 2026.\", \"agent_decision\": \"inspiration\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-09-10\", \"return_date\": \"2026-09-20\", \"passengers\": 1}}",
+      "response": "{\"agent_response\": \"September is a fantastic time to visit New York! The summer humidity begins to fade, making it ideal for exploring the city streets comfortably. I've updated your dates from Paris to New York for September 10th to September 20th, 2026.\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-09-10\", \"return_date\": \"2026-09-20\", \"passengers\": 1}}",
       "metric_results": {
         "multi_turn_task_success_v1": {
           "metric_name": "multi_turn_task_success_v1",
@@ -6733,14 +6733,14 @@
                 "rubric_id": "1f1663a7",
                 "content": {
                   "property": {
-                    "description": "The agent must set the 'agent_decision' parameter to 'inspiration' to handle the request for new flight search dates and destinations."
+                    "description": "The agent must set the 'agent_decision' parameter to 'inspiration_agent' to handle the request for new flight search dates and destinations."
                   }
                 },
                 "type": "",
                 "importance": "HIGH"
               },
               "verdict": true,
-              "reasoning": "The agent correctly triaged the user's request to move trip dates as an inspiration task and set the agent_decision to 'inspiration' accordingly."
+              "reasoning": "The agent correctly triaged the user's request to move trip dates as an inspiration task and set the agent_decision to 'inspiration_agent' accordingly."
             },
             {
               "evaluated_rubric": {
@@ -6822,17 +6822,17 @@
         "coherence": {
           "metric_name": "coherence",
           "score": 0.0,
-          "explanation": "The `agent_response` text states that flight dates have been updated, which is correctly reflected in the `flights_search_output` field. However, the `agent_decision` is 'inspiration'. Although the response includes inspirational content, the primary action requested by the user and performed by the AI was an update to flight search parameters, making the 'inspiration' decision inconsistent with the core action and the structured search output."
+          "explanation": "The `agent_response` text states that flight dates have been updated, which is correctly reflected in the `flights_search_output` field. However, the `agent_decision` is 'inspiration_agent'. Although the response includes inspirational content, the primary action requested by the user and performed by the AI was an update to flight search parameters, making the 'inspiration_agent' decision inconsistent with the core action and the structured search output."
         },
         "schema_and_contract_valid": {
           "metric_name": "schema_and_contract_valid",
           "score": 1.0,
-          "explanation": "Valid ConversationalOutput for decision='inspiration' (Paris -> New York, 2026-09-10 to 2026-09-20)."
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> New York, 2026-09-10 to 2026-09-20)."
         },
         "conversation_plan_alignment": {
           "metric_name": "conversation_plan_alignment",
           "score": 1.0,
-          "explanation": "The `agent_decision` is correctly 'inspiration', and the `flights_search_output` accurately reflects the updated dates from the user's prompt (September 10th to 20th, 2026) while retaining the origin, destination, and passenger count. The `agent_response` is engaging and clearly communicates the update to the user, aligning with the expected conversation plan."
+          "explanation": "The `agent_decision` is correctly 'inspiration_agent', and the `flights_search_output` accurately reflects the updated dates from the user's prompt (September 10th to 20th, 2026) while retaining the origin, destination, and passenger count. The `agent_response` is engaging and clearly communicates the update to the user, aligning with the expected conversation plan."
         },
         "latency_seconds": {
           "metric_name": "latency_seconds",
@@ -7538,7 +7538,7 @@
       "eval_case_index": 43,
       "eval_id": "c9974c26",
       "prompt": "I'm not sure about New York anymore. What about a warm beach destination in the Caribbean for these dates?",
-      "conversation_plan": "The user expresses dissatisfaction with the current destination and requests an inspirational change to a 'warm beach destination in the Caribbean' while retaining the original dates. The simulator will provide the agent with the following `flights_search_input`: { \"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1 }. The agent must correctly route this to the 'inspiration'. The 'inspiration' should then generate a `flights_search_output` where the 'destination' is updated to a suitable Caribbean city (e.g., 'Miami'), while 'origin', 'departure_date', 'return_date', and 'passengers' remain unchanged. The `agent_response` should creatively suggest the new destination.",
+      "conversation_plan": "The user expresses dissatisfaction with the current destination and requests an inspirational change to a 'warm beach destination in the Caribbean' while retaining the original dates. The simulator will provide the agent with the following `flights_search_input`: { \"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1 }. The agent must correctly route this to the 'inspiration_agent'. The 'inspiration_agent' should then generate a `flights_search_output` where the 'destination' is updated to a suitable Caribbean city (e.g., 'Miami'), while 'origin', 'departure_date', 'return_date', and 'passengers' remain unchanged. The `agent_response` should creatively suggest the new destination.",
       "agent_trajectory": [
         "engage",
         "inspiration",
@@ -7560,7 +7560,7 @@
           "latency_seconds": 0.004
         }
       ],
-      "response": "{\"agent_response\": \"Swapping the concrete jungle of New York for the powdery white sands of the Caribbean sounds like an amazing plan! I have updated your trip to head to Punta Cana, one of the region's premier beach destinations, keeping your original May dates and departure city from Paris.\", \"agent_decision\": \"inspiration\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Punta Cana\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
+      "response": "{\"agent_response\": \"Swapping the concrete jungle of New York for the powdery white sands of the Caribbean sounds like an amazing plan! I have updated your trip to head to Punta Cana, one of the region's premier beach destinations, keeping your original May dates and departure city from Paris.\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Punta Cana\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
       "metric_results": {
         "multi_turn_task_success_v1": {
           "metric_name": "multi_turn_task_success_v1",
@@ -7649,14 +7649,14 @@
                 "rubric_id": "183cd22e",
                 "content": {
                   "property": {
-                    "description": "The agent's final output must set 'agent_decision' to 'inspiration' to handle the open-ended travel request for a warm beach destination."
+                    "description": "The agent's final output must set 'agent_decision' to 'inspiration_agent' to handle the open-ended travel request for a warm beach destination."
                   }
                 },
                 "type": "",
                 "importance": "HIGH"
               },
               "verdict": true,
-              "reasoning": "The agent correctly identified the request as an inspiration-based travel query and set the decision field to 'inspiration' in the final output."
+              "reasoning": "The agent correctly identified the request as an inspiration-based travel query and set the decision field to 'inspiration_agent' in the final output."
             },
             {
               "evaluated_rubric": {
@@ -7705,22 +7705,22 @@
         "tool_use_quality": {
           "metric_name": "tool_use_quality",
           "score": 1.0,
-          "explanation": "The user's prompt requests an inspirational change of destination to a 'warm beach destination in the Caribbean'. This type of request is handled by the internal `inspiration` and does not require external research for qualitative flight amenities via `google_search`. The `Recorded External Tool Calls` are empty, which is appropriate, as no external tool was needed."
+          "explanation": "The user's prompt requests an inspirational change of destination to a 'warm beach destination in the Caribbean'. This type of request is handled by the internal `inspiration_agent` and does not require external research for qualitative flight amenities via `google_search`. The `Recorded External Tool Calls` are empty, which is appropriate, as no external tool was needed."
         },
         "coherence": {
           "metric_name": "coherence",
           "score": 1.0,
-          "explanation": "The `agent_response` is clear, logically structured, and directly addresses the user's prompt to change the destination to a warm Caribbean beach. It suggests 'Punta Cana' and confirms the original departure city (Paris) and dates (May). The structured fields `flights_search_output` are completely consistent with the natural language, specifying 'Paris' as the origin, 'Punta Cana' as the destination, and '2026-05-10' to '2026-05-20' as the dates, along with 'passengers': 1. The `agent_decision` as 'inspiration' is appropriate for suggesting a destination."
+          "explanation": "The `agent_response` is clear, logically structured, and directly addresses the user's prompt to change the destination to a warm Caribbean beach. It suggests 'Punta Cana' and confirms the original departure city (Paris) and dates (May). The structured fields `flights_search_output` are completely consistent with the natural language, specifying 'Paris' as the origin, 'Punta Cana' as the destination, and '2026-05-10' to '2026-05-20' as the dates, along with 'passengers': 1. The `agent_decision` as 'inspiration_agent' is appropriate for suggesting a destination."
         },
         "schema_and_contract_valid": {
           "metric_name": "schema_and_contract_valid",
           "score": 1.0,
-          "explanation": "Valid ConversationalOutput for decision='inspiration' (Paris -> Punta Cana, 2026-05-10 to 2026-05-20)."
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> Punta Cana, 2026-05-10 to 2026-05-20)."
         },
         "conversation_plan_alignment": {
           "metric_name": "conversation_plan_alignment",
           "score": 1.0,
-          "explanation": "The agent correctly identified the need for an 'inspiration' routing, updated the destination to a suitable Caribbean location ('Punta Cana') while retaining all other search parameters as specified, and provided a natural language response that creatively suggests the new destination and confirms the changes."
+          "explanation": "The agent correctly identified the need for an 'inspiration_agent' routing, updated the destination to a suitable Caribbean location ('Punta Cana') while retaining all other search parameters as specified, and provided a natural language response that creatively suggests the new destination and confirms the changes."
         },
         "latency_seconds": {
           "metric_name": "latency_seconds",
@@ -8406,7 +8406,7 @@
       "eval_case_index": 48,
       "eval_id": "ba9a1c29",
       "prompt": "New York is fine, but I'm actually thinking something more exotic for those dates. Any ideas?",
-      "conversation_plan": "The user indicates satisfaction with the current `origin` and `dates` but expresses a desire for a 'more exotic' destination than New York. This signals an \"inspiration\" request. The User Simulator will provide the agent with the following `flights_search_input` context:\n{\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}\nThe user expects the system to leverage this `flights_search_input` to suggest a new, exotic destination while retaining the original origin, dates, and passenger count. The final \"ConversationalOutput\" should contain an \"agent_decision\" of 'inspiration', with \"flights_search_output\" updated to include an exotic \"destination\" (e.g., 'Tokyo', 'Bangkok', or 'Rio de Janeiro') and an engaging \"agent_response\" pitching this new destination. The original `origin`, `departure_date`, `return_date`, and `passengers` in \"flights_search_output\" should remain unchanged.",
+      "conversation_plan": "The user indicates satisfaction with the current `origin` and `dates` but expresses a desire for a 'more exotic' destination than New York. This signals an \"inspiration\" request. The User Simulator will provide the agent with the following `flights_search_input` context:\n{\"origin\": \"Paris\", \"destination\": \"New York\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}\nThe user expects the system to leverage this `flights_search_input` to suggest a new, exotic destination while retaining the original origin, dates, and passenger count. The final \"ConversationalOutput\" should contain an \"agent_decision\" of 'inspiration_agent', with \"flights_search_output\" updated to include an exotic \"destination\" (e.g., 'Tokyo', 'Bangkok', or 'Rio de Janeiro') and an engaging \"agent_response\" pitching this new destination. The original `origin`, `departure_date`, `return_date`, and `passengers` in \"flights_search_output\" should remain unchanged.",
       "agent_trajectory": [
         "engage",
         "inspiration",
@@ -8428,7 +8428,7 @@
           "latency_seconds": 0.0026
         }
       ],
-      "response": "{\"agent_response\": \"If you are looking to trade the ordinary for something truly extraordinary this May, how about swapping New York for Bali? Think lush rainforests, ancient temples, and stunning beaches for an unforgettable, exotic getaway.\", \"agent_decision\": \"inspiration\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Bali\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
+      "response": "{\"agent_response\": \"If you are looking to trade the ordinary for something truly extraordinary this May, how about swapping New York for Bali? Think lush rainforests, ancient temples, and stunning beaches for an unforgettable, exotic getaway.\", \"agent_decision\": \"inspiration_agent\", \"flights_search_output\": {\"origin\": \"Paris\", \"destination\": \"Bali\", \"departure_date\": \"2026-05-10\", \"return_date\": \"2026-05-20\", \"passengers\": 1}}",
       "metric_results": {
         "multi_turn_task_success_v1": {
           "metric_name": "multi_turn_task_success_v1",
@@ -8489,14 +8489,14 @@
                 "rubric_id": "42b9dcb8",
                 "content": {
                   "property": {
-                    "description": "The agent must classify the intent by setting 'agent_decision' to 'inspiration' (or routing to the inspiration sub-agent) to handle the vague destination request."
+                    "description": "The agent must classify the intent by setting 'agent_decision' to 'inspiration_agent' (or routing to the inspiration sub-agent) to handle the vague destination request."
                   }
                 },
                 "type": "",
                 "importance": "HIGH"
               },
               "verdict": true,
-              "reasoning": "The agent correctly identified the user's request for travel ideas and an exotic destination as an inspiration intent, setting the agent_decision to \"inspiration\" as required by the instructions."
+              "reasoning": "The agent correctly identified the user's request for travel ideas and an exotic destination as an inspiration intent, setting the agent_decision to \"inspiration_agent\" as required by the instructions."
             },
             {
               "evaluated_rubric": {
@@ -8559,7 +8559,7 @@
         "tool_use_quality": {
           "metric_name": "tool_use_quality",
           "score": 1.0,
-          "explanation": "`google_search` was not required because the user's request for an 'exotic' destination is a travel inspiration task, which is handled internally by the `inspiration`. The `Recorded External Tool Calls` correctly show no `google_search` was made, aligning with the negative tool constraint."
+          "explanation": "`google_search` was not required because the user's request for an 'exotic' destination is a travel inspiration task, which is handled internally by the `inspiration_agent`. The `Recorded External Tool Calls` correctly show no `google_search` was made, aligning with the negative tool constraint."
         },
         "coherence": {
           "metric_name": "coherence",
@@ -8569,12 +8569,12 @@
         "schema_and_contract_valid": {
           "metric_name": "schema_and_contract_valid",
           "score": 1.0,
-          "explanation": "Valid ConversationalOutput for decision='inspiration' (Paris -> Bali, 2026-05-10 to 2026-05-20)."
+          "explanation": "Valid ConversationalOutput for decision='inspiration_agent' (Paris -> Bali, 2026-05-10 to 2026-05-20)."
         },
         "conversation_plan_alignment": {
           "metric_name": "conversation_plan_alignment",
           "score": 1.0,
-          "explanation": "The agent correctly identified the 'inspiration' decision. The 'flights_search_output' maintains the original origin, dates, and passenger count, while successfully suggesting 'Bali' as an exotic destination. The 'agent_response' is engaging and aligns with the action taken, fulfilling all expected ground-truth criteria."
+          "explanation": "The agent correctly identified the 'inspiration_agent' decision. The 'flights_search_output' maintains the original origin, dates, and passenger count, while successfully suggesting 'Bali' as an exotic destination. The 'agent_response' is engaging and aligns with the action taken, fulfilling all expected ground-truth criteria."
         },
         "latency_seconds": {
           "metric_name": "latency_seconds",
