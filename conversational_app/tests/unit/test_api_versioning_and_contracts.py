@@ -126,6 +126,18 @@ def test_committed_openapi_contract_snapshot_is_in_sync() -> None:
         is not True
     )
 
+    # Verify validator bounds are surfaced directly in OpenAPI JSON Schema for code generators
+    conv_in_props = schemas["ConversationalInput"]["properties"]
+    assert conv_in_props["user_message"]["minLength"] == 1
+    assert conv_in_props["user_message"]["maxLength"] == 4000
+    param_props = schemas["FlightParams"]["properties"]
+    for str_field in ("origin", "destination", "departure_date", "return_date"):
+        assert param_props[str_field]["minLength"] == 1
+        assert param_props[str_field]["maxLength"] == 200
+    assert param_props["passengers"]["minimum"] == 1
+    assert param_props["passengers"]["maximum"] == 9
+    assert schemas["Flight"]["properties"]["stops"]["minimum"] == 0
+
 
 def test_v1_and_legacy_routes_across_orchestrator_and_sub_agents() -> None:
     """Canonical /api/v1/run-* and legacy /run-* aliases must return matching payloads and expected headers."""

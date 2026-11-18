@@ -19,6 +19,7 @@
           "max_price": {
             "anyOf": [
               {
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -31,6 +32,7 @@
           "max_stops": {
             "anyOf": [
               {
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -111,6 +113,7 @@
           },
           "stops": {
             "description": "The number of stops on the flight.",
+            "minimum": 0.0,
             "title": "Stops",
             "type": "integer"
           }
@@ -138,11 +141,15 @@
         "properties": {
           "departure_date": {
             "description": "The departure date for the flight search.",
+            "maxLength": 200,
+            "minLength": 1,
             "title": "Departure Date",
             "type": "string"
           },
           "destination": {
             "description": "The destination city for the flight search.",
+            "maxLength": 200,
+            "minLength": 1,
             "title": "Destination",
             "type": "string"
           },
@@ -152,16 +159,22 @@
           },
           "origin": {
             "description": "The origin city for the flight search.",
+            "maxLength": 200,
+            "minLength": 1,
             "title": "Origin",
             "type": "string"
           },
           "passengers": {
             "description": "The number of passengers for the flight search.",
+            "maximum": 9.0,
+            "minimum": 1.0,
             "title": "Passengers",
             "type": "integer"
           },
           "return_date": {
             "description": "The return date for the flight search.",
+            "maxLength": 200,
+            "minLength": 1,
             "title": "Return Date",
             "type": "string"
           }

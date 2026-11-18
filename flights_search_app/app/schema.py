@@ -12,11 +12,13 @@ class Filters(BaseModel):
     direct: Optional[bool] = Field(None, description="Whether the flight should be direct.")
     max_price: Optional[int] = Field(
         None,
+        ge=0,
         validation_alias=AliasChoices("max_price", "price"),
         description="The maximum price of the flight.",
     )
     max_stops: Optional[int] = Field(
         None,
+        ge=0,
         validation_alias=AliasChoices("max_stops", "stops"),
         description="The maximum number of stops on the flight.",
     )
@@ -36,11 +38,21 @@ class FlightsSearchInput(BaseModel):
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    origin: str = Field(..., description="The origin city for the flight search.")
-    destination: str = Field(..., description="The destination city for the flight search.")
-    departure_date: str = Field(..., description="The departure date for the flight search.")
-    return_date: str = Field(..., description="The return date for the flight search.")
-    passengers: int = Field(..., description="The number of passengers for the flight search.")
+    origin: str = Field(
+        ..., min_length=1, max_length=200, description="The origin city for the flight search."
+    )
+    destination: str = Field(
+        ..., min_length=1, max_length=200, description="The destination city for the flight search."
+    )
+    departure_date: str = Field(
+        ..., min_length=1, max_length=200, description="The departure date for the flight search."
+    )
+    return_date: str = Field(
+        ..., min_length=1, max_length=200, description="The return date for the flight search."
+    )
+    passengers: int = Field(
+        ..., ge=1, le=9, description="The number of passengers for the flight search."
+    )
     filters: Filters = Field(default_factory=Filters, description="The filters for the flight search.")
 
     @field_validator("origin", "destination", "departure_date", "return_date")
@@ -73,7 +85,7 @@ class Flight(BaseModel):
     price: str = Field(..., description="The price of the flight.")
     airline: str = Field(..., description="The airline of the flight.")
     flight_number: str = Field(..., description="The flight number of the flight.")
-    stops: int = Field(..., description="The number of stops on the flight.")
+    stops: int = Field(..., ge=0, description="The number of stops on the flight.")
     stopover_cities: List[str] = Field(..., description="The cities where the flight stops.")
 
     @field_validator("stops")

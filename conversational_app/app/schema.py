@@ -16,7 +16,7 @@ class Flight(BaseModel):
     price: str = Field(..., description="The price of the flight.")
     airline: str = Field(..., description="The airline of the flight.")
     flight_number: str = Field(..., description="The flight number of the flight.")
-    stops: int = Field(..., description="The number of stops on the flight.")
+    stops: int = Field(..., ge=0, description="The number of stops on the flight.")
     stopover_cities: List[str] = Field(..., description="The cities where the flight stops.")
 
     @field_validator("stops")
@@ -30,11 +30,21 @@ class Flight(BaseModel):
 class FlightParams(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    origin: str = Field(..., description="The origin city for the flight search.")
-    destination: str = Field(..., description="The destination city for the flight search.")
-    departure_date: str = Field(..., description="The departure date for the flight search.")
-    return_date: str = Field(..., description="The return date for the flight search.")
-    passengers: int = Field(..., description="The number of passengers for the flight search.")
+    origin: str = Field(
+        ..., min_length=1, max_length=200, description="The origin city for the flight search."
+    )
+    destination: str = Field(
+        ..., min_length=1, max_length=200, description="The destination city for the flight search."
+    )
+    departure_date: str = Field(
+        ..., min_length=1, max_length=200, description="The departure date for the flight search."
+    )
+    return_date: str = Field(
+        ..., min_length=1, max_length=200, description="The return date for the flight search."
+    )
+    passengers: int = Field(
+        ..., ge=1, le=9, description="The number of passengers for the flight search."
+    )
 
     @field_validator("origin", "destination", "departure_date", "return_date")
     @classmethod
@@ -57,7 +67,9 @@ class ConversationalInput(BaseModel):
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    user_message: str = Field(..., description="The message from the user.")
+    user_message: str = Field(
+        ..., min_length=1, max_length=4000, description="The message from the user."
+    )
     conversational_history: List[str] = Field(
         default_factory=list,
         description=(

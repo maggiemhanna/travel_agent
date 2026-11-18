@@ -54,6 +54,12 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
   - [4. Manual API Testing via `curl`](#4-manual-api-testing-via-curl)
   - [5. Interactive Web Dashboard Workflow](#5-interactive-web-dashboard-workflow)
   - [6. Multi-Region Failover & Infrastructure Backup Drills](#6-multi-region-failover--infrastructure-backup-drills)
+- [**API, Integration & SDK Documentation (`docs/api_documentation.md`)**](docs/api_documentation.md)
+- [**Operational Documentation Hub (`docs/operational_documentation.md`)**](docs/operational_documentation.md)
+  - [Deployment & Release Management Guide (`docs/deployment_guide.md`)](docs/deployment_guide.md)
+  - [Production Operational Runbooks (`docs/runbooks.md`)](docs/runbooks.md)
+  - [Engineer & Operator Onboarding Guide (`docs/onboarding_guide.md`)](docs/onboarding_guide.md)
+  - [Symptom-Driven Troubleshooting Guide (`docs/troubleshooting_guide.md`)](docs/troubleshooting_guide.md)
 
 ---
 
@@ -381,7 +387,7 @@ Because Flight Search, the Conversational Assistant, and the Web Frontend deploy
   - **Explicit Response & Health-Check Contracts:** Instead of returning untyped JSON dictionaries, every endpoint defines the exact structure of its HTTP responses—covering normal agent outputs, safe plain-text fallback replies, and `200`/`503` health and readiness checks—so every possible reply format is formally documented.  
     — *Implemented in [`flights_search_app/app/schema.py`](flights_search_app/app/schema.py), [`conversational_app/app/schema.py`](conversational_app/app/schema.py), [`flights_search_app/app/app_utils/health.py`](flights_search_app/app/app_utils/health.py) & [`conversational_app/app/app_utils/health.py`](conversational_app/app/app_utils/health.py)*
   - **Version-Controlled OpenAPI Contracts Checked in CI:** Both backend services store their complete **OpenAPI 3.1** specification in Git (`openapi.json`). Automated unit tests in every Pull Request and deployment pipeline compare the live server specification against the saved contract file, blocking accidental or unreviewed breaking API changes before containers are built.  
-    — *Implemented in [`flights_search_app/openapi.json`](flights_search_app/openapi.json), [`conversational_app/openapi.json`](conversational_app/openapi.json), [`flights_search_app/app/export_openapi.py`](flights_search_app/app/export_openapi.py) & [`conversational_app/app/export_openapi.py`](conversational_app/app/export_openapi.py)*  
+    — *Implemented in [`flights_search_app/openapi.json`](flights_search_app/openapi.json), [`conversational_app/openapi.json`](conversational_app/openapi.json), [`flights_search_app/app/export_openapi.py`](flights_search_app/app/export_openapi.py), [`conversational_app/app/export_openapi.py`](conversational_app/app/export_openapi.py) & [`docs/api_documentation.md`](docs/api_documentation.md)*  
     — *Verified in [`flights_search_app/tests/unit/test_api_versioning_and_contracts.py`](flights_search_app/tests/unit/test_api_versioning_and_contracts.py), [`conversational_app/tests/unit/test_api_versioning_and_contracts.py`](conversational_app/tests/unit/test_api_versioning_and_contracts.py) & [`.cloudbuild/pr_checks.yaml`](.cloudbuild/pr_checks.yaml)*
 
 - **4.3 Pillar 3 — Schema Evolution**
@@ -649,6 +655,13 @@ travel_agent/
 │   ├── dev.yaml                        # 5-stage CD pipeline for Dev (travel-agent-511710)
 │   ├── staging.yaml                    # 5-stage CD pipeline for Staging (travel-agent-staging-512211)
 │   └── prod.yaml                       # 5-stage CD pipeline for Prod + cross-region /env-config.js smoke checks
+├── docs/                               # API, Integration, SDK & Production Operational Documentation
+│   ├── api_documentation.md            # OpenAPI 3.1 endpoint reference, integration guides & JS/Python SDK docs
+│   ├── operational_documentation.md    # Operational Hub: SLOs/SLIs, telemetry/logging, IAM posture & severity matrix
+│   ├── deployment_guide.md             # 5-stage Cloud Build + Terraform CD guide, promotion flow, model rollouts & rollbacks
+│   ├── runbooks.md                     # Standardized production SOPs (RB-01 through RB-09) for outages, DR, quotas & state
+│   ├── onboarding_guide.md             # Progressive engineer/operator onboarding (30m -> Day 1 -> Week 1) & workflow tour
+│   └── troubleshooting_guide.md        # Symptom-driven diagnostic reference across Cloud Run, Vertex AI, CORS & CI/CD
 ├── deployment/                         # Infrastructure as Code (Terraform), Deployment & Resilience Drill Runners
 │   ├── bootstrap.sh                    # Provisions multi-region (EU) GCS state bucket, travel-agent-cicd SA & cleans default SAs
 │   ├── deploy.sh                       # Unified runner for PR checks, dev/staging/prod deployments & regional DR overrides

@@ -110,6 +110,20 @@ def test_committed_openapi_contract_snapshot_is_in_sync() -> None:
         is not True
     )
 
+    # Verify validator bounds are surfaced directly in OpenAPI JSON Schema for code generators
+    search_props = schemas["FlightsSearchInput"]["properties"]
+    for str_field in ("origin", "destination", "departure_date", "return_date"):
+        assert search_props[str_field]["minLength"] == 1
+        assert search_props[str_field]["maxLength"] == 200
+    assert search_props["passengers"]["minimum"] == 1
+    assert search_props["passengers"]["maximum"] == 9
+    assert schemas["Flight"]["properties"]["stops"]["minimum"] == 0
+    for filter_field in ("max_price", "max_stops"):
+        int_branch = next(
+            b for b in schemas["Filters"]["properties"][filter_field]["anyOf"] if b.get("type") == "integer"
+        )
+        assert int_branch["minimum"] == 0
+
 
 def test_v1_and_legacy_routes_preserve_backward_compatibility_and_headers() -> None:
     """Canonical /api/v1 route and legacy /run-flights-search alias must return identical payloads and expected headers."""
