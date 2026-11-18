@@ -179,6 +179,8 @@ The platform runs as three containerized services on **Google Cloud Run** in Par
     — *Provisioned in [`deployment/terraform/apis.tf`](deployment/terraform/apis.tf) & [`deployment/terraform/iam.tf`](deployment/terraform/iam.tf)*  
     — *Implemented in [`flights_search_app/app/app_utils/logging.py`](flights_search_app/app/app_utils/logging.py) & [`conversational_app/app/app_utils/logging.py`](conversational_app/app/app_utils/logging.py)*
 
+![gcp_cloud_architecture](gcp_cloud_architecture.svg "GCP Cloud Architecture")
+
 ---
 
 ## II/ [OPERATIONAL EXCELLENCE]
