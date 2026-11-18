@@ -1,152 +1,133 @@
-# Travel Agent Platform — API, Integration & SDK Documentation
+# Travel Agent Platform — API, Integration & SDK Reference
 
-Complete API reference, integration architecture, and SDK guide for the **Travel Agent** multi-agent platform powered by **Google ADK v2** (`google-adk==2.11.0`), **Gemini on Vertex AI** (`google-genai==2.31.0`), **FastAPI** (`0.135.1`), and **React 18**.
+Complete HTTP API reference, OpenAPI 3.1 contract guide, stateless client integration architecture, and JavaScript/Python SDK documentation for the **Travel Agent** multi-agent platform.
+
+| Field | Details |
+| :--- | :--- |
+| **Document ID** | `OPS-API-001` |
+| **Target Audience** | Frontend Engineers, Backend / AI Engineers, Partner API Integrators |
+| **Scope** | `/api/v1` REST contracts, OpenAPI 3.1 governance, stateless UI integration flow, IAM/CORS auth, and JS/Python SDKs |
+| **API Contract Version** | `1.0.0` (`X-API-Version: 1.0.0`, OpenAPI `3.1.0`) |
+| **Documentation Suite** | [Operational Hub](operational_documentation.md) · [Onboarding](onboarding_guide.md) · **API & SDK (Current)** · [Deployment](deployment_guide.md) · [Runbooks](runbooks.md) · [Troubleshooting](troubleshooting_guide.md) · [Root README](../README.md) |
 
 ---
 
 ## Table of Contents
 
-- [Service Topology & API Inventory](#service-topology--api-inventory)
-- [Part 1: OpenAPI 3.1 Specifications & Endpoint Reference](#part-1-openapi-31-specifications--endpoint-reference)
-  - [1.1 Contract Governance & Interactive Docs](#11-contract-governance--interactive-docs)
-  - [1.2 API Versioning & Standard Response Headers](#12-api-versioning--standard-response-headers)
-  - [1.3 Flights Search Agent Service (`flights-search-app`)](#13-flights-search-agent-service-flights-search-app)
-  - [1.4 Conversational Agent Service (`conversational-app`)](#14-conversational-agent-service-conversational-app)
-  - [1.5 Standalone Specialist Sub-Agent APIs (Local / Eval Microservices)](#15-standalone-specialist-sub-agent-apis-local--eval-microservices)
-  - [1.6 Health, Readiness & Frontend Operational Contracts](#16-health-readiness--frontend-operational-contracts)
-- [Part 2: Integration Guides](#part-2-integration-guides)
-  - [2.1 Stateless Multi-Service Integration Workflow](#21-stateless-multi-service-integration-workflow)
-  - [2.2 Authentication, IAM & CORS](#22-authentication-iam--cors)
-  - [2.3 Resilience, Failover & Error Handling](#23-resilience-failover--error-handling)
-- [Part 3: SDK & Client Library Documentation](#part-3-sdk--client-library-documentation)
-  - [3.1 Frontend JavaScript Client SDK (`frontend/src/apiClient.js`)](#31-frontend-javascript-client-sdk-frontendsrcapiclientjs)
-  - [3.2 Python In-Process Agent & Google ADK v2 SDK](#32-python-in-process-agent--google-adk-v2-sdk)
-  - [3.3 External HTTP Client Examples & OpenAPI Code Generation](#33-external-http-client-examples--openapi-code-generation)
+1. [Service Topology & API Inventory](#1-service-topology--api-inventory)
+2. [Contract Governance, Versioning & Standard Headers](#2-contract-governance-versioning--standard-headers)
+   - [2.1 OpenAPI 3.1 Governance & Interactive Viewers](#21-openapi-31-governance--interactive-viewers)
+   - [2.2 API Versioning & Response Headers](#22-api-versioning--response-headers)
+3. [Primary Backend REST APIs (`/api/v1`)](#3-primary-backend-rest-apis-apiv1)
+   - [3.1 Flights Search Service (`flights-search-app`)](#31-flights-search-service-flights-search-app)
+   - [3.2 Conversational Workflow Service (`conversational-app`)](#32-conversational-workflow-service-conversational-app)
+4. [Standalone Sub-Agent & Operational Endpoints](#4-standalone-sub-agent--operational-endpoints)
+   - [4.1 Standalone Specialist Sub-Agent APIs (`:8002`–`:8006`)](#41-standalone-specialist-sub-agent-apis-80028006)
+   - [4.2 Health, Readiness & Frontend Config Endpoints](#42-health-readiness--frontend-config-endpoints)
+5. [Client Integration Guide](#5-client-integration-guide)
+   - [5.1 Stateless Multi-Service Integration Sequence](#51-stateless-multi-service-integration-sequence)
+   - [5.2 Authentication, IAM & CORS](#52-authentication-iam--cors)
+   - [5.3 Resilience, Failover & Error Handling](#53-resilience-failover--error-handling)
+6. [SDK & Client Library Reference](#6-sdk--client-library-reference)
+   - [6.1 Frontend JavaScript SDK (`frontend/src/apiClient.js`)](#61-frontend-javascript-sdk-frontendsrcapiclientjs)
+   - [6.2 Python In-Process Agent & Google ADK v2 SDK](#62-python-in-process-agent--google-adk-v2-sdk)
+   - [6.3 External HTTP Clients, `curl` & OpenAPI Code Generation](#63-external-http-clients-curl--openapi-code-generation)
+7. [Related Documentation & Next Steps](#7-related-documentation--next-steps)
 
 ---
 
-## Service Topology & API Inventory
+## 1. Service Topology & API Inventory
 
-The platform comprises two primary FastAPI AI backend services, one Nginx/React SPA service, and five optional standalone FastAPI sub-agent microservices used for isolated local debugging and evaluation.
+The platform consists of **two primary FastAPI AI backend services** (`flights-search-app` and `conversational-app`), **one React/Nginx SPA service** (`frontend`), and **five optional standalone FastAPI sub-agent servers** (`:8002`–`:8006`) used for isolated local debugging and component E2E tests.
 
-```mermaid
-flowchart LR
-    Client["Web Browser / API Client"]
+Inside `conversational-app`, all five specialist sub-agents execute **in-process** within a single ADK v2 `Workflow` graph (`filter_smart` is the only agent equipped with the live `google_search` tool):
 
-    subgraph PrimaryRegion["Cloud Run Primary (europe-west9)"]
-        FE["frontend (Nginx :8080)"]
-        FS["flights-search-app (:8080)"]
-        CA["conversational-app (:8080)"]
-    end
+![ADK v2 In-Process Multi-Agent Workflow Graph](diagrams/adk_workflow_graph.svg)
 
-    subgraph SecondaryRegion["Cloud Run Warm Secondary (europe-west1)"]
-        FS2["flights-search-app (:8080)"]
-        CA2["conversational-app (:8080)"]
-    end
+### Complete Service & Endpoint Matrix
 
-    subgraph Workflow["ADK v2 In-Process Workflow (conversational-app)"]
-        Engage["engage"] --> Route{"route_engage"}
-        Route -- "continue" --> Finalize["finalize_output"]
-        Route -- "filter" --> Filter["filter"] --> Finalize
-        Route -- "filter_smart" --> FilterSmart["filter_smart (+ Google Search)"] --> Parse{"parse_filter_smart"}
-        Parse -- "parsed" --> Finalize
-        Parse -- "repair_json" --> JsonParser["json_parser"] --> Finalize
-        Route -- "inspiration_agent" --> Inspiration["inspiration (+ Google Search)"] --> Finalize
-    end
-
-    Client -- "1. POST /api/v1/run-flights-search" --> FS
-    Client -. "5xx / Network Failover" .-> FS2
-    Client -- "2. POST /api/v1/run-conversational" --> CA
-    Client -. "5xx / Network Failover" .-> CA2
-    CA --> Engage
-```
-
-### Complete Service Matrix
-
-| Service | Entrypoint | Local Default URL | Cloud Run Port / Timeout | Canonical Endpoint (`v1`) | Deprecated Alias | Committed OpenAPI Spec |
+| Service | Entrypoint | Local Default URL | Cloud Run Port / Timeout | Canonical Endpoint (`v1`) | Deprecated Alias | OpenAPI 3.1 Spec |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Flights Search** (`flights-search-app`) | [`flights_search_app/app/main.py`](../flights_search_app/app/main.py) | `http://127.0.0.1:8000` | `8080` / `300s` | `POST /api/v1/run-flights-search` | `POST /run-flights-search` | [`flights_search_app/openapi.json`](../flights_search_app/openapi.json) |
 | **Conversational Workflow** (`conversational-app`) | [`conversational_app/app/main.py`](../conversational_app/app/main.py) | `http://127.0.0.1:8001` | `8080` / `300s` | `POST /api/v1/run-conversational` | `POST /run-conversational` | [`conversational_app/openapi.json`](../conversational_app/openapi.json) |
-| **Engage Sub-Agent** (`engage`) | [`engage/main.py`](../conversational_app/app/sub_agents/engage/main.py) | `http://127.0.0.1:8002` | Local / Dev only | `POST /api/v1/run-engage` | `POST /run-engage` | Dynamic (`GET /openapi.json`) |
-| **Filter Sub-Agent** (`filter`) | [`filter/main.py`](../conversational_app/app/sub_agents/filter/main.py) | `http://127.0.0.1:8003` | Local / Dev only | `POST /api/v1/run-filter` | `POST /run-filter` | Dynamic (`GET /openapi.json`) |
-| **Filter Smart Sub-Agent** (`filter_smart`) | [`filter_smart/main.py`](../conversational_app/app/sub_agents/filter_smart/main.py) | `http://127.0.0.1:8004` | Local / Dev only | `POST /api/v1/run-filter-smart` | `POST /run-filter-smart` | Dynamic (`GET /openapi.json`) |
-| **Inspiration Sub-Agent** (`inspiration`) | [`inspiration/main.py`](../conversational_app/app/sub_agents/inspiration/main.py) | `http://127.0.0.1:8005` | Local / Dev only | `POST /api/v1/run-inspiration` | `POST /run-inspiration` | Dynamic (`GET /openapi.json`) |
-| **JSON Parser Sub-Agent** (`json_parser`) | [`json_parser/main.py`](../conversational_app/app/sub_agents/json_parser/main.py) | `http://127.0.0.1:8006` | Local / Dev only | `POST /api/v1/run-json-parser` | `POST /run-json-parser` | Dynamic (`GET /openapi.json`) |
-| **Web Frontend** (`frontend`) | [`frontend/nginx.conf.template`](../frontend/nginx.conf.template) | `http://127.0.0.1:5173` | `8080` / `60s` | `GET /`, `/healthz`, `/readyz`, `/env-config.js` | — | — |
+| **Engage Sub-Agent** (`engage`) | [`engage/main.py`](../conversational_app/app/sub_agents/engage/main.py) | `http://127.0.0.1:8002` | Local / Dev only | `POST /api/v1/run-engage` | `POST /run-engage` | Live (`GET /openapi.json`) |
+| **Filter Sub-Agent** (`filter`) | [`filter/main.py`](../conversational_app/app/sub_agents/filter/main.py) | `http://127.0.0.1:8003` | Local / Dev only | `POST /api/v1/run-filter` | `POST /run-filter` | Live (`GET /openapi.json`) |
+| **Filter Smart Sub-Agent** (`filter_smart`) | [`filter_smart/main.py`](../conversational_app/app/sub_agents/filter_smart/main.py) | `http://127.0.0.1:8004` | Local / Dev only | `POST /api/v1/run-filter-smart` | `POST /run-filter-smart` | Live (`GET /openapi.json`) |
+| **Inspiration Sub-Agent** (`inspiration`) | [`inspiration/main.py`](../conversational_app/app/sub_agents/inspiration/main.py) | `http://127.0.0.1:8005` | Local / Dev only | `POST /api/v1/run-inspiration` | `POST /run-inspiration` | Live (`GET /openapi.json`) |
+| **JSON Parser Sub-Agent** (`json_parser`) | [`json_parser/main.py`](../conversational_app/app/sub_agents/json_parser/main.py) | `http://127.0.0.1:8006` | Local / Dev only | `POST /api/v1/run-json-parser` | `POST /run-json-parser` | Live (`GET /openapi.json`) |
+| **Web Frontend** (`frontend`) | [`frontend/nginx.conf.template`](../frontend/nginx.conf.template) | `http://127.0.0.1:5173` | `8080` / `300s` (default) | `GET /`, `/healthz`, `/readyz`, `/env-config.js` | — | — |
 
 ---
 
-## Part 1: OpenAPI 3.1 Specifications & Endpoint Reference
+## 2. Contract Governance, Versioning & Standard Headers
 
-### 1.1 Contract Governance & Interactive Docs
+### 2.1 OpenAPI 3.1 Governance & Interactive Viewers
 
-Both primary services follow a **contract-first OpenAPI 3.1.0** workflow:
-- **Committed Snapshots**: Deterministic JSON schemas—including numeric (`minimum`, `maximum`) and string length (`minLength`, `maxLength`) bounds—are checked into Git at [`flights_search_app/openapi.json`](../flights_search_app/openapi.json) and [`conversational_app/openapi.json`](../conversational_app/openapi.json).
-- **Live Interactive Viewers**: Every running FastAPI service (main backends and standalone sub-agents) automatically serves:
-  - `GET /openapi.json` — Live OpenAPI `3.1.0` JSON schema
+Both primary backend services enforce a **contract-first OpenAPI `3.1.0`** workflow:
+- **Committed Snapshots:** Deterministic JSON specifications—including numeric (`minimum`, `maximum`) and string length (`minLength`, `maxLength`) bounds—are committed at [`flights_search_app/openapi.json`](../flights_search_app/openapi.json) and [`conversational_app/openapi.json`](../conversational_app/openapi.json).
+- **Live Interactive Viewers:** Every running FastAPI service automatically serves:
   - `GET /docs` — Interactive Swagger UI
-  - `GET /redoc` — ReDoc API reference
-- **Exporting & Drift Enforcement**: Contract snapshots are regenerated via [`flights_search_app/app/export_openapi.py`](../flights_search_app/app/export_openapi.py) and [`conversational_app/app/export_openapi.py`](../conversational_app/app/export_openapi.py), and CI blocks unreviewed contract drift via [`flights_search_app/tests/unit/test_api_versioning_and_contracts.py`](../flights_search_app/tests/unit/test_api_versioning_and_contracts.py) and [`conversational_app/tests/unit/test_api_versioning_and_contracts.py`](../conversational_app/tests/unit/test_api_versioning_and_contracts.py):
+  - `GET /redoc` — ReDoc API documentation
+  - `GET /openapi.json` — Live OpenAPI `3.1.0` JSON specification
+- **CI Drift Enforcement:** [`test_api_versioning_and_contracts.py`](../conversational_app/tests/unit/test_api_versioning_and_contracts.py) fails Stage 1 if live schemas diverge from committed `openapi.json`. Regenerate snapshots after intentional schema edits ([`RB-08`](runbooks.md#rb-08-intentional-api-schema-change--openapi-31-snapshot-regeneration)):
 
 ```bash
-# Regenerate deterministic OpenAPI 3.1 snapshots after intentional schema updates
 (cd flights_search_app && python3 -m app.export_openapi)
 (cd conversational_app && python3 -m app.export_openapi)
 ```
 
-### 1.2 API Versioning & Standard Response Headers
+### 2.2 API Versioning & Response Headers
 
 Implemented in [`flights_search_app/app/app_utils/versioning.py`](../flights_search_app/app/app_utils/versioning.py) and [`conversational_app/app/app_utils/versioning.py`](../conversational_app/app/app_utils/versioning.py) (`API_VERSION = "1.0.0"`, `API_V1_PREFIX = "/api/v1"`):
 
 | Header | Emitted On | Value | Purpose |
 | :--- | :--- | :--- | :--- |
-| `X-API-Version` | **All** responses (`2xx`, `4xx`, `5xx`) | `1.0.0` | Tracks active contract version across rolling Cloud Run updates. |
+| `X-API-Version` | **All** responses (`2xx`, `4xx`, `5xx`) | `1.0.0` | Identifies active API contract version across rolling revisions. |
 | `Deprecation` | Legacy `/run-*` routes only | `true` | RFC 8594 deprecation signal for unversioned callers. |
-| `Link` | Legacy `/run-*` routes only | `</api/v1/run-...>; rel="successor-version"` | Points clients to the canonical `/api/v1` route. |
+| `Link` | Legacy `/run-*` routes only | `</api/v1/run-...>; rel="successor-version"` | Directs callers to the canonical `/api/v1` endpoint. |
 | `Access-Control-Expose-Headers` | CORS responses on main backends | `X-API-Version, Deprecation, Link` | Makes versioning headers readable to browser `fetch()` clients. |
 
 ---
 
-### 1.3 Flights Search Agent Service (`flights-search-app`)
+## 3. Primary Backend REST APIs (`/api/v1`)
 
-- **OpenAPI Spec**: [`flights_search_app/openapi.json`](../flights_search_app/openapi.json) (`openapi: 3.1.0`, `info.version: 1.0.0`)
-- **Pydantic Schemas**: [`flights_search_app/app/schema.py`](../flights_search_app/app/schema.py)
+### 3.1 Flights Search Service (`flights-search-app`)
+
+- **OpenAPI Snapshot:** [`flights_search_app/openapi.json`](../flights_search_app/openapi.json)
+- **Pydantic Schemas:** [`flights_search_app/app/schema.py`](../flights_search_app/app/schema.py)
 
 #### Endpoints
 
 | Method | Path | Operation ID | Status Codes | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/run-flights-search` | `run_flights_search_v1` | `200`, `422`, `500` | **Canonical**: Generates simulated round-trip flights matching search criteria. |
-| `POST` | `/run-flights-search` | `run_flights_search_legacy` | `200`, `422`, `500` | **Deprecated alias**: Identical behavior + RFC 8594 deprecation headers. |
+| `POST` | `/api/v1/run-flights-search` | `run_flights_search_v1` | `200`, `422`, `500` | **Canonical:** Generates 15 simulated round-trip itineraries matching search criteria. |
+| `POST` | `/run-flights-search` | `run_flights_search_legacy` | `200`, `422`, `500` | **Deprecated alias:** Identical behavior + RFC 8594 deprecation headers. |
 | `GET` | `/` | `root__get` | `200` | Service status banner (`RootInfoResponse`). |
 | `GET` | `/healthz` | `healthz_healthz_get` | `200` | Zero-I/O Cloud Run liveness probe (`LivenessResponse`). |
-| `GET` | `/readyz` | `readyz_readyz_get` | `200`, `503` | Startup/readiness validation of ADK `App`, models, and Vertex AI env vars. |
+| `GET` | `/readyz` | `readyz_readyz_get` | `200`, `503` | Startup/readiness check of ADK `App`, models, and Vertex AI env vars. |
 
 #### Request Schema: `FlightsSearchInput`
 
 > [!NOTE]
-> Numeric (`minimum`, `maximum`) and string length (`minLength`, `maxLength`) constraints are exported directly in [`flights_search_app/openapi.json`](../flights_search_app/openapi.json) via Pydantic `Field(...)` metadata, while `@field_validator` methods in [`schema.py`](../flights_search_app/app/schema.py) additionally trim whitespace and reject whitespace-only strings (`"   "`) with `HTTP 422`.
+> All string fields are trimmed by `@field_validator` in [`schema.py`](../flights_search_app/app/schema.py); whitespace-only strings (`"   "`) are rejected with `HTTP 422`. Unknown extra fields are safely ignored (`extra="ignore"`).
 
 | Field | Type | Required | OpenAPI Bounds | Default | Validation & Alias Rules |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `origin` | `string` | Yes | `minLength: 1`, `maxLength: 200` | — | Trimmed; rejects whitespace-only strings. |
-| `destination` | `string` | Yes | `minLength: 1`, `maxLength: 200` | — | Trimmed; rejects whitespace-only strings. |
-| `departure_date` | `string` | Yes | `minLength: 1`, `maxLength: 200` | — | `YYYY-MM-DD`; trimmed; rejects whitespace-only strings. |
-| `return_date` | `string` | Yes | `minLength: 1`, `maxLength: 200` | — | `YYYY-MM-DD`; trimmed; rejects whitespace-only strings. |
+| :--- | :--- | :---: | :--- | :--- | :--- |
+| `origin` | `string` | Yes | `minLength: 1`, `maxLength: 200` | — | Trimmed; rejects blank/whitespace-only strings. |
+| `destination` | `string` | Yes | `minLength: 1`, `maxLength: 200` | — | Trimmed; rejects blank/whitespace-only strings. |
+| `departure_date` | `string` | Yes | `minLength: 1`, `maxLength: 200` | — | `YYYY-MM-DD`; trimmed; rejects blank strings. |
+| `return_date` | `string` | Yes | `minLength: 1`, `maxLength: 200` | — | `YYYY-MM-DD`; trimmed; rejects blank strings. |
 | `passengers` | `integer` | Yes | `minimum: 1`, `maximum: 9` | — | Must satisfy `1 <= passengers <= 9`. |
-| `filters` | `Filters` | No | — | `{}` | Safe per-request empty `Filters()` default when omitted. |
-| `filters.direct` | `boolean \| null` | No | — | `null` | When `true`, restricts generation to direct (`0` stop) flights. |
-| `filters.max_price` | `integer \| null` | No | `minimum: 0` | `null` | Accepts shorthand alias **`price`** (`AliasChoices("max_price", "price")`). |
-| `filters.max_stops` | `integer \| null` | No | `minimum: 0` | `null` | Accepts shorthand alias **`stops`** (`AliasChoices("max_stops", "stops")`). |
+| `filters` | `Filters` | No | — | `{}` | Defaults to an empty `Filters()` object. |
+| `filters.direct` | `boolean \| null` | No | — | `null` | When `true`, restricts results to direct (`0`-stop) flights. |
+| `filters.max_price` | `integer \| null` | No | `minimum: 0` | `null` | Also accepts shorthand alias **`price`** (`AliasChoices("max_price", "price")`). |
+| `filters.max_stops` | `integer \| null` | No | `minimum: 0` | `null` | Also accepts shorthand alias **`stops`** (`AliasChoices("max_stops", "stops")`). |
 
-#### Response Schema: `FlightsSearchResponse`
+#### Response Schema: `FlightsSearchResponse` & `Flight`
 
-- `status`: `"success"`
-- `results`: **`Array`** of `FlightsSearchOutput` (`{"flights": [Flight, ...]}`) or `RawTextFallback` (`{"raw_text": "..."}`).
+`FlightsSearchResponse` returns `{"status": "success", "results": [{"flights": [Flight, ...]}]}` (or `[{"raw_text": "..."}]` on non-JSON fallback). Every `Flight` object contains **13 required fields** (100% identical across `flights-search-app` and `conversational-app`):
 
-Each `Flight` object contains **13 required fields** (100% wire-compatible with `conversational-app`):
-
-| Field | Type | OpenAPI Bounds | Example |
+| Field | Type | Bounds | Example |
 | :--- | :--- | :--- | :--- |
 | `origin` | `string` | — | `"Paris (CDG)"` |
 | `destination` | `string` | — | `"New York (JFK)"` |
@@ -156,16 +137,16 @@ Each `Flight` object contains **13 required fields** (100% wire-compatible with 
 | `arrival_time` | `string` | — | `"13:00"` |
 | `return_time` | `string` | — | `"17:30"` |
 | `return_arrival_time` | `string` | — | `"06:45 +1"` |
-| `price` | `string` | — | Currency-formatted string, e.g. `"520 EUR"` |
+| `price` | `string` | — | `"520 EUR"` |
 | `airline` | `string` | — | `"Air France"` |
 | `flight_number` | `string` | — | `"AF006"` |
 | `stops` | `integer` | `minimum: 0` | `0` |
-| `stopover_cities` | `string[]` | — | `[]` (direct) or `["London"]` |
+| `stopover_cities` | `string[]` | — | `[]` or `["London"]` |
 
 #### Example Request & Response (`POST /api/v1/run-flights-search`)
 
+**Request:**
 ```json
-// Request
 {
   "origin": "Paris",
   "destination": "New York",
@@ -180,8 +161,8 @@ Each `Flight` object contains **13 required fields** (100% wire-compatible with 
 }
 ```
 
+**Response (`HTTP 200 OK`, `X-API-Version: 1.0.0`):**
 ```json
-// Response (HTTP 200 OK, X-API-Version: 1.0.0)
 {
   "status": "success",
   "results": [
@@ -210,17 +191,17 @@ Each `Flight` object contains **13 required fields** (100% wire-compatible with 
 
 ---
 
-### 1.4 Conversational Agent Service (`conversational-app`)
+### 3.2 Conversational Workflow Service (`conversational-app`)
 
-- **OpenAPI Spec**: [`conversational_app/openapi.json`](../conversational_app/openapi.json) (`openapi: 3.1.0`, `info.version: 1.0.0`)
-- **Pydantic Schemas**: [`conversational_app/app/schema.py`](../conversational_app/app/schema.py)
+- **OpenAPI Snapshot:** [`conversational_app/openapi.json`](../conversational_app/openapi.json)
+- **Pydantic Schemas:** [`conversational_app/app/schema.py`](../conversational_app/app/schema.py)
 
 #### Endpoints
 
 | Method | Path | Operation ID | Status Codes | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/run-conversational` | `run_conversational_v1` | `200`, `422`, `500` | **Canonical**: Runs the stateful ADK v2 multi-agent workflow graph. |
-| `POST` | `/run-conversational` | `run_conversational_legacy` | `200`, `422`, `500` | **Deprecated alias**: Identical behavior + RFC 8594 deprecation headers. |
+| `POST` | `/api/v1/run-conversational` | `run_conversational_v1` | `200`, `422`, `500` | **Canonical:** Executes the 5-agent ADK v2 workflow graph. |
+| `POST` | `/run-conversational` | `run_conversational_legacy` | `200`, `422`, `500` | **Deprecated alias:** Identical behavior + RFC 8594 deprecation headers. |
 | `GET` | `/` | `root__get` | `200` | Service status banner (`RootInfoResponse`). |
 | `GET` | `/healthz` | `healthz_healthz_get` | `200` | Zero-I/O Cloud Run liveness probe (`LivenessResponse`). |
 | `GET` | `/readyz` | `readyz_readyz_get` | `200`, `503` | Validates ADK workflow graph, all 5 sub-agent model bindings, and Vertex AI env vars. |
@@ -228,265 +209,185 @@ Each `Flight` object contains **13 required fields** (100% wire-compatible with 
 #### Request Schema: `ConversationalInput`
 
 | Field | Type | Required | OpenAPI Bounds | Default | Validation Rules |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `user_message` | `string` | Yes | `minLength: 1`, `maxLength: 4000` | — | Rejects whitespace-only messages via `@field_validator`. |
-| `flights_search_input` | `FlightParams` | Yes | Strings `1..200`, `passengers` `1..9` | — | Current `origin`, `destination`, `departure_date`, `return_date`, and `passengers`. |
-| `conversational_history` | `string[]` | No | — | `[]` | Ordered prior turns formatted as `"role: message"` (e.g., `"bot: Hello..."`, `"user: direct only"`). |
-| `flights_input` | `Flight[]` | No | `stops >= 0` | `[]` | Currently loaded flight cards to filter. |
+| :--- | :--- | :---: | :--- | :--- | :--- |
+| `user_message` | `string` | Yes | `minLength: 1`, `maxLength: 4000` | — | Rejects blank or whitespace-only messages. |
+| `flights_search_input` | `FlightParams` | Yes | Strings `1..200`, `passengers` `1..9` | — | Active `origin`, `destination`, `departure_date`, `return_date`, and `passengers`. |
+| `conversational_history` | `string[]` | No | — | `[]` | Prior turns formatted as `"role: message"` (e.g., `"bot: Hello..."`, `"user: direct only"`). |
+| `flights_input` | `Flight[]` | No | `stops >= 0` | `[]` | Currently displayed flight itineraries to filter. |
 
 #### Response Schema: `ConversationalResponse` & `ConversationalOutput`
 
 > [!WARNING]
 > **Envelope Shape Difference (`results` Array vs. Object):**
-> - `flights-search-app` (and the 5 standalone sub-agent servers) return `results` as a **JSON Array**: `data.results[0].flights`.
+> - `flights-search-app` (and standalone sub-agent servers `:8002`–`:8006`) return `results` as a **JSON Array**: `data.results[0].flights`.
 > - `conversational-app` returns `results` as a **single JSON Object**: `data.results.agent_decision`.
-> - Because `response_model_exclude_none=True` is active on all routes, unused optional fields (`filter_type`, `filter_value`, `flights_output`, `flights_search_output`) are **omitted** from the JSON response rather than serialized as `null`.
+> - Because `response_model_exclude_none=True` is active on all routes, unused optional fields (`filter_type`, `filter_value`, `flights_output`, `flights_search_output`) are **omitted** rather than serialized as `null`.
 
-| Field in `results` | Type | Populated When `agent_decision` Is | Description |
+| Field in `results` | Type | Present When `agent_decision` Is | Description |
 | :--- | :--- | :--- | :--- |
 | `agent_response` | `string` | Always | Natural-language assistant reply to display in chat. |
-| `agent_decision` | `"continue" \| "filter" \| "filter_smart" \| "inspiration_agent"` | Always | Routing decision produced by `engage`. |
-| `filter_type` | `"direct" \| "max_price" \| "max_stops"` | `"filter"` | Hard numeric/boolean filter category. |
-| `filter_value` | `integer` | `"filter"` | Filter threshold (`1` for `direct`, price cap for `max_price`, max stops for `max_stops`). |
-| `flights_output` | `Flight[]` | `"filter_smart"` | Filtered subset of `flights_input` (grounded with Google Search when needed, e.g. Wi-Fi, aircraft, CO2). |
-| `flights_search_output` | `FlightParams` | `"inspiration_agent"` | New destination/date search parameters suggested by `inspiration`. |
+| `agent_decision` | `"continue" \| "filter" \| "filter_smart" \| "inspiration"` | Always | Routing decision selected by `engage`. |
+| `filter_type` | `"direct" \| "max_price" \| "max_stops"` | `"filter"` | Hard deterministic filter category. |
+| `filter_value` | `integer` | `"filter"` | Threshold (`1` for `direct`, price cap for `max_price`, max stops for `max_stops`). |
+| `flights_output` | `Flight[]` | `"filter_smart"` | Filtered subset of `flights_input` (grounded via `google_search` when amenities are queried). |
+| `flights_search_output` | `FlightParams` | `"inspiration"` | New destination/date search parameters proposed by `inspiration`. |
 
-#### Example Responses Across All 4 `agent_decision` Branches
+#### Example Responses for All 4 `agent_decision` Branches
 
-```json
-// 1. Continue conversation ("agent_decision": "continue")
-{
-  "status": "success",
-  "results": {
-    "agent_response": "I can filter your flights by price, stops, airlines, or amenities, or suggest new destinations!",
-    "agent_decision": "continue"
-  }
-}
+1. **Greeting / Clarification (`"continue"`):**
+   ```json
+   {
+     "status": "success",
+     "results": {
+       "agent_response": "I can filter your flights by price, stops, airlines, or cabin amenities, or suggest new destinations!",
+       "agent_decision": "continue"
+     }
+   }
+   ```
 
-// 2. Hard deterministic filter ("agent_decision": "filter")
-{
-  "status": "success",
-  "results": {
-    "agent_response": "I've filtered the results to show flights under 600 EUR.",
-    "agent_decision": "filter",
-    "filter_type": "max_price",
-    "filter_value": 600
-  }
-}
+2. **Hard Deterministic Filter (`"filter"`):**
+   ```json
+   {
+     "status": "success",
+     "results": {
+       "agent_response": "I've filtered the results to show flights under 600 EUR.",
+       "agent_decision": "filter",
+       "filter_type": "max_price",
+       "filter_value": 600
+     }
+   }
+   ```
 
-// 3. Smart semantic/grounded filter ("agent_decision": "filter_smart")
-{
-  "status": "success",
-  "results": {
-    "agent_response": "Here are the Air France flights with high-speed Wi-Fi.",
-    "agent_decision": "filter_smart",
-    "flights_output": [
-      {
-        "origin": "Paris (CDG)",
-        "destination": "New York (JFK)",
-        "departure_date": "2027-03-10",
-        "return_date": "2027-03-20",
-        "departure_time": "10:30",
-        "arrival_time": "13:00",
-        "return_time": "17:30",
-        "return_arrival_time": "06:45 +1",
-        "price": "520 EUR",
-        "airline": "Air France",
-        "flight_number": "AF006",
-        "stops": 0,
-        "stopover_cities": []
-      }
-    ]
-  }
-}
+3. **Smart Semantic / Grounded Filter (`"filter_smart"`):**
+   ```json
+   {
+     "status": "success",
+     "results": {
+       "agent_response": "Here are the Air France flights offering reliable high-speed Wi-Fi.",
+       "agent_decision": "filter_smart",
+       "flights_output": [
+         {
+           "origin": "Paris (CDG)",
+           "destination": "New York (JFK)",
+           "departure_date": "2027-03-10",
+           "return_date": "2027-03-20",
+           "departure_time": "10:30",
+           "arrival_time": "13:00",
+           "return_time": "17:30",
+           "return_arrival_time": "06:45 +1",
+           "price": "520 EUR",
+           "airline": "Air France",
+           "flight_number": "AF006",
+           "stops": 0,
+           "stopover_cities": []
+         }
+       ]
+     }
+   }
+   ```
 
-// 4. Travel inspiration & new search trigger ("agent_decision": "inspiration_agent")
-{
-  "status": "success",
-  "results": {
-    "agent_response": "Lisbon is warm and sunny in March! Searching flights from Paris to Lisbon.",
-    "agent_decision": "inspiration_agent",
-    "flights_search_output": {
-      "origin": "Paris",
-      "destination": "Lisbon",
-      "departure_date": "2027-03-10",
-      "return_date": "2027-03-20",
-      "passengers": 1
-    }
-  }
-}
-```
+4. **Travel Inspiration & New Search Trigger (`"inspiration"`):**
+   ```json
+   {
+     "status": "success",
+     "results": {
+       "agent_response": "Lisbon is warm and sunny in March! Searching flights from Paris to Lisbon.",
+       "agent_decision": "inspiration",
+       "flights_search_output": {
+         "origin": "Paris",
+         "destination": "Lisbon",
+         "departure_date": "2027-03-10",
+         "return_date": "2027-03-20",
+         "passengers": 1
+       }
+     }
+   }
+   ```
 
 ---
 
-### 1.5 Standalone Specialist Sub-Agent APIs (Local / Eval Microservices)
+## 4. Standalone Sub-Agent & Operational Endpoints
 
-In production, `conversational-app` executes all five specialist agents **in-process** via the ADK v2 `Workflow` graph in [`conversational_app/app/agent.py`](../conversational_app/app/agent.py). For isolated testing, debugging, or microservice experimentation, each sub-agent also exposes its own FastAPI app (configured in [`conversational_app/app/config.py`](../conversational_app/app/config.py)):
+### 4.1 Standalone Specialist Sub-Agent APIs (`:8002`–`:8006`)
 
-| Sub-Agent | Default URL | Canonical Route | Request Schema | Response `results` Item Schema | Notes |
+For local component isolation and sub-agent E2E testing, each specialist in [`conversational_app/app/sub_agents/`](../conversational_app/app/sub_agents/) exposes its own FastAPI app:
+
+| Sub-Agent | Default URL | Canonical Route | Request Schema | Response `results[0]` Schema | Tooling & Behavior |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Engage** | `127.0.0.1:8002` | `POST /api/v1/run-engage` | [`EngageInput`](../conversational_app/app/sub_agents/engage/schema.py) (`user_message`, `conversational_history?`) | [`EngageOutput`](../conversational_app/app/sub_agents/engage/schema.py) (`agent_response`, `agent_decision`) | Intent router (`continue`, `filter`, `filter_smart`, `inspiration_agent`). |
-| **Filter** | `127.0.0.1:8003` | `POST /api/v1/run-filter` | [`FilterInput`](../conversational_app/app/sub_agents/filter/schema.py) (`user_message`, `conversational_history?`) | [`FilterOutput`](../conversational_app/app/sub_agents/filter/schema.py) (`agent_response`, `filter_type`, `filter_value`) | Extracts `direct`, `max_price`, or `max_stops`. |
-| **Filter Smart** | `127.0.0.1:8004` | `POST /api/v1/run-filter-smart` | [`FilterSmartInput`](../conversational_app/app/sub_agents/filter_smart/schema.py) (`user_message`, `conversational_history?`, `flights_input?`) | [`FilterSmartOutput`](../conversational_app/app/sub_agents/filter_smart/schema.py) (`agent_response`, `flights_output`) | Uses `google_search` tool; standalone server calls `JSON_PARSER_BASE_URL/api/v1/run-json-parser` over HTTP on malformed JSON. |
-| **Inspiration** | `127.0.0.1:8005` | `POST /api/v1/run-inspiration` | [`InspirationInput`](../conversational_app/app/sub_agents/inspiration/schema.py) (`user_message`, `conversational_history?`, `flights_search_input`) | [`InspirationOutput`](../conversational_app/app/sub_agents/inspiration/schema.py) (`agent_response`, `flights_search_output`) | Uses `google_search` tool to propose destinations/dates. |
-| **JSON Parser** | `127.0.0.1:8006` | `POST /api/v1/run-json-parser` | [`JSONParserInput`](../conversational_app/app/sub_agents/json_parser/schema.py) (`agent_response`) | [`JSONParserOutput`](../conversational_app/app/sub_agents/json_parser/schema.py) (`agent_response`, `flights_output`) | Self-healing repair agent converting unparsed LLM text into `Flight[]`. |
+| **Engage** | `127.0.0.1:8002` | `POST /api/v1/run-engage` | [`EngageInput`](../conversational_app/app/sub_agents/engage/schema.py) (`user_message`, `conversational_history?`) | [`EngageOutput`](../conversational_app/app/sub_agents/engage/schema.py) (`agent_response`, `agent_decision`) | Constrained JSON schema (no external tools). |
+| **Filter** | `127.0.0.1:8003` | `POST /api/v1/run-filter` | [`FilterInput`](../conversational_app/app/sub_agents/filter/schema.py) (`user_message`, `conversational_history?`) | [`FilterOutput`](../conversational_app/app/sub_agents/filter/schema.py) (`agent_response`, `filter_type`, `filter_value`) | Constrained JSON schema (no external tools). |
+| **Filter Smart** | `127.0.0.1:8004` | `POST /api/v1/run-filter-smart` | [`FilterSmartInput`](../conversational_app/app/sub_agents/filter_smart/schema.py) (`user_message`, `conversational_history?`, `flights_input?`) | [`FilterSmartOutput`](../conversational_app/app/sub_agents/filter_smart/schema.py) (`agent_response`, `flights_output`) | **Equipped with `google_search` tool**; standalone server calls `JSON_PARSER_BASE_URL/api/v1/run-json-parser` over HTTP if JSON repair is needed. |
+| **Inspiration** | `127.0.0.1:8005` | `POST /api/v1/run-inspiration` | [`InspirationInput`](../conversational_app/app/sub_agents/inspiration/schema.py) (`user_message`, `conversational_history?`, `flights_search_input`) | [`InspirationOutput`](../conversational_app/app/sub_agents/inspiration/schema.py) (`agent_response`, `flights_search_output`) | Constrained `InspirationOutput` JSON schema (no external tools). |
+| **JSON Parser** | `127.0.0.1:8006` | `POST /api/v1/run-json-parser` | [`JSONParserInput`](../conversational_app/app/sub_agents/json_parser/schema.py) (`agent_response`) | [`JSONParserOutput`](../conversational_app/app/sub_agents/json_parser/schema.py) (`agent_response`, `flights_output`) | Constrained JSON repair agent (no external tools). |
 
-> [!NOTE]
-> Standalone sub-agent servers return `results` as a `List[...]` (`{"status": "success", "results": [...]}`), expose `/healthz`, `/readyz`, `/docs`, and `/openapi.json`, and do **not** attach `CORSMiddleware` by default (intended for server-to-server or CLI testing).
+### 4.2 Health, Readiness & Frontend Config Endpoints
 
----
-
-### 1.6 Health, Readiness & Frontend Operational Contracts
-
-Defined in [`conversational_app/app/app_utils/health.py`](../conversational_app/app/app_utils/health.py) and [`frontend/nginx.conf.template`](../frontend/nginx.conf.template):
-
-| Endpoint | HTTP Status | Schema / Payload | Behavior |
-| :--- | :--- | :--- | :--- |
-| `GET /healthz` (Backends) | `200 OK` | `{"status": "ok", "service": "<service-name>"}` | Zero-I/O liveness check (`LivenessResponse`). |
-| `GET /readyz` (Backends) | `200 OK` | `{"status": "ready", "service": "...", "models": {...}, "fallback_model": "gemini-3.6-flash"}` | Verifies ADK `App` initialization, non-empty model names, and `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` when `GOOGLE_GENAI_USE_VERTEXAI=1` (`ReadinessResponse`). Performs zero live LLM calls. |
-| `GET /readyz` (Backends) | `503 Service Unavailable` | `{"status": "not_ready", "service": "...", "errors": ["..."]}` | Blocks Cloud Run startup traffic until configuration errors are resolved (`UnreadyResponse`). |
-| `GET /healthz` (Frontend) | `200 OK` | `{"status": "ok", "service": "frontend"}` | Nginx liveness probe (`Cache-Control: no-store`). |
-| `GET /readyz` (Frontend) | `200` / `503` | `{"status": "ready", "service": "frontend"}` | Verifies `/usr/share/nginx/html/env-config.js` was generated at container startup. |
-| `GET /env-config.js` (Frontend) | `200 OK` | `window.__ENV__ = { ... };` | Uncached runtime backend URL injection for Cloud Run containers. |
+| Endpoint | Service | HTTP Status | Response Body | Purpose |
+| :--- | :--- | :---: | :--- | :--- |
+| `GET /healthz` | Backends | `200` | `{"status": "ok", "service": "<name>"}` | Zero-I/O Cloud Run liveness check (`LivenessResponse`). |
+| `GET /readyz` | Backends | `200` | `{"status": "ready", "service": "...", "models": {...}, "fallback_model": "gemini-3.6-flash"}` | Validates ADK `App`, model bindings, and Vertex AI env vars (`ReadinessResponse`). |
+| `GET /readyz` | Backends | `503` | `{"status": "not_ready", "service": "...", "errors": ["..."]}` | Blocks Cloud Run startup traffic when misconfigured (`UnreadyResponse`). |
+| `GET /healthz` | Frontend | `200` | `{"status": "ok", "service": "frontend"}` | Nginx liveness probe (`Cache-Control: no-store`). |
+| `GET /readyz` | Frontend | `200` / `503` | `{"status": "ready", "service": "frontend"}` | Verifies `/usr/share/nginx/html/env-config.js` exists on disk. |
+| `GET /env-config.js` | Frontend | `200` | `window.__ENV__ = { ... };` | Runtime Cloud Run primary & secondary backend URL injection. |
 
 ---
 
-## Part 2: Integration Guides
+## 5. Client Integration Guide
 
-### 2.1 Stateless Multi-Service Integration Workflow
+### 5.1 Stateless Multi-Service Integration Sequence
 
-Because neither backend persists session state across HTTP requests (each request creates an isolated `InMemorySessionService` keyed by a fresh UUID in [`conversational_app/app/main.py`](../conversational_app/app/main.py)), **the client owns the UI state** and passes context between the two services. Reference implementation: [`frontend/src/App.jsx`](../frontend/src/App.jsx) and [`frontend/src/ChatWidget.jsx`](../frontend/src/ChatWidget.jsx).
+Because neither backend persists user state across HTTP requests, **the client owns the active UI state** (`flights`, `searchParams`, and `messages`) and passes it into each conversational turn. Reference implementation: [`frontend/src/App.jsx`](../frontend/src/App.jsx) and [`frontend/src/ChatWidget.jsx`](../frontend/src/ChatWidget.jsx).
 
-```mermaid
-sequenceDiagram
-    participant U as User / Client State
-    participant FS as flights-search-app
-    participant CA as conversational-app
-
-    U->>FS: POST /api/v1/run-flights-search (FlightsSearchInput)
-    FS-->>U: 200 OK { results: [{ flights: Flight[] }] }
-    Note over U: Store flights[] + searchParams + messages[]
-
-    U->>CA: POST /api/v1/run-conversational<br/>(user_message, conversational_history, flights_input, flights_search_input)
-    CA-->>U: 200 OK { results: ConversationalOutput }
-
-    alt agent_decision == "continue"
-        Note over U: Append results.agent_response to chat
-    else agent_decision == "filter"
-        Note over U: Filter flights[] locally using filter_type & filter_value<br/>Sync searchParams & append agent_response
-    else agent_decision == "filter_smart"
-        Note over U: Replace flights[] with results.flights_output<br/>Append agent_response
-    else agent_decision == "inspiration_agent"
-        Note over U: Merge results.flights_search_output into searchParams<br/>Append agent_response
-        U->>FS: POST /api/v1/run-flights-search (updated searchParams)
-        FS-->>U: 200 OK { results: [{ flights: Flight[] }] }
-    end
-```
+![Stateless Multi-Service Integration Sequence](diagrams/stateless_integration_sequence.svg)
 
 #### Client Action Matrix for `ConversationalOutput`
 
 1. **`agent_decision === "continue"`**:
-   - Display `results.agent_response` in the chat transcript. Leave `flights` and `searchParams` unchanged.
+   - Append `results.agent_response` to chat. Keep `flights` and `searchParams` unchanged.
 2. **`agent_decision === "filter"`**:
-   - Display `results.agent_response`.
-   - Apply deterministic client-side filtering on `flights` using `results.filter_type` and `results.filter_value`:
-     - `"direct"`: Keep flights where `flight.stops === 0` (and set `searchParams.direct = true`).
-     - `"max_price"`: Parse currency string via `parseFlightPrice(flight.price)` and keep flights `<= results.filter_value` (set `searchParams.max_price`).
-     - `"max_stops"`: Keep flights where `flight.stops <= results.filter_value` (set `searchParams.max_stops`).
+   - Append `results.agent_response` to chat and filter `flights` locally using `results.filter_type` and `results.filter_value`:
+     - `"direct"` → keep `flight.stops === 0` (`searchParams.direct = true`)
+     - `"max_price"` → keep `parseFlightPrice(flight.price) <= results.filter_value` (`searchParams.max_price`)
+     - `"max_stops"` → keep `flight.stops <= results.filter_value` (`searchParams.max_stops`)
 3. **`agent_decision === "filter_smart"`**:
-   - Display `results.agent_response`.
-   - Replace the displayed flight list directly with `results.flights_output` (already filtered by Gemini + Google Search grounding).
-4. **`agent_decision === "inspiration_agent"`**:
-   - Display `results.agent_response`.
-   - Merge `results.flights_search_output` (`origin`, `destination`, `departure_date`, `return_date`, `passengers`) into `searchParams` and **immediately trigger a new `POST /api/v1/run-flights-search` call**.
+   - Append `results.agent_response` to chat and replace `flights` directly with `results.flights_output`.
+4. **`agent_decision === "inspiration"`**:
+   - Append `results.agent_response` to chat, merge `results.flights_search_output` into `searchParams`, and **immediately call `POST /api/v1/run-flights-search`** with the updated parameters.
 
-#### Formatting `conversational_history`
+### 5.2 Authentication, IAM & CORS
 
-Format each prior message in chronological order as `"<sender>: <message>"` before appending the current `user_message`:
-```json
-[
-  "bot: Hello! I can help you filter or find flights.",
-  "user: Show me flights under 600 EUR",
-  "bot: I've filtered the results to show flights under 600 EUR."
-]
-```
-
----
-
-### 2.2 Authentication, IAM & CORS
-
-#### 1. Local Development
-- **Client-to-Backend**: Unauthenticated HTTP (`http://127.0.0.1:8000` and `http://127.0.0.1:8001`).
-- **Backend-to-Gemini**: Keyless Application Default Credentials (`gcloud auth application-default login`) with `GOOGLE_GENAI_USE_VERTEXAI=1`, `GOOGLE_CLOUD_PROJECT`, and `GOOGLE_CLOUD_LOCATION` in `.env` (see [`conversational_app/.env.example`](../conversational_app/.env.example)).
-
-#### 2. Cloud Run Deployment Modes ([`deployment/terraform/cloud_run.tf`](../deployment/terraform/cloud_run.tf) & [`deployment/terraform/iam.tf`](../deployment/terraform/iam.tf))
-- **Public Demo Mode (`allow_public_access = true`)**: Cloud Run sets `invoker_iam_disabled = true`, allowing browsers and HTTP clients to call `https://*.a.run.app/api/v1/*` directly over TLS without an `Authorization` header.
-- **Private IAM Mode (`allow_public_access = false`)**: Callers must hold `roles/run.invoker` on the target Cloud Run service and attach a Google-signed **OIDC ID Token** whose `aud` (audience) matches the Cloud Run service base URL:
+- **Local Development:** Unauthenticated HTTP to `127.0.0.1:8000` and `127.0.0.1:8001`; backends authenticate to Vertex AI via keyless ADC (`gcloud auth application-default login`).
+- **Cloud Run Public Mode (`allow_public_access = true`):** `invoker_iam_disabled = true` allows direct HTTPS calls without an `Authorization` header.
+- **Cloud Run Private IAM Mode (`allow_public_access = false`):** Callers require `roles/run.invoker` and must pass a Google-signed OIDC ID token whose audience matches the Cloud Run service URL:
   ```bash
   TOKEN="$(gcloud auth print-identity-token --audiences=https://flights-search-app-xyz.a.run.app)"
   curl -H "Authorization: Bearer ${TOKEN}" ...
   ```
-- **Container Runtime Identities**: Backend containers run as `travel-agent-runtime` (`roles/aiplatform.user`, `roles/logging.logWriter`, `roles/cloudtrace.agent`); no API keys are passed in request headers or stored in containers.
+- **CORS:** Configured via comma-separated `ALLOWED_ORIGINS` (`*` locally; configurable via `allowed_origins` in Terraform `.tfvars`), exposing `X-API-Version`, `Deprecation`, and `Link`.
 
-#### 3. CORS Configuration
-- Controlled via comma-separated `ALLOWED_ORIGINS` env var (defaults to `*` locally; locked down via `var.allowed_origins` in Terraform).
-- Allows all methods/headers (`allow_credentials=True`) and exposes `X-API-Version`, `Deprecation`, and `Link`.
+### 5.3 Resilience, Failover & Error Handling
 
----
-
-### 2.3 Resilience, Failover & Error Handling
-
-The platform implements **three concentric resilience layers**:
-
-| Layer | Where Implemented | Trigger | Behavior |
-| :--- | :--- | :--- | :--- |
-| **1. Client Cross-Region Failover** | [`frontend/src/apiClient.js`](../frontend/src/apiClient.js) | Network `TypeError` (DNS/TLS/timeout) or `HTTP >= 500` from primary (`europe-west9`) | Retries once against warm secondary Cloud Run URL (`europe-west1`). **Never retries `4xx` errors.** |
-| **2. Server Cross-Model Failover** | [`flights_search_app/app/main.py`](../flights_search_app/app/main.py), [`conversational_app/app/main.py`](../conversational_app/app/main.py) | Unhandled exception after primary model (`gemini-3.5-flash-lite`) retries exhaust | Automatically re-runs isolated `fallback_app` bound to `FALLBACK_GEMINI_MODEL` (`gemini-3.6-flash`). |
-| **3. Per-Agent Vertex AI HTTP Retry** | [`flights_search_app/app/agent.py`](../flights_search_app/app/agent.py) & sub-agents | Vertex AI HTTP `408`, `429`, `500`, `502`, `503`, `504` | `HttpRetryOptions(attempts=5, initial_delay=5.0, max_delay=60.0, exp_base=2.0)`. |
-
-#### Handling Error & Fallback Responses
-
-| Scenario | HTTP Status | Response Body | Recommended Client Action |
-| :--- | :--- | :--- | :--- |
-| **Valid structured output** | `200 OK` | `{"status": "success", "results": ...}` | Process `FlightsSearchOutput` or `ConversationalOutput`. |
-| **Non-JSON upstream LLM text** | `200 OK` | `{"status": "success", "results": {"raw_text": "..."}}` (or `[{"raw_text": "..."}]`) | Check `'raw_text' in results`; display `raw_text` safely in chat or show retry prompt without crashing JSON consumers. |
-| **Schema / validator violation** | `422 Unprocessable Entity` | `{"detail": [{"loc": ["body", "passengers"], "msg": "...", "type": "..."}]}` | Surface field validation error to user. **Do not retry secondary region.** |
-| **Primary + backup LLM failure** | `500 Internal Server Error` | `{"detail": "Internal Server Error during request processing."}` | Fail over to secondary Cloud Run region if configured; otherwise show retry banner. |
-| **Service unready / misconfigured** | `503 Service Unavailable` | `{"status": "not_ready", "service": "...", "errors": [...]}` | Fail over to secondary Cloud Run region. |
-
-#### Forward-Compatible Schema Evolution Rules
-- **Tolerant Reader (`extra="ignore"`)**: All input models (`FlightsSearchInput`, `Filters`, `ConversationalInput`, `FlightParams`, `Flight`) silently ignore unknown fields so newer clients can roll out ahead of backends without `HTTP 422` errors.
-- **Cross-Service `Flight` Parity**: `Flight` in `flights_search_app` and `Flight` in `conversational_app` must remain 100% identical (enforced in CI unit tests).
+| Scenario | HTTP Status | Response Body | Recommended Client Handling |
+| :--- | :---: | :--- | :--- |
+| **Structured agent output** | `200` | `{"status": "success", "results": ...}` | Handle `FlightsSearchOutput` or `ConversationalOutput` per §5.1. |
+| **Plain-text LLM fallback** | `200` | `{"status": "success", "results": {"raw_text": "..."}}` (or `[{"raw_text": "..."}]`) | Check for `raw_text` before accessing `flights` / `agent_decision`; display safely or prompt retry. |
+| **Input validation failure** | `422` | `{"detail": [{"loc": [...], "msg": "...", "type": "..."}]}` | Surface validation message to user. **Never retry against secondary region.** |
+| **Primary + backup LLM failed** | `500` | `{"detail": "Internal Server Error during request processing."}` | Retry once against warm secondary Cloud Run URL (`europe-west1`) if configured. |
+| **Revision unready** | `503` | `{"status": "not_ready", "service": "...", "errors": [...]}` | Retry once against warm secondary Cloud Run URL (`europe-west1`). |
 
 ---
 
-## Part 3: SDK & Client Library Documentation
+## 6. SDK & Client Library Reference
 
-### 3.1 Frontend JavaScript Client SDK (`frontend/src/apiClient.js`)
+### 6.1 Frontend JavaScript SDK (`frontend/src/apiClient.js`)
 
-Zero-dependency ES module at [`frontend/src/apiClient.js`](../frontend/src/apiClient.js) used by the React frontend and unit-tested via Node's built-in test runner (`npm test` -> [`frontend/src/apiClient.test.js`](../frontend/src/apiClient.test.js)).
+Zero-dependency ES module at [`frontend/src/apiClient.js`](../frontend/src/apiClient.js) (unit-tested in [`frontend/src/apiClient.test.js`](../frontend/src/apiClient.test.js)):
 
-#### Exports Reference
-
-1. **`API_V1_PREFIX`** (`string`)
-   - Constant value `'/api/v1'`.
-
-2. **`resolveBackendUrl(envKey, defaultUrl = '')`** -> `string`
-   - Resolves backend base URLs using 3-tier precedence and strips trailing slashes:
-     1. Cloud Run runtime container config (`window.__ENV__[envKey]` from `/env-config.js`)
-     2. Vite build-time env (`import.meta.env[envKey]`)
-     3. `defaultUrl` fallback (e.g., `'http://127.0.0.1:8000'`)
-
-3. **`postWithRegionalFailover({ primaryUrl, fallbackUrl = '', path, payload, fetchImpl = fetch })`** -> `Promise<Response>`
-   - Sends `POST` with `Content-Type: application/json` and `JSON.stringify(payload)` to `${primaryUrl}/${path}`.
-   - Automatically retries **once** against `${fallbackUrl}/${path}` when `fallbackUrl` is non-empty, distinct from `primaryUrl`, and the primary call either throws a network error (`TypeError`) or returns `response.status >= 500`.
-   - Returns `4xx` responses (e.g., `422`) immediately without retrying.
-
-4. **`parseFlightPrice(priceStr)`** -> `number`
-   - Extracts non-negative numeric values from multi-currency strings (`"520 EUR"` -> `520`, `"£1,250.50"` -> `1250.5`, `"$610"` -> `610`).
-   - Returns `Number.NaN` for negative values, empty strings, `"N/A"`, `null`, or `undefined`.
-
-#### Usage Example
+- **`API_V1_PREFIX`** (`'/api/v1'`) — Canonical route prefix constant.
+- **`resolveBackendUrl(envKey, defaultUrl = '')`** — Resolves base URLs using 3-tier precedence (`window.__ENV__[envKey]` → `import.meta.env[envKey]` → `defaultUrl`) and strips trailing slashes.
+- **`postWithRegionalFailover({ primaryUrl, fallbackUrl = '', path, payload, fetchImpl = fetch })`** — Sends `POST` JSON to `primaryUrl` and retries **once** against `fallbackUrl` on network `TypeError` or `HTTP >= 500` (returns `4xx` responses immediately).
+- **`parseFlightPrice(priceStr)`** — Extracts non-negative numbers from multi-currency strings (`"520 EUR"` → `520`, `"£1,250.50"` → `1250.5`), or `Number.NaN` if invalid.
 
 ```javascript
 import {
@@ -519,28 +420,22 @@ const under900 = (data.results?.[0]?.flights ?? []).filter(
 );
 ```
 
----
+### 6.2 Python In-Process Agent & Google ADK v2 SDK
 
-### 3.2 Python In-Process Agent & Google ADK v2 SDK
+Both backend apps can be imported and executed directly in Python (for batch jobs, notebooks, or GEAP evaluation) without starting Uvicorn:
 
-For evaluation pipelines, batch jobs, notebooks, or custom Python backends, both applications can be imported and executed **in-process** as Python SDK packages without starting Uvicorn or making HTTP calls.
-
-#### Core Python Symbols & Factories
-
-| Module | Symbol | Signature / Purpose |
+| Module | Exported Symbol(s) | Purpose |
 | :--- | :--- | :--- |
-| [`flights_search_app/app/main.py`](../flights_search_app/app/main.py) | `execute_agent_run` | `async (user_input: FlightsSearchInput) -> List[Dict[str, Any]]` — Runs flight search with automatic primary -> backup Gemini failover. |
-| [`flights_search_app/app/agent.py`](../flights_search_app/app/agent.py) | `build_flights_search_agent`, `build_flights_search_app` | Factory functions returning an ADK `Agent` or `App` bound to any Gemini model ID. |
-| [`conversational_app/app/main.py`](../conversational_app/app/main.py) | `execute_agent_run` | `async (user_input: ConversationalInput) -> Dict[str, Any]` — Runs the full ADK v2 multi-agent workflow with automatic backup model failover. |
-| [`conversational_app/app/agent.py`](../conversational_app/app/agent.py) | `build_conversational_workflow`, `build_conversational_app` | Builds isolated ADK v2 `Workflow` graphs or `App` containers with custom per-sub-agent models or mock agents. |
-| [`conversational_app/app/sub_agents/`](../conversational_app/app/sub_agents/) | `build_<name>_agent(model_name)` | Individual agent factories: `build_engage_agent`, `build_filter_agent`, `build_filter_smart_agent`, `build_inspiration_agent`, `build_json_parser_agent`. |
-| [`conversational_app/app/app_utils/telemetry_plugin.py`](../conversational_app/app/app_utils/telemetry_plugin.py) | `ExecutionTelemetryPlugin`, `build_plugins` | Invocation-isolated ADK `BasePlugin` logging per-agent latency, prompt/candidate token counts, and Google Search grounding queries. |
-
-#### Example 1: High-Level Async Python Execution (With Automatic Model Failover)
+| [`flights_search_app/app/main.py`](../flights_search_app/app/main.py) | `execute_agent_run(user_input)` | Async flight search runner with automatic primary → backup Gemini failover. |
+| [`flights_search_app/app/agent.py`](../flights_search_app/app/agent.py) | `build_flights_search_agent`, `build_flights_search_app` | Factories building an ADK `Agent` or `App` bound to any Gemini model ID. |
+| [`conversational_app/app/main.py`](../conversational_app/app/main.py) | `execute_agent_run(user_input)` | Async 5-agent workflow runner with automatic backup model failover. |
+| [`conversational_app/app/agent.py`](../conversational_app/app/agent.py) | `build_conversational_workflow`, `build_conversational_app` | Builds isolated ADK v2 `Workflow` graphs or `App` containers with per-sub-agent models or mocks. |
+| [`conversational_app/app/sub_agents/`](../conversational_app/app/sub_agents/) | `build_<name>_agent(model_name)` | Specialist factories (`engage`, `filter`, `filter_smart`, `inspiration`, `json_parser`). |
+| [`conversational_app/app/app_utils/telemetry_plugin.py`](../conversational_app/app/app_utils/telemetry_plugin.py) | `ExecutionTelemetryPlugin`, `build_plugins` | Invocation-isolated ADK `BasePlugin` logging latency, tokens, and Google Search queries. |
 
 ```python
 import asyncio
-# Run with PYTHONPATH=conversational_app (or flights_search_app)
+# Run with PYTHONPATH=conversational_app
 from app.main import execute_agent_run
 from app.schema import ConversationalInput, FlightParams
 
@@ -567,66 +462,9 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-#### Example 2: Custom ADK v2 `Runner` & `App` Composition
+### 6.3 External HTTP Clients, `curl` & OpenAPI Code Generation
 
-```python
-import asyncio
-from uuid import uuid4
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-
-from app.agent import APP_NAME, build_conversational_app
-from app.schema import ConversationalInput, FlightParams
-
-
-async def run_custom_models() -> None:
-    custom_app = build_conversational_app(
-        engage_model="gemini-3.5-flash-lite",
-        filter_model="gemini-3.5-flash-lite",
-        filter_smart_model="gemini-3.6-flash",
-        inspiration_model="gemini-3.6-flash",
-        json_parser_model="gemini-3.5-flash-lite",
-    )
-
-    session_service = InMemorySessionService()
-    user_id, session_id = str(uuid4()), str(uuid4())
-
-    initial_state = ConversationalInput(
-        user_message="Only direct flights under 700 EUR",
-        flights_search_input=FlightParams(
-            origin="Paris",
-            destination="New York",
-            departure_date="2027-03-10",
-            return_date="2027-03-20",
-            passengers=1,
-        ),
-    ).model_dump()
-
-    await session_service.create_session(
-        app_name=APP_NAME,
-        user_id=user_id,
-        session_id=session_id,
-        state=initial_state,
-    )
-
-    runner = Runner(app=custom_app, app_name=APP_NAME, session_service=session_service)
-    events = await runner.run_debug(
-        "Follow the system instructions.",
-        user_id=user_id,
-        session_id=session_id,
-        quiet=True,
-    )
-    print(events[-1].content.parts[-1].text)
-
-
-asyncio.run(run_custom_models())
-```
-
----
-
-### 3.3 External HTTP Client Examples & OpenAPI Code Generation
-
-#### Python Async HTTP Client (`httpx` + Regional Failover + Optional Cloud Run IAM Auth)
+#### Python Async HTTP Client (`httpx` + Regional Failover)
 
 ```python
 from typing import Any, Dict, Optional
@@ -671,30 +509,21 @@ class TravelAgentClient:
 
     async def search_flights(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         return await self._post_with_failover(
-            self.flights_url,
-            self.flights_fallback_url,
-            "/api/v1/run-flights-search",
-            payload,
+            self.flights_url, self.flights_fallback_url, "/api/v1/run-flights-search", payload
         )
 
     async def run_conversational(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         return await self._post_with_failover(
-            self.conversational_url,
-            self.conversational_fallback_url,
-            "/api/v1/run-conversational",
-            payload,
+            self.conversational_url, self.conversational_fallback_url, "/api/v1/run-conversational", payload
         )
 ```
-
-> [!TIP]
-> For private Cloud Run services (`allow_public_access = false`), mint `bearer_token` in Python via `google.oauth2.id_token.fetch_id_token(google.auth.transport.requests.Request(), target_audience=service_url)`.
 
 #### CLI Quick Reference (`curl`)
 
 ```bash
 # 1. Readiness probes
-curl -s http://127.0.0.1:8000/readyz | jq
-curl -s http://127.0.0.1:8001/readyz | jq
+curl -fsS http://127.0.0.1:8000/readyz | python3 -m json.tool
+curl -fsS http://127.0.0.1:8001/readyz | python3 -m json.tool
 
 # 2. Search flights (v1)
 curl -i -X POST http://127.0.0.1:8000/api/v1/run-flights-search \
@@ -725,12 +554,10 @@ curl -i -X POST http://127.0.0.1:8001/api/v1/run-conversational \
   }'
 ```
 
-#### Generating Strongly-Typed SDKs from the OpenAPI 3.1 Snapshots
-
-Because both [`flights_search_app/openapi.json`](../flights_search_app/openapi.json) and [`conversational_app/openapi.json`](../conversational_app/openapi.json) are deterministic OpenAPI `3.1.0` specifications with explicit `operationId`s (`run_flights_search_v1`, `run_conversational_v1`) and field validation bounds (`minimum`, `maximum`, `minLength`, `maxLength`), you can generate typed client SDKs directly:
+#### Generating Typed Client SDKs from OpenAPI 3.1 Snapshots
 
 ```bash
-# TypeScript types & fetch client (openapi-typescript)
+# TypeScript types (openapi-typescript)
 npx openapi-typescript flights_search_app/openapi.json -o sdk/ts/flights-search.d.ts
 npx openapi-typescript conversational_app/openapi.json -o sdk/ts/conversational.d.ts
 
@@ -738,3 +565,14 @@ npx openapi-typescript conversational_app/openapi.json -o sdk/ts/conversational.
 uvx openapi-python-client generate --path flights_search_app/openapi.json --output-path sdk/python/flights_client
 uvx openapi-python-client generate --path conversational_app/openapi.json --output-path sdk/python/conversational_client
 ```
+
+---
+
+## 7. Related Documentation & Next Steps
+
+| If You Want To... | Go To |
+| :--- | :--- |
+| **Boot `:8000`, `:8001`, and `:5173` locally to test these APIs** | [Engineer & Operator Onboarding Guide (`onboarding_guide.md`)](onboarding_guide.md) |
+| **Update a Pydantic schema & regenerate `openapi.json`** | [Runbook `RB-08` (`runbooks.md`)](runbooks.md#rb-08-intentional-api-schema-change--openapi-31-snapshot-regeneration) |
+| **Diagnose `HTTP 422`, `503`, or CORS errors** | [Symptom-Driven Troubleshooting Guide (`troubleshooting_guide.md`)](troubleshooting_guide.md) |
+| **Deploy API or schema updates to Cloud Run** | [Deployment & Release Management Guide (`deployment_guide.md`)](deployment_guide.md) |

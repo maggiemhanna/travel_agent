@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 535" width="960" height="535" role="img" aria-label="Stateless Multi-Service Client Integration Sequence">
+  <defs>
+    <marker id="seq-solid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb"/>
+    </marker>
+    <marker id="seq-return" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669"/>
+    </marker>
+    <marker id="seq-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <!-- Outer Card -->
+  <rect x="2" y="2" width="956" height="531" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- Title -->
+  <text x="480" y="30" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#0f172a">
+    Stateless Multi-Service Integration Sequence (Client-Owned State Pattern)
+  </text>
+
+  <!-- Participant Headers -->
+  <rect x="65" y="48" width="210" height="48" rx="8" fill="#0f172a"/>
+  <text x="170" y="70" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">
+    Browser / Client State
+  </text>
+  <text x="170" y="86" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#cbd5e1">
+    App.jsx + ChatWidget.jsx
+  </text>
+
+  <rect x="395" y="48" width="210" height="48" rx="8" fill="#1d4ed8"/>
+  <text x="500" y="70" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">
+    flights-search-app
+  </text>
+  <text x="500" y="86" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#dbeafe">
+    Local :8000 | Cloud Run :8080
+  </text>
+
+  <rect x="705" y="48" width="210" height="48" rx="8" fill="#0f766e"/>
+  <text x="810" y="70" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">
+    conversational-app
+  </text>
+  <text x="810" y="86" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#ccfbf1">
+    Local :8001 | Cloud Run :8080
+  </text>
+
+  <!-- Lifelines -->
+  <line x1="170" y1="96" x2="170" y2="515" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <line x1="500" y1="96" x2="500" y2="515" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <line x1="810" y1="96" x2="810" y2="515" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4"/>
+
+  <!-- Step 1: Initial Flight Search -->
+  <line x1="170" y1="126" x2="494" y2="126" stroke="#2563eb" stroke-width="2" marker-end="url(#seq-solid)"/>
+  <text x="335" y="119" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#1e40af">
+    1. POST /api/v1/run-flights-search (FlightsSearchInput)
+  </text>
+
+  <line x1="500" y1="158" x2="176" y2="158" stroke="#059669" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#seq-return)"/>
+  <text x="335" y="151" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#065f46">
+    200 OK — results: [{ flights: Flight[] }] (Array envelope)
+  </text>
+
+  <!-- State Note -->
+  <rect x="48" y="172" width="244" height="32" rx="6" fill="#fefce8" stroke="#eab308" stroke-width="1.2"/>
+  <text x="170" y="192" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" font-weight="600" fill="#854d0e">
+    Store flights[] + searchParams + history[]
+  </text>
+
+  <!-- Step 2: Conversational Turn -->
+  <line x1="170" y1="230" x2="804" y2="230" stroke="#2563eb" stroke-width="2" marker-end="url(#seq-solid)"/>
+  <text x="490" y="222" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#1e40af">
+    2. POST /api/v1/run-conversational (user_message, history, flights_input, searchParams)
+  </text>
+
+  <line x1="810" y1="264" x2="176" y2="264" stroke="#059669" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#seq-return)"/>
+  <text x="490" y="256" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#065f46">
+    200 OK — results: ConversationalOutput (Object envelope)
+  </text>
+
+  <!-- Decision Handling Frame -->
+  <rect x="36" y="286" width="888" height="226" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="36" y="286" width="220" height="24" rx="6" fill="#334155"/>
+  <text x="146" y="302" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#ffffff">
+    alt [results.agent_decision]
+  </text>
+
+  <!-- Case 1: continue -->
+  <text x="54" y="328" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#059669">
+    • "continue":
+  </text>
+  <text x="180" y="328" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Append agent_response to chat transcript; keep flights[] &amp; searchParams unchanged.
+  </text>
+  <line x1="48" y1="340" x2="912" y2="340" stroke="#e2e8f0" stroke-width="1.2"/>
+
+  <!-- Case 2: filter -->
+  <text x="54" y="362" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#1d4ed8">
+    • "filter":
+  </text>
+  <text x="180" y="362" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Filter flights[] locally using filter_type &amp; filter_value; sync top-bar controls; append agent_response.
+  </text>
+  <line x1="48" y1="374" x2="912" y2="374" stroke="#e2e8f0" stroke-width="1.2"/>
+
+  <!-- Case 3: filter_smart -->
+  <text x="54" y="396" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#0f766e">
+    • "filter_smart":
+  </text>
+  <text x="180" y="396" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Replace flights[] directly with Google Search-grounded flights_output; append agent_response.
+  </text>
+  <line x1="48" y1="408" x2="912" y2="408" stroke="#e2e8f0" stroke-width="1.2"/>
+
+  <!-- Case 4: inspiration -->
+  <text x="54" y="430" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#6d28d9">
+    • "inspiration":
+  </text>
+  <text x="180" y="430" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Merge flights_search_output into searchParams, append agent_response, and trigger fresh search:
+  </text>
+
+  <!-- Step 3: Auto Re-Search -->
+  <line x1="170" y1="470" x2="494" y2="470" stroke="#7c3aed" stroke-width="2" marker-end="url(#seq-purple)"/>
+  <text x="335" y="458" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#5b21b6">
+    3. POST /api/v1/run-flights-search (updated origin / destination / dates)
+  </text>
+
+  <line x1="500" y1="502" x2="176" y2="502" stroke="#059669" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#seq-return)"/>
+  <text x="335" y="490" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#065f46">
+    200 OK — Fresh Flight[15] rendered in dashboard
+  </text>
+</svg>

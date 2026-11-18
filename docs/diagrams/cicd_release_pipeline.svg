@@ -1,0 +1,247 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 435" width="980" height="435" role="img" aria-label="CI/CD Release Promotion Architecture and 5-Stage Cloud Build Pipeline">
+  <defs>
+    <marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#334155"/>
+    </marker>
+    <marker id="cd-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <!-- Outer Card -->
+  <rect x="2" y="2" width="976" height="431" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- Section A Title -->
+  <text x="490" y="30" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#0f172a">
+    Environment Promotion Architecture (dev -&gt; staging -&gt; prod)
+  </text>
+
+  <!-- PR / Feature Branch -->
+  <rect x="24" y="54" width="140" height="84" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.6"/>
+  <text x="94" y="79" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0f172a">
+    Feature PR
+  </text>
+  <text x="94" y="97" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#475569">
+    pr_checks.yaml
+  </text>
+  <text x="94" y="114" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" fill="#64748b">
+    Unit + OpenAPI + TF
+  </text>
+
+  <line x1="164" y1="96" x2="196" y2="96" stroke="#334155" stroke-width="1.8" marker-end="url(#cd-arrow)"/>
+
+  <!-- Dev Project -->
+  <rect x="200" y="54" width="184" height="84" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.6"/>
+  <text x="292" y="77" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#1d4ed8">
+    dev (Sandbox)
+  </text>
+  <text x="292" y="95" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    travel-agent-511710
+  </text>
+  <text x="292" y="112" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" fill="#64748b">
+    europe-west9 (min=0, max=5)
+  </text>
+  <text x="292" y="127" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" fill="#2563eb">
+    deploy.sh dev
+  </text>
+
+  <line x1="384" y1="96" x2="424" y2="96" stroke="#334155" stroke-width="1.8" marker-end="url(#cd-arrow)"/>
+  <text x="404" y="87" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" font-weight="600" fill="#475569">
+    main
+  </text>
+
+  <!-- Staging Project -->
+  <rect x="428" y="54" width="194" height="84" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.6"/>
+  <text x="525" y="77" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#0f766e">
+    staging (Pre-Prod)
+  </text>
+  <text x="525" y="95" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    travel-agent-staging-512211
+  </text>
+  <text x="525" y="112" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" fill="#64748b">
+    europe-west9 (min=0, max=10)
+  </text>
+  <text x="525" y="127" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" fill="#0f766e">
+    Auto on merge to main
+  </text>
+
+  <line x1="622" y1="96" x2="656" y2="96" stroke="#334155" stroke-width="1.8" marker-end="url(#cd-arrow)"/>
+
+  <!-- Approval Gate -->
+  <rect x="660" y="62" width="102" height="68" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+  <text x="711" y="84" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#b45309">
+    Tag vX.Y.Z
+  </text>
+  <text x="711" y="101" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10" fill="#92400e">
+    Manual Cloud
+  </text>
+  <text x="711" y="115" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10" fill="#92400e">
+    Build Approval
+  </text>
+
+  <line x1="762" y1="96" x2="792" y2="96" stroke="#334155" stroke-width="1.8" marker-end="url(#cd-arrow)"/>
+
+  <!-- Prod Project -->
+  <rect x="796" y="48" width="160" height="96" rx="10" fill="#0f172a" stroke="#0f172a" stroke-width="1.8"/>
+  <text x="876" y="70" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">
+    prod (Dual-Region)
+  </text>
+  <text x="876" y="88" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" fill="#cbd5e1">
+    travel-agent-prod-512211
+  </text>
+  <text x="876" y="105" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" fill="#38bdf8">
+    Paris: min=2..20
+  </text>
+  <text x="876" y="121" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" fill="#5eead4">
+    Belgium: min=1..20 (warm)
+  </text>
+  <text x="876" y="136" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.2" fill="#fbbf24">
+    deletion_protection = true
+  </text>
+
+  <!-- Divider -->
+  <line x1="28" y1="168" x2="952" y2="168" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="6 4"/>
+
+  <!-- Section B Title -->
+  <text x="490" y="196" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#0f172a">
+    Inside Every 5-Stage CD Pipeline (dev.yaml · staging.yaml · prod.yaml — SA: travel-agent-cicd)
+  </text>
+
+  <!-- Stage 1 -->
+  <rect x="24" y="218" width="170" height="176" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6"/>
+  <rect x="24" y="218" width="170" height="28" rx="8" fill="#334155"/>
+  <text x="109" y="237" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#ffffff">
+    Stage 1: CI Safety Gate
+  </text>
+  <text x="109" y="268" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#0f172a">
+    ci-unit-tests
+  </text>
+  <text x="109" y="290" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#475569">
+    python:3.11-slim
+  </text>
+  <text x="109" y="314" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • Unit &amp; fault tests
+  </text>
+  <text x="109" y="332" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • OpenAPI 3.1 drift gate
+  </text>
+  <text x="109" y="350" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • Schema parity check
+  </text>
+  <text x="109" y="376" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" font-weight="600" fill="#dc2626">
+    Halts pipeline on fail
+  </text>
+
+  <line x1="194" y1="306" x2="214" y2="306" stroke="#2563eb" stroke-width="2" marker-end="url(#cd-arrow-blue)"/>
+
+  <!-- Stage 2 -->
+  <rect x="218" y="218" width="170" height="176" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6"/>
+  <rect x="218" y="218" width="170" height="28" rx="8" fill="#1d4ed8"/>
+  <text x="303" y="237" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#ffffff">
+    Stage 2: TF Bootstrap
+  </text>
+  <text x="303" y="268" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#0f172a">
+    terraform-bootstrap-*
+  </text>
+  <text x="303" y="290" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#475569">
+    terraform:1.9.8
+  </text>
+  <text x="303" y="314" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • Targeted apply:
+  </text>
+  <text x="303" y="332" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • GCP APIs (apis.tf)
+  </text>
+  <text x="303" y="350" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • Artifact Registry
+  </text>
+  <text x="303" y="368" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • Runtime SAs &amp; IAM
+  </text>
+
+  <line x1="388" y1="306" x2="408" y2="306" stroke="#2563eb" stroke-width="2" marker-end="url(#cd-arrow-blue)"/>
+
+  <!-- Stage 3 -->
+  <rect x="412" y="218" width="170" height="176" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6"/>
+  <rect x="412" y="218" width="170" height="28" rx="8" fill="#0f766e"/>
+  <text x="497" y="237" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#ffffff">
+    Stage 3: Parallel Build
+  </text>
+  <text x="497" y="268" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#0f172a">
+    3x build-push-*
+  </text>
+  <text x="497" y="290" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#475569">
+    cloud-builders/docker
+  </text>
+  <text x="497" y="314" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • flights-search-app
+  </text>
+  <text x="497" y="332" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • conversational-app
+  </text>
+  <text x="497" y="350" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • frontend (npm test)
+  </text>
+  <text x="497" y="376" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" font-weight="600" fill="#0f766e">
+    Pushes :TAG + :latest
+  </text>
+
+  <line x1="582" y1="306" x2="602" y2="306" stroke="#2563eb" stroke-width="2" marker-end="url(#cd-arrow-blue)"/>
+
+  <!-- Stage 4 -->
+  <rect x="606" y="218" width="170" height="176" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6"/>
+  <rect x="606" y="218" width="170" height="28" rx="8" fill="#1d4ed8"/>
+  <text x="691" y="237" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#ffffff">
+    Stage 4: TF Full Deploy
+  </text>
+  <text x="691" y="268" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#0f172a">
+    terraform-deploy-*
+  </text>
+  <text x="691" y="290" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#475569">
+    terraform:1.9.8
+  </text>
+  <text x="691" y="314" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • Deploys Cloud Run v2
+  </text>
+  <text x="691" y="332" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • Injects live backend
+  </text>
+  <text x="691" y="350" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+      URIs into frontend
+  </text>
+  <text x="691" y="376" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" font-weight="600" fill="#1d4ed8">
+    State: travel-agent/ENV
+  </text>
+
+  <line x1="776" y1="306" x2="796" y2="306" stroke="#2563eb" stroke-width="2" marker-end="url(#cd-arrow-blue)"/>
+
+  <!-- Stage 5 -->
+  <rect x="800" y="218" width="156" height="176" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6"/>
+  <rect x="800" y="218" width="156" height="28" rx="8" fill="#059669"/>
+  <text x="878" y="237" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#ffffff">
+    Stage 5: Smoke Gate
+  </text>
+  <text x="878" y="268" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#0f172a">
+    smoke-test-*
+  </text>
+  <text x="878" y="290" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#475569">
+    cloud-builders/curl
+  </text>
+  <text x="878" y="314" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • /healthz == 200
+  </text>
+  <text x="878" y="332" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • /readyz == 200
+  </text>
+  <text x="878" y="350" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.2" fill="#334155">
+    • /env-config.js URLs
+  </text>
+  <text x="878" y="376" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.8" font-weight="600" fill="#059669">
+    Verified Release
+  </text>
+
+  <!-- Footer -->
+  <text x="490" y="418" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    Zero local Docker or Terraform needed — all stages run remotely inside Cloud Build via ./deployment/deploy.sh &lt;env&gt;
+  </text>
+</svg>

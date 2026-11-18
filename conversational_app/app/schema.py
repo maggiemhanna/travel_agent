@@ -95,7 +95,7 @@ class ConversationalOutput(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     agent_response: str = Field(..., description="The response from the agent.")
-    agent_decision: Literal["filter", "filter_smart", "inspiration_agent", "continue"] = Field(
+    agent_decision: Literal["filter", "filter_smart", "inspiration", "continue"] = Field(
         ..., description="The decision of the agent."
     )
     filter_type: Optional[Literal["direct", "max_price", "max_stops"]] = Field(
@@ -112,7 +112,7 @@ class ConversationalState(ConversationalInput, ConversationalOutput):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     agent_response: Optional[str] = Field(None, description="The response from the agent.")
-    agent_decision: Optional[Literal["filter", "filter_smart", "inspiration_agent", "continue"]] = Field(
+    agent_decision: Optional[Literal["filter", "filter_smart", "inspiration", "continue"]] = Field(
         None, description="The decision of the agent."
     )
 

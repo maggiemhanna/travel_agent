@@ -1,26 +1,50 @@
 # Travel Agent Platform — Production Operational Runbooks
 
-| Metadata | Value |
+Copy-pasteable Standard Operating Procedures (`RB-01` through `RB-09`) for incident response, regional disaster recovery, emergency model/capacity overrides, Terraform state recovery, OpenAPI contract updates, and AI quality regressions.
+
+| Field | Details |
 | :--- | :--- |
 | **Document ID** | `OPS-RB-001` |
-| **Related Docs** | [Operational Hub](operational_documentation.md) · [Deployment Guide](deployment_guide.md) · [Onboarding](onboarding_guide.md) · [Troubleshooting](troubleshooting_guide.md) · [API Docs](api_documentation.md) |
-| **Design Standard** | Every runbook follows a uniform 5-step incident structure: **Impact → Preconditions → Execution → Verification → Follow-Up / Escalation**. Commands are copy-pasteable with explicit environment variables. |
+| **Target Audience** | On-Call Responders, SRE / Platform Engineers, Release Managers, AI Engineers |
+| **Scope** | Step-by-step execution playbooks (`RB-01`–`RB-09`) with preconditions, objective verification, and Terraform convergence |
+| **Design Standard** | Every runbook follows an identical **5-step lifecycle**: **Impact & Context → Preconditions → Step-by-Step Execution → Verification Criteria → Follow-Up & Escalation** |
+| **Documentation Suite** | [Operational Hub](operational_documentation.md) · [Onboarding](onboarding_guide.md) · [API & SDK](api_documentation.md) · [Deployment](deployment_guide.md) · **Runbooks (Current)** · [Troubleshooting](troubleshooting_guide.md) · [Root README](../README.md) |
 
 ---
 
-## Runbook Index
+## Table of Contents
+
+1. [Runbook Lifecycle & Quick Index](#1-runbook-lifecycle--quick-index)
+2. [`RB-01`: Production Service Outage / Elevated `5xx` — Triage & Immutable Rollback](#rb-01-production-service-outage--elevated-5xx--triage--immutable-rollback)
+3. [`RB-02`: Primary Region (`europe-west9`) Outage — Multi-Region Failover & Recovery](#rb-02-primary-region-europe-west9-outage--multi-region-failover--recovery)
+4. [`RB-03`: Vertex AI Quota Exhaustion (`429`) or Primary Model Degradation — Emergency Model Swap](#rb-03-vertex-ai-quota-exhaustion-429-or-primary-model-degradation--emergency-model-swap)
+5. [`RB-04`: Terraform State Lock Contention or Corrupted `.tfstate` — Recovery](#rb-04-terraform-state-lock-contention-or-corrupted-tfstate--recovery)
+   - [Scenario A: Stale State Lock (`default.tflock`)](#scenario-a-stale-state-lock-defaulttflock-after-a-cancelledcrashed-cloud-build)
+   - [Scenario B: Corrupted or Unintended `.tfstate` Mutation](#scenario-b-corrupted-or-unintended-terraform-state-mutation)
+6. [`RB-05`: Traffic Spike / Latency Saturation — Emergency Capacity Scaling](#rb-05-traffic-spike--latency-saturation--emergency-capacity-scaling)
+7. [`RB-06`: Scheduled Multi-Region DR & Backup Verification Drills](#rb-06-scheduled-multi-region-dr--backup-verification-drills)
+8. [`RB-07`: IAM Drift Remediation & Default Service Account Hardening Audit](#rb-07-iam-drift-remediation--default-service-account-hardening-audit)
+9. [`RB-08`: Intentional API Schema Change & OpenAPI 3.1 Snapshot Regeneration](#rb-08-intentional-api-schema-change--openapi-31-snapshot-regeneration)
+10. [`RB-09`: AI Quality Regression — Running the 7-Metric GEAP Eval & Loss Flywheel](#rb-09-ai-quality-regression--running-the-7-metric-geap-eval--loss-flywheel)
+11. [Related Documentation & Next Steps](#11-related-documentation--next-steps)
+
+---
+
+## 1. Runbook Lifecycle & Quick Index
+
+![Uniform 5-Step Runbook Execution Lifecycle](diagrams/incident_response_flow.svg)
 
 | ID | Runbook Title | Trigger / Alert Condition | Default Severity | Target MTTR |
 | :---: | :--- | :--- | :---: | :---: |
 | **[`RB-01`](#rb-01-production-service-outage--elevated-5xx--triage--immutable-rollback)** | Production Service Outage / Elevated `5xx` — Triage & Immutable Rollback | Cloud Run `5xx` rate `> 2%` or post-deploy regression | `SEV-1` | `<= 15 min` |
-| **[`RB-02`](#rb-02-primary-region-europe-west9-outage--multi-region-failover--recovery)** | Primary Region (`europe-west9`) Outage — Multi-Region Failover & Recovery | `europe-west9` Cloud Run unreachable or regional GCP incident | `SEV-1` / `SEV-2` | `<= 25s` (API) / `<= 15m` (UI URL) |
+| **[`RB-02`](#rb-02-primary-region-europe-west9-outage--multi-region-failover--recovery)** | Primary Region (`europe-west9`) Outage — Multi-Region Failover & Recovery | `europe-west9` Cloud Run unreachable or regional GCP incident | `SEV-1` / `SEV-2` | `<= 25s` (API) / `<= 15m` (UI) |
 | **[`RB-03`](#rb-03-vertex-ai-quota-exhaustion-429-or-primary-model-degradation--emergency-model-swap)** | Vertex AI Quota Exhaustion (`429`) or Primary Model Degradation — Emergency Model Swap | Spike in `Failing over to backup model` or dual-model `500`s | `SEV-1` / `SEV-2` | `<= 15 min` |
-| **[`RB-04`](#rb-04-terraform-state-lock-contention-or-corrupted-tfstate--recovery)** | Terraform State Lock Contention or Corrupted `.tfstate` — Recovery | `Error acquiring the state lock` or state corruption in CI/CD | `SEV-2` | `<= 20 min` |
-| **[`RB-05`](#rb-05-traffic-spike--latency-saturation--emergency-capacity-scaling)** | Traffic Spike / Latency Saturation — Emergency Capacity Scaling | Instance count hitting `max_instances` or latency `> 15s` | `SEV-2` / `SEV-3` | `<= 15 min` |
+| **[`RB-04`](#rb-04-terraform-state-lock-contention-or-corrupted-tfstate--recovery)** | Terraform State Lock Contention or Corrupted `.tfstate` — Recovery | `Error acquiring the state lock` or `.tfstate` corruption in CD | `SEV-2` | `<= 20 min` |
+| **[`RB-05`](#rb-05-traffic-spike--latency-saturation--emergency-capacity-scaling)** | Traffic Spike / Latency Saturation — Emergency Capacity Scaling | Active instances hitting `max_instances` or latency `> 15s` | `SEV-2` / `SEV-3` | `<= 15 min` |
 | **[`RB-06`](#rb-06-scheduled-multi-region-dr--backup-verification-drills)** | Scheduled Multi-Region DR & Backup Verification Drills | Weekly probe check / Monthly live RTO & backup restore drill | Routine | `~5 min` |
 | **[`RB-07`](#rb-07-iam-drift-remediation--default-service-account-hardening-audit)** | IAM Drift Remediation & Default Service Account Hardening Audit | Quarterly security review or IAM policy drift alert | Routine / `SEV-2` | `<= 10 min` |
 | **[`RB-08`](#rb-08-intentional-api-schema-change--openapi-31-snapshot-regeneration)** | Intentional API Schema Change & OpenAPI 3.1 Snapshot Regeneration | `test_api_versioning_and_contracts.py` failing on schema update | Routine | `<= 5 min` |
-| **[`RB-09`](#rb-09-ai-quality-regression--running-the-7-metric-geap-eval--loss-flywheel)** | AI Quality Regression — Running the 7-Metric GEAP Eval & Loss Flywheel | Routing errors, flight/price mutation, or prompt/model tuning | `SEV-3` / Routine | `~15–30 min` |
+| **[`RB-09`](#rb-09-ai-quality-regression--running-the-7-metric-geap-eval--loss-flywheel)** | AI Quality Regression — Running the 7-Metric GEAP Eval & Loss Flywheel | Misrouted intents, mutated flight prices, or prompt/model tuning | `SEV-3` / Routine | `~15–30 min` |
 
 ---
 
@@ -29,13 +53,13 @@
 | Field | Value |
 | :--- | :--- |
 | **Severity** | `SEV-1` |
-| **Trigger / Symptom** | Elevated HTTP `500`/`502`/`503`/`504` on `flights-search-app`, `conversational-app`, or `frontend`, or broken release immediately following deployment. |
-| **Target MTTR** | `< 2 min` (emergency traffic shift) · `<= 10 min` (Terraform state convergence) |
+| **Trigger / Symptom** | Elevated HTTP `500`/`502`/`503`/`504` on `flights-search-app`, `conversational-app`, or `frontend`, or regression immediately after deployment. |
+| **Target MTTR** | `< 2 min` (emergency traffic pin) · `<= 10 min` (Terraform state convergence) |
 | **Required IAM** | `roles/run.admin` (emergency traffic pin) or `roles/cloudbuild.builds.editor` + `roles/iam.serviceAccountUser` on `travel-agent-cicd` |
 
-### 1. Impact & Automated Mitigations
-- If only `europe-west9` is returning `5xx`, [`frontend/src/apiClient.js`](../frontend/src/apiClient.js) (`postWithRegionalFailover`) is already automatically retrying browser API calls against `europe-west1`.
-- If a bad code/config deploy pushed broken containers to **both** regions simultaneously, cross-region failover will also hit the broken revision—**roll back immediately**.
+### 1. Impact & Context
+- If only `europe-west9` returns `5xx`, [`frontend/src/apiClient.js`](../frontend/src/apiClient.js) (`postWithRegionalFailover`) is already automatically retrying browser API calls against `europe-west1`.
+- If a bad release deployed broken containers to **both** regions simultaneously, cross-region failover will also hit the broken revision—**roll back immediately**.
 
 ### 2. Preconditions
 ```bash
@@ -55,7 +79,7 @@ export SECONDARY_REGION="europe-west1"
      --format="table(timestamp, resource.labels.service_name, resource.labels.revision_name, resource.labels.location, httpRequest.status, textPayload)"
    ```
 
-2. **Check recent revisions to identify whether a new rollout caused the outage:**
+2. **List recent Cloud Run revisions to verify whether a rollout triggered the outage:**
    ```bash
    for SVC in flights-search-app conversational-app frontend; do
      echo "=== ${SVC} (${PRIMARY_REGION}) ==="
@@ -64,7 +88,7 @@ export SECONDARY_REGION="europe-west1"
    done
    ```
 
-3. **Fast Mitigation (`< 30s`): Shift 100% of Cloud Run traffic back to the prior healthy revision** *(run for the affected service in both regions)*:
+3. **Fast Mitigation (`< 30s`): Shift `100%` of Cloud Run traffic back to the prior healthy revision** *(run for the affected service in both regions)*:
    ```bash
    SVC="conversational-app"   # Or flights-search-app / frontend
    GOOD_REV_PRIMARY="<prior-healthy-revision-europe-west9>"
@@ -81,12 +105,10 @@ export SECONDARY_REGION="europe-west1"
 
 4. **Permanent State Convergence (`~5 min`): Reconcile Terraform & all services to the last known-good Git SHA/tag:**
    ```bash
-   # Look up retained image tags in Artifact Registry
    gcloud artifacts docker images list \
      "${PRIMARY_REGION}-docker.pkg.dev/${PROJECT_ID}/travel-agent/conversational-app" \
      --include-tags --project="${PROJECT_ID}" --limit=5
 
-   # Checkout the prior known-good commit/tag and deploy via Cloud Build
    git checkout <GOOD_GIT_SHA_OR_TAG>
    IMAGE_TAG="<GOOD_GIT_SHA_OR_TAG>" ./deployment/deploy.sh prod
    ```
@@ -96,10 +118,10 @@ export SECONDARY_REGION="europe-west1"
 ./deployment/validate_dr.sh --env prod --probe-only
 ```
 - All 6 regional services (`3` primary + `3` secondary) return `/healthz=200` and `/readyz=200`.
-- Cloud Logging shows zero new `severity>=ERROR` entries over a 5-minute window.
+- Cloud Logging shows zero new `severity>=ERROR` entries over a 5-minute observation window.
 
-### 5. Follow-Up / Escalation
-- If `5xx` errors persist on a previously healthy image SHA, the root cause is an external dependency (`Vertex AI` or regional GCP infrastructure) → escalate immediately to **`RB-02`** (Regional Outage) or **`RB-03`** (Vertex AI Outage).
+### 5. Follow-Up & Escalation
+- If `5xx` errors persist on a previously healthy image SHA, the root cause is an upstream dependency (`Vertex AI` or regional GCP infrastructure) → escalate immediately to **[`RB-02`](#rb-02-primary-region-europe-west9-outage--multi-region-failover--recovery)** (Regional Outage) or **[`RB-03`](#rb-03-vertex-ai-quota-exhaustion-429-or-primary-model-degradation--emergency-model-swap)** (Vertex AI Outage).
 
 ---
 
@@ -107,14 +129,14 @@ export SECONDARY_REGION="europe-west1"
 
 | Field | Value |
 | :--- | :--- |
-| **Severity** | `SEV-1` (if primary `frontend` is down) · `SEV-2` (if only primary backends are degraded) |
+| **Severity** | `SEV-1` (if primary `frontend` is unreachable) · `SEV-2` (if only primary backends are degraded) |
 | **Trigger / Symptom** | GCP Service Health announces an incident in `europe-west9` (Paris), or probes to `europe-west9` time out / return `502`/`503`/`504`. |
 | **Target RTO** | `<= 25s` automatic client API failover · `< 5 min` manual standby frontend URL distribution / DNS switch |
 | **Required IAM** | `roles/run.viewer` (verification), `roles/run.admin` (scaling standby), `roles/cloudbuild.builds.editor` (cold-region evacuation) |
 
-### 1. Impact & Automated Mitigations
-- **Backend API Failover is Automatic:** Users who already loaded the web app (or can still reach `frontend` in `europe-west9`) automatically fail over `POST /api/v1/run-flights-search` and `POST /api/v1/run-conversational` to `europe-west1` via [`postWithRegionalFailover()`](../frontend/src/apiClient.js).
-- **Frontend Entrypoint Switchover:** Because no Global External Application Load Balancer sits in front of the `.run.app` URLs yet, if the `europe-west9` `frontend` service itself is unreachable, share or repoint DNS to the pre-deployed warm `frontend` URL in `europe-west1` (`min_instances = 1`).
+### 1. Impact & Context
+- **Backend API Failover is Automatic:** Users who already loaded the SPA automatically fail over `POST /api/v1/run-flights-search` and `POST /api/v1/run-conversational` to `europe-west1` via [`postWithRegionalFailover()`](../frontend/src/apiClient.js).
+- **Frontend Entrypoint Switchover:** Because no Global External Application Load Balancer sits in front of `.run.app` URLs by default, if `frontend` in `europe-west9` is unreachable, share or repoint CNAME/DNS to the warm `frontend` URL in `europe-west1` (`min_instances = 1`).
 
 ### 2. Preconditions
 ```bash
@@ -125,7 +147,7 @@ export SECONDARY_REGION="europe-west1"
 
 ### 3. Step-by-Step Execution
 
-1. **Verify Warm Standby (`europe-west1`) health and retrieve standby URLs:**
+1. **Verify Warm Standby (`europe-west1`) health and print standby URLs:**
    ```bash
    for SVC in flights-search-app conversational-app frontend; do
      URL=$(gcloud run services describe "${SVC}" --project="${PROJECT_ID}" --region="${SECONDARY_REGION}" --format="value(status.url)")
@@ -145,10 +167,9 @@ export SECONDARY_REGION="europe-west1"
    done
    ```
 
-3. **If Primary `frontend` (`europe-west9`) is unreachable:** Direct users / update status page / CNAME to the `frontend` URL in `europe-west1` printed in Step 1 (its `/env-config.js` already targets `europe-west1` backends as primary).
+3. **If Primary `frontend` (`europe-west9`) is down:** Point users / status page / DNS to the `frontend` URL in `europe-west1` from Step 1 (its `/env-config.js` already targets `europe-west1` backends first).
 
-4. **(Extreme Multi-Region Outage Only) Evacuate to a Cold-Standby GCP Region (e.g., `europe-west4` Netherlands):**
-   If **both** `europe-west9` and `europe-west1` are impaired:
+4. **(Extreme Multi-Region Outage Only) Evacuate to a Cold-Standby GCP Region (e.g., `europe-west4`):**
    ```bash
    REGION="europe-west4" SECONDARY_REGION="" ./deployment/deploy.sh prod
    ```
@@ -160,8 +181,8 @@ export SECONDARY_REGION="europe-west1"
   (cd conversational_app && CONVERSATIONAL_BASE_URL="<SECONDARY_CONV_URL>" python3 -m pytest tests/e2e/test_conversational.py -v)
   ```
 
-### 5. Failback Procedure (Once `europe-west9` Recovers)
-1. Run `./deployment/validate_dr.sh --env prod` to confirm `europe-west9` and `europe-west1` both pass health and RTO checks.
+### 5. Follow-Up & Escalation (Failback Procedure)
+1. Once GCP resolves the `europe-west9` incident, run `./deployment/validate_dr.sh --env prod` to verify both regions pass readiness and RTO checks.
 2. Run `./deployment/deploy.sh prod` to restore `secondary_min_instances = 1` cleanly from [`envs/prod.tfvars`](../deployment/terraform/envs/prod.tfvars).
 
 ---
@@ -170,13 +191,13 @@ export SECONDARY_REGION="europe-west1"
 
 | Field | Value |
 | :--- | :--- |
-| **Severity** | `SEV-2` (if backup model is absorbing traffic, causing elevated latency) · `SEV-1` (if both primary & backup models fail) |
-| **Trigger / Symptom** | Cloud Logging shows frequent `Failing over to backup model` warnings, `429 RESOURCE_EXHAUSTED`, `503 Service Unavailable`, or `500` responses when both models fail. |
-| **Target MTTR** | `<= 5 min` (Cloud Run env override) · `<= 10 min` (Terraform `.tfvars` rollout) |
+| **Severity** | `SEV-2` (backup model absorbing traffic with high latency) · `SEV-1` (both primary & backup models failing) |
+| **Trigger / Symptom** | Cloud Logging shows frequent `Failing over to backup model` warnings, `429 RESOURCE_EXHAUSTED`, `503 Service Unavailable`, or `500` responses. |
+| **Target MTTR** | `<= 5 min` (Cloud Run env override) · `<= 10 min` (Terraform `.tfvars` convergence) |
 | **Required IAM** | `roles/run.admin` + `roles/iam.serviceAccountUser` on `travel-agent-runtime` |
 
-### 1. Impact & Automated Mitigations
-- When `gemini-3.5-flash-lite` hits `429` or `5xx`, the SDK first executes **5 exponential backoff retries** (`5s, 10s, 20s, 40s` = `~75s`), then fails over to `gemini-3.6-flash`. Users receive valid responses, **but latency increases to `75s+` per affected turn**. Promoting a healthy primary model eliminates that `75s` retry penalty immediately.
+### 1. Impact & Context
+- When `gemini-3.5-flash-lite` hits `429` or `5xx`, the SDK executes **5 exponential backoff retries** (`5s + 10s + 20s + 40s = ~75s`) before failing over to `gemini-3.6-flash`. Users still receive valid responses, **but per-turn latency jumps above `75s`**. Promoting a healthy primary model eliminates that `75s` retry penalty immediately.
 
 ### 2. Preconditions
 ```bash
@@ -185,7 +206,7 @@ export PROJECT_ID="travel-agent-prod-512211"
 
 ### 3. Step-by-Step Execution
 
-1. **Confirm which model and agent is failing in Cloud Logging:**
+1. **Identify which model and agent role is failing in Cloud Logging:**
    ```bash
    gcloud logging read \
      'resource.type="cloud_run_revision" AND (textPayload:"Model error in agent" OR textPayload:"Failing over to backup model" OR textPayload:"also failed:")' \
@@ -194,7 +215,7 @@ export PROJECT_ID="travel-agent-prod-512211"
      --format="table(timestamp, resource.labels.service_name, textPayload)"
    ```
 
-2. **Emergency Fast-Path (`< 2 min`): Swap primary & distinct fallback model env vars directly on Cloud Run** *(remember: primary and fallback MUST remain distinct strings so `fallback_app` stays active!)*:
+2. **Emergency Fast-Path (`< 2 min`): Swap primary & distinct fallback model env vars on Cloud Run** *(keep primary and fallback distinct so `fallback_app` remains active)*:
    ```bash
    NEW_PRIMARY="gemini-3.6-flash"
    NEW_FALLBACK="gemini-2.5-flash"
@@ -209,20 +230,20 @@ export PROJECT_ID="travel-agent-prod-512211"
        --region="${REG}" --project="${PROJECT_ID}"
    done
    ```
-   *(Tip: If only `filter_smart` needs a stronger/different model, set `--update-env-vars="FILTER_SMART_MODEL=gemini-2.5-pro"` on `conversational-app` without changing the other 4 sub-agents.)*
+   *(Tip: To override only one specialist—such as `filter_smart`—pass `--update-env-vars="FILTER_SMART_MODEL=gemini-2.5-pro"` on `conversational-app`.)*
 
-3. **Persist in Git / Terraform:** Update `flights_search_model`, `conversational_model`, and `fallback_gemini_model` in [`deployment/terraform/envs/prod.tfvars`](../deployment/terraform/envs/prod.tfvars), commit, and deploy via `./deployment/deploy.sh prod`.
+3. **Persist in Git / Terraform:** Update `flights_search_model`, `conversational_model`, and `fallback_gemini_model` in [`deployment/terraform/envs/prod.tfvars`](../deployment/terraform/envs/prod.tfvars), commit, and run `./deployment/deploy.sh prod`.
 
 ### 4. Verification Criteria
 ```bash
 CONV_URL=$(gcloud run services describe conversational-app --project="${PROJECT_ID}" --region=europe-west9 --format="value(status.url)")
 curl -fsS "${CONV_URL}/readyz" | python3 -m json.tool
 ```
-- Confirm `"models"` shows `${NEW_PRIMARY}` and `"fallback_model"` shows `${NEW_FALLBACK}`.
+- Confirm `"models"` reflects `${NEW_PRIMARY}` and `"fallback_model"` reflects `${NEW_FALLBACK}`.
 - Confirm `total_latency` in `ADK Plugin Telemetry` logs returns below `15.0s`.
 
-### 5. Follow-Up / Escalation
-- If `429 RESOURCE_EXHAUSTED` persists across all models in `GEMINI_MODEL_LOCATION=global`, check **IAM & Admin → Quotas** in `travel-agent-prod-512211` for `aiplatform.googleapis.com` RPM/TPM quotas and submit a quota increase or check billing account health.
+### 5. Follow-Up & Escalation
+- If `429 RESOURCE_EXHAUSTED` affects all models in `GEMINI_MODEL_LOCATION=global`, inspect **IAM & Admin → Quotas** in `travel-agent-prod-512211` for `aiplatform.googleapis.com` RPM/TPM limits and request a quota increase or verify project billing status.
 
 ---
 
@@ -230,13 +251,13 @@ curl -fsS "${CONV_URL}/readyz" | python3 -m json.tool
 
 | Field | Value |
 | :--- | :--- |
-| **Severity** | `SEV-2` (blocks infrastructure/CD deployments; zero immediate impact on running Cloud Run containers) |
-| **Trigger / Symptom** | Cloud Build Stage 2 or Stage 4 fails with `Error acquiring the state lock` (after `5m` `-lock-timeout=5m`) or invalid/corrupted `.tfstate` JSON. |
+| **Severity** | `SEV-2` (blocks CI/CD deployments; zero immediate impact on live Cloud Run traffic) |
+| **Trigger / Symptom** | Cloud Build Stage 2 or Stage 4 fails with `Error acquiring the state lock` (after `5m`) or invalid/corrupted `.tfstate` JSON. |
 | **Target MTTR** | `<= 15 min` |
 | **Required IAM** | `roles/storage.admin` on `gs://<PROJECT_ID>-tfstate` |
 
-### 1. Impact & Automated Mitigations
-- Running Cloud Run services are completely unaffected.
+### 1. Impact & Context
+- Live Cloud Run containers continue serving traffic normally.
 - GCS Object Versioning is enabled on `gs://<PROJECT_ID>-tfstate` by [`bootstrap.sh`](../deployment/bootstrap.sh), preserving every historical `.tfstate` generation.
 
 ### 2. Preconditions
@@ -244,33 +265,32 @@ curl -fsS "${CONV_URL}/readyz" | python3 -m json.tool
 export ENV_NAME="prod"                         # dev | staging | prod
 export PROJECT_ID="travel-agent-prod-512211"   # travel-agent-511710 | travel-agent-staging-512211 | travel-agent-prod-512211
 export TF_BUCKET="gs://${PROJECT_ID}-tfstate"
-# Note: Cloud Build pipelines store state under prefix travel-agent/${ENV_NAME}
+# Cloud Build pipelines store state under prefix travel-agent/${ENV_NAME}
 export STATE_URI="${TF_BUCKET}/travel-agent/${ENV_NAME}/default.tfstate"
 ```
 
 ### 3. Step-by-Step Execution
 
 #### Scenario A: Stale State Lock (`default.tflock`) After a Cancelled/Crashed Cloud Build
-1. **Verify NO Cloud Build job is currently running** in `${PROJECT_ID}`:
+1. **Confirm NO Cloud Build job is currently active** in `${PROJECT_ID}`:
    ```bash
    gcloud builds list --ongoing --project="${PROJECT_ID}" --region="europe-west9"
    ```
-   *(STOP if a build is still `WORKING`! Wait for it to finish or cancel it first.)*
+   *(STOP if any build is `WORKING`—wait for completion or cancel it first.)*
 
-2. **Inspect and remove the orphaned GCS lock object:**
+2. **Inspect and delete the orphaned GCS lock object:**
    ```bash
    gcloud storage ls -l "${TF_BUCKET}/travel-agent/${ENV_NAME}/default.tflock" --project="${PROJECT_ID}"
    gcloud storage rm "${TF_BUCKET}/travel-agent/${ENV_NAME}/default.tflock" --project="${PROJECT_ID}"
    ```
 
 #### Scenario B: Corrupted or Unintended Terraform State Mutation
-1. **List all archived GCS object generations (`#<GENERATION_NUMBER>`):**
+1. **List archived GCS object generations (`#<GENERATION_NUMBER>`):**
    ```bash
    gcloud storage ls -a "${STATE_URI}" --project="${PROJECT_ID}"
    ```
-   *(If inspecting default/drill state objects as well, run `gcloud storage ls -a "${TF_BUCKET}/travel-agent/**"`.)*
 
-2. **Download the candidate prior generation to a local temporary folder and validate its JSON structure** (`version >= 4`, non-empty `lineage`, valid `serial` and `resources` array):
+2. **Download the candidate prior generation to a local temp directory and validate JSON integrity:**
    ```bash
    TMP_DIR="$(mktemp -d)"
    TARGET_GEN="<GENERATION_NUMBER>"
@@ -284,17 +304,17 @@ export STATE_URI="${TF_BUCKET}/travel-agent/${ENV_NAME}/default.tfstate"
    ' "${TMP_DIR}/candidate.tfstate"
    ```
 
-3. **Promote the verified prior generation as the active live state** (this non-destructively creates a new latest generation while preserving all history):
+3. **Promote the validated generation as the active state** (non-destructively appends a new latest generation):
    ```bash
    gcloud storage cp "${STATE_URI}#${TARGET_GEN}" "${STATE_URI}" --project="${PROJECT_ID}"
    rm -rf "${TMP_DIR}"
    ```
 
 ### 4. Verification Criteria
-- Re-run `./deployment/deploy.sh ${ENV_NAME}` and confirm Stage 2 (`terraform-bootstrap-*`) and Stage 4 (`terraform-deploy-*`) acquire the lock and complete cleanly.
+- Re-run `./deployment/deploy.sh ${ENV_NAME}` and verify Stage 2 (`terraform-bootstrap-*`) and Stage 4 (`terraform-deploy-*`) acquire the lock and complete cleanly.
 
-### 5. Follow-Up
-- Run `./deployment/verify_backups.sh --local-self-test` (or `--env ${ENV_NAME}`) to confirm ongoing backup health.
+### 5. Follow-Up & Escalation
+- Run `./deployment/verify_backups.sh --local-self-test` to confirm state validator integrity, and audit Cloud Build cancellation history to prevent concurrent manual `deploy.sh` submissions.
 
 ---
 
@@ -303,18 +323,22 @@ export STATE_URI="${TF_BUCKET}/travel-agent/${ENV_NAME}/default.tfstate"
 | Field | Value |
 | :--- | :--- |
 | **Severity** | `SEV-2` / `SEV-3` |
-| **Trigger / Symptom** | Cloud Run active instance count reaches `max_instances` (`20` in `prod`), queuing delays cause `HTTP 429`/`503` at the Cloud Run ingress, or container memory nears `2Gi`. |
+| **Trigger / Symptom** | Cloud Run active instances reach `max_instances` (`20` in `prod`), ingress queueing triggers `HTTP 429`/`503`, or container memory approaches `2Gi`. |
 | **Target MTTR** | `<= 10 min` |
 | **Required IAM** | `roles/run.admin` (instant override) + repository push access (`.tfvars` persistence) |
 
-### 1. Impact & Preconditions
+### 1. Impact & Context
+- Requests queued past Cloud Run concurrency limits experience elevated latency or `HTTP 429`/`503` at ingress before reaching FastAPI.
+- Raising `min-instances`, `max-instances`, and CPU/memory takes effect immediately on Cloud Run without rebuilding Docker images.
+
+### 2. Preconditions
 ```bash
 export PROJECT_ID="travel-agent-prod-512211"
 ```
 
-### 2. Step-by-Step Execution
+### 3. Step-by-Step Execution
 
-1. **Apply immediate Cloud Run scaling increase across primary and warm standby regions:**
+1. **Apply immediate Cloud Run capacity increase across primary and warm standby regions:**
    ```bash
    for REG in europe-west9 europe-west1; do
      for SVC in flights-search-app conversational-app; do
@@ -334,11 +358,18 @@ export PROJECT_ID="travel-agent-prod-512211"
    backend_cpu    = "4"
    backend_memory = "4Gi"
    ```
-   Commit and run `./deployment/deploy.sh prod` once traffic stabilizes so future CD deployments do not revert your manual scaling override.
+   Commit and run `./deployment/deploy.sh prod` so subsequent CD runs preserve the new scaling bounds.
 
-### 3. Verification Criteria
-- Check `gcloud run services describe conversational-app --region=europe-west9 --project="${PROJECT_ID}" --format="yaml(spec.template.scaling,spec.template.containers[0].resources)"`.
-- Monitor Vertex AI `429` rates ([`RB-03`](#rb-03-vertex-ai-quota-exhaustion-429-or-primary-model-degradation--emergency-model-swap))—increasing Cloud Run `max_instances` increases concurrent Gemini RPM!
+### 4. Verification Criteria
+```bash
+gcloud run services describe conversational-app \
+  --region=europe-west9 --project="${PROJECT_ID}" \
+  --format="yaml(spec.template.scaling,spec.template.containers[0].resources)"
+```
+- Confirm `maxInstanceCount: 50`, `minInstanceCount: 4`, `cpu: '4'`, and `memory: 4Gi`.
+
+### 5. Follow-Up & Escalation
+- Monitor Vertex AI `429` rates closely ([`RB-03`](#rb-03-vertex-ai-quota-exhaustion-429-or-primary-model-degradation--emergency-model-swap))—raising Cloud Run `max_instances` proportionally increases peak concurrent Gemini RPM.
 
 ---
 
@@ -351,33 +382,51 @@ export PROJECT_ID="travel-agent-prod-512211"
 | **Scripts** | [`deployment/validate_dr.sh`](../deployment/validate_dr.sh), [`deployment/verify_backups.sh`](../deployment/verify_backups.sh) |
 | **Required IAM** | `roles/run.viewer`, `roles/storage.objectViewer`, `roles/artifactregistry.reader` on target project |
 
-### Step-by-Step Execution
+### 1. Impact & Context
+- All drills are **100% non-destructive**: they never mutate live Cloud Run traffic, overwrite GCS `.tfstate`, or delete Artifact Registry images.
+- Weekly `--probe-only` checks consume zero Gemini tokens; monthly full drills execute a single live standby inference call to prove end-to-end RTO (`<= 25,000ms`).
 
-1. **Offline Self-Check (Zero GCP Credentials Needed — Sanity-Checks Drill Logic):**
+### 2. Preconditions
+```bash
+gcloud auth login
+export PROJECT_ID="travel-agent-prod-512211"
+```
+
+### 3. Step-by-Step Execution
+
+1. **Offline Script Self-Checks (Zero GCP Credentials Required):**
    ```bash
    ./deployment/validate_dr.sh --local-self-test
    ./deployment/verify_backups.sh --local-self-test
    ```
 
-2. **Weekly Probe-Only Production DR Check (Zero Gemini Token Cost):**
-   Verifies `/healthz=200`, `/readyz=200`, symmetric `/env-config.js` cross-region fallback URLs across Paris (`europe-west9`) and Belgium (`europe-west1`), and synthetic `127.0.0.1:1` → `europe-west1/readyz` failover RTO (`<= 25,000ms`):
+2. **Weekly Probe-Only Production DR Check (Zero LLM Token Cost):**
    ```bash
    ./deployment/validate_dr.sh --env prod --probe-only
    ```
 
-3. **Monthly Full Live Failover Drill (Includes Live Gemini Call on Warm Standby):**
+3. **Monthly Full Live Multi-Region Failover RTO Drill:**
    ```bash
    ./deployment/validate_dr.sh --env prod
    ```
 
-4. **Monthly Non-Destructive Backup & Rollback Readiness Drill:**
-   Verifies GCS versioning on `gs://travel-agent-prod-512211-tfstate`, restores the prior `.tfstate` generation to an isolated `/tmp` directory to validate schema/serial/lineage integrity, and verifies Artifact Registry image tag retention across both `europe-west9` and `europe-west1`:
+4. **Monthly Non-Destructive Backup & Image Retention Verification:**
    ```bash
+   # Verify GCS bucket versioning & Cloud Build environment state generations
+   gcloud storage ls -a "gs://${PROJECT_ID}-tfstate/travel-agent/prod/default.tfstate" --project="${PROJECT_ID}"
+
+   # Run automated restore validator & Artifact Registry 15-tag check
    ./deployment/verify_backups.sh --env prod
    ```
+   > [!NOTE]
+   > [`verify_backups.sh`](../deployment/verify_backups.sh) checks `travel-agent/state/default.tfstate` by default while Cloud Build stores environment state at `travel-agent/<env>/default.tfstate`. Running the `gcloud storage ls -a` command above verifies the active Cloud Build state path directly (see [Troubleshooting §7.6](troubleshooting_guide.md#76-verify_backupssh---env-env-reports-no-versioned-state-objects-found)).
 
-### Verification Criteria
-- Both scripts exit `0` and print `✅ Live Multi-Region DR & Failover Validation completed successfully!` and `✅ Infrastructure Backup & Restore Verification completed successfully!`.
+### 4. Verification Criteria
+- `validate_dr.sh` exits `0` with `✅ Live Multi-Region DR & Failover Validation completed successfully!` and measured failover RTO `<= 25000 ms`.
+- Artifact Registry retains `>= 1` (up to `15`) rollback image tags across both `europe-west9` and `europe-west1`.
+
+### 5. Follow-Up & Escalation
+- If `validate_dr.sh` reports an `/env-config.js` mismatch or standby `503`, trigger `./deployment/deploy.sh prod` or investigate via **[`RB-01`](#rb-01-production-service-outage--elevated-5xx--triage--immutable-rollback)** / **[`RB-02`](#rb-02-primary-region-europe-west9-outage--multi-region-failover--recovery)**.
 
 ---
 
@@ -386,18 +435,26 @@ export PROJECT_ID="travel-agent-prod-512211"
 | Field | Value |
 | :--- | :--- |
 | **Severity** | Routine Quarterly Audit (or `SEV-2` if over-privileged default SAs are detected) |
-| **Trigger / Symptom** | Security audit or manual console changes accidentally re-granting administrative roles to default Google Compute/Cloud Build service accounts. |
+| **Trigger / Symptom** | Quarterly security review or manual GCP Console edits granting admin roles to default Compute/Cloud Build SAs. |
+| **Target MTTR** | `<= 10 min` |
 | **Required IAM** | `roles/resourcemanager.projectIamAdmin`, `roles/iam.serviceAccountAdmin` |
 
-### Step-by-Step Execution
+### 1. Impact & Context
+- Ensures strict 3-SA separation (`travel-agent-cicd`, `travel-agent-runtime`, `travel-agent-frontend`) and strips administrative roles from Google-managed default service accounts without interrupting running workloads.
 
-1. **Re-run the idempotent bootstrap hardener across all three environments:**
+### 2. Preconditions
+```bash
+gcloud auth login
+```
+
+### 3. Step-by-Step Execution
+
+1. **Run the idempotent bootstrap hardener across all three environments:**
    ```bash
    ./deployment/bootstrap.sh all
    ```
-   Step 5 of `bootstrap.sh` inspects project IAM bindings in `dev`, `staging`, and `prod` and strips any CI/CD admin roles found on `<PROJECT_NUMBER>@cloudbuild.gserviceaccount.com` or `<PROJECT_NUMBER>-compute@developer.gserviceaccount.com`.
 
-2. **Audit live IAM bindings on runtime Service Accounts:**
+2. **Audit live IAM bindings on all `travel-agent-*` Service Accounts:**
    ```bash
    for PROJ in travel-agent-511710 travel-agent-staging-512211 travel-agent-prod-512211; do
      echo "=== ${PROJ} ==="
@@ -408,9 +465,13 @@ export PROJECT_ID="travel-agent-prod-512211"
    done
    ```
 
-### Verification Criteria
+### 4. Verification Criteria
 - `travel-agent-frontend` holds **only** `roles/logging.logWriter`.
 - `travel-agent-runtime` holds **only** `roles/aiplatform.user`, `roles/logging.logWriter`, and `roles/cloudtrace.agent`.
+- Default `<PROJECT_NUMBER>@cloudbuild.gserviceaccount.com` and `<PROJECT_NUMBER>-compute@developer.gserviceaccount.com` hold zero CI/CD admin roles.
+
+### 5. Follow-Up & Escalation
+- If unexpected custom roles remain attached to `travel-agent-runtime` or `travel-agent-frontend`, remove them via `gcloud projects remove-iam-policy-binding` and reconcile [`deployment/terraform/iam.tf`](../deployment/terraform/iam.tf).
 
 ---
 
@@ -419,29 +480,44 @@ export PROJECT_ID="travel-agent-prod-512211"
 | Field | Value |
 | :--- | :--- |
 | **Severity** | Routine Engineering Workflow |
-| **Trigger / Symptom** | `tests/unit/test_api_versioning_and_contracts.py` fails locally or in `pr_checks.yaml` because live FastAPI OpenAPI specs diverged from committed `openapi.json`. |
+| **Trigger / Symptom** | `tests/unit/test_api_versioning_and_contracts.py` fails locally or in Cloud Build Stage 1 because live FastAPI schemas diverged from committed `openapi.json`. |
+| **Target MTTR** | `<= 5 min` |
+| **Required IAM** | None (runs 100% offline in local `.venv`) |
 
-### Step-by-Step Execution
+### 1. Impact & Context
+- Contract drift tests prevent accidental breaking changes to `/api/v1` endpoints. Regenerating `openapi.json` explicitly records intentional schema evolutions in Git.
 
-1. **Verify Backward Compatibility Rules First:**
-   - Never remove or change the type of existing fields on `/api/v1` endpoints without bumping major API routes.
-   - Ensure request models preserve `model_config = ConfigDict(extra="ignore", ...)` and optional fields have safe defaults.
-   - Ensure `Flight` fields remain 100% identical between [`flights_search_app/app/schema.py`](../flights_search_app/app/schema.py) and [`conversational_app/app/schema.py`](../conversational_app/app/schema.py).
+### 2. Preconditions
+```bash
+source .venv/bin/activate
+```
+- Confirm backward-compatibility rules:
+  - Do not remove or change the type of existing `/api/v1` fields without introducing `/api/v2`.
+  - Keep `model_config = ConfigDict(extra="ignore", ...)` on request models.
+  - Keep `Flight` fields 100% identical between [`flights_search_app/app/schema.py`](../flights_search_app/app/schema.py) and [`conversational_app/app/schema.py`](../conversational_app/app/schema.py).
 
-2. **Regenerate deterministic OpenAPI 3.1 snapshots:**
+### 3. Step-by-Step Execution
+
+1. **Regenerate deterministic OpenAPI 3.1 snapshots for both backend services:**
    ```bash
    (cd flights_search_app && python3 -m app.export_openapi)
    (cd conversational_app && python3 -m app.export_openapi)
    ```
 
-3. **Inspect the `git diff` on `openapi.json` and re-run contract unit tests:**
+2. **Review the `git diff` on both committed specifications:**
    ```bash
    git diff flights_search_app/openapi.json conversational_app/openapi.json
-   (cd flights_search_app && python3 -m pytest tests/unit/test_api_versioning_and_contracts.py -v)
-   (cd conversational_app && python3 -m pytest tests/unit/test_api_versioning_and_contracts.py -v)
    ```
 
-4. **Update [`docs/api_documentation.md`](api_documentation.md)** if public fields, bounds, or endpoints changed, and commit `openapi.json` alongside your schema edit.
+### 4. Verification Criteria
+```bash
+(cd flights_search_app && python3 -m pytest tests/unit/test_api_versioning_and_contracts.py -v)
+(cd conversational_app && python3 -m pytest tests/unit/test_api_versioning_and_contracts.py -v)
+```
+- Both contract test suites pass with zero diffs.
+
+### 5. Follow-Up & Escalation
+- Update [API, Integration & SDK Reference (`api_documentation.md`)](api_documentation.md) if any public fields, validation bounds, or endpoints changed, and commit `openapi.json` in the same PR.
 
 ---
 
@@ -449,35 +525,56 @@ export PROJECT_ID="travel-agent-prod-512211"
 
 | Field | Value |
 | :--- | :--- |
-| **Severity** | `SEV-3` / Pre-Release Quality Gate |
-| **Trigger / Symptom** | User reports misrouted chat intents (`engage`), unneeded or missing Google Search calls (`filter_smart`), hallucinated/mutated flight prices, or evaluation prior to changing prompts or Gemini models. |
+| **Severity** | `SEV-3` / Pre-Release AI Quality Gate |
+| **Trigger / Symptom** | Misrouted intents (`engage`), missing/unneeded Google Search calls (`filter_smart`), hallucinated or price-mutated flights, or pre-release validation of prompt/model edits. |
+| **Target Duration** | `~15–30 min` |
 | **Required IAM** | Local ADC (`gcloud auth application-default login`) with `roles/aiplatform.user` |
 
-### Step-by-Step Execution
+### 1. Impact & Context
+- Evaluates the in-process 5-agent workflow across 50 synthetic travel scenarios using 7 automated metrics (3 Vertex AI rubric metrics, 2 custom LLM judges, and 2 deterministic Python contract/latency checks).
 
-1. **Activate the Python environment and run the 50-scenario 7-metric GEAP evaluation:**
+### 2. Preconditions
+```bash
+source .venv/bin/activate
+pip install google-cloud-aiplatform==1.148.1 pandas==3.0.6 tqdm==4.70.1
+gcloud auth application-default login
+```
+
+### 3. Step-by-Step Execution
+
+1. **Execute the 50-scenario 7-metric GEAP evaluation run:**
    ```bash
-   source .venv/bin/activate
    cd conversational_app
-
    python3 -m tests.eval.scripts.run_evaluation \
      --run-name "investigate_$(date +%Y%m%d)" \
      --description "Evaluate prompt/model quality across 50 synthetic scenarios"
    ```
 
-2. **Check the generated summary and compare deltas against baseline:**
-   - Inspect [`conversational_app/tests/eval/results/experiments_history.md`](../conversational_app/tests/eval/results/experiments_history.md) and the new timestamped folder's `eval_summary.md`.
-   - Verify all 7 target thresholds:
-     - `schema_and_contract_valid >= 0.95` (zero hallucinated flights, exact price immutability)
-     - `multi_turn_task_success_v1 >= 0.80`
-     - `multi_turn_trajectory_quality_v1 >= 0.80`
-     - `tool_use_quality >= 0.80`
-     - `coherence >= 0.80`
-     - `conversation_plan_alignment >= 0.80`
-     - `latency_seconds <= 15.0s`
-
-3. **If any metric regressed, run automated LLM root-cause loss clustering:**
+2. **If any metric falls below threshold, run automated LLM root-cause loss clustering:**
    ```bash
    python3 -m tests.eval.scripts.run_loss_analysis
    ```
-   Inspect `loss_clusters.md` inside the run directory to pinpoint which sub-agent prompt (`engage/prompt.py`, `filter_smart/prompt.py`, etc.) caused the failure cluster, iterate on the prompt, and re-run Step 1 before deploying.
+
+### 4. Verification Criteria
+Inspect `eval_summary.md` in the generated timestamped results folder and [`experiments_history.md`](../conversational_app/tests/eval/results/experiments_history.md). All 7 metrics must meet target SLOs:
+- `schema_and_contract_valid >= 0.95` (zero hallucinated flight numbers, exact price immutability)
+- `multi_turn_task_success_v1 >= 0.80`
+- `multi_turn_trajectory_quality_v1 >= 0.80`
+- `tool_use_quality >= 0.80`
+- `coherence >= 0.80`
+- `conversation_plan_alignment >= 0.80`
+- `latency_seconds <= 15.0s`
+
+### 5. Follow-Up & Escalation
+- Use `loss_clusters.md` to pinpoint the exact sub-agent prompt (`engage/prompt.py`, `filter_smart/prompt.py`, etc.) responsible for failures, refine the prompt, re-run Step 1 to verify zero regressions, and promote via [Deployment Guide §6](deployment_guide.md#6-step-by-step-deployment-procedures).
+
+---
+
+## 11. Related Documentation & Next Steps
+
+| If You Want To... | Go To |
+| :--- | :--- |
+| **Look up an unfamiliar error message before picking a runbook** | [Symptom-Driven Troubleshooting Guide (`troubleshooting_guide.md`)](troubleshooting_guide.md) |
+| **Review SLO definitions, Cloud Logging queries & severity SLAs** | [Operational Documentation Hub (`operational_documentation.md`)](operational_documentation.md) |
+| **Run standard `dev → staging → prod` releases** | [Deployment & Release Management Guide (`deployment_guide.md`)](deployment_guide.md) |
+| **Inspect `/api/v1` request/response contracts** | [API, Integration & SDK Reference (`api_documentation.md`)](api_documentation.md) |

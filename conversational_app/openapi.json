@@ -47,7 +47,7 @@
             "enum": [
               "filter",
               "filter_smart",
-              "inspiration_agent",
+              "inspiration",
               "continue"
             ],
             "title": "Agent Decision",

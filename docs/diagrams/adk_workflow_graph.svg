@@ -1,0 +1,250 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1580 660" width="1580" height="660" role="img" aria-label="ADK v2 Conversational Multi-Agent Workflow Graph">
+  <defs>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#0d9488"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <!-- Outer Canvas Card -->
+  <rect x="2" y="2" width="1576" height="656" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- Main Diagram Title -->
+  <text x="790" y="33" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0f172a">
+    ADK v2 Conversational Multi-Agent Workflow Graph
+  </text>
+
+  <!-- Root Workflow Container: conversational -->
+  <rect x="24" y="48" width="1532" height="578" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="7 4"/>
+
+  <!-- Root Workflow Definition Card (consistent stacked format: name \n description \n Constrained Output \n Port) -->
+  <rect x="44" y="66" width="286" height="106" rx="10" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="187" y="90" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">
+    conversational (Root Workflow)
+  </text>
+  <text x="187" y="112" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Orchestrates 5 sub-agents in-process
+  </text>
+  <text x="187" y="133" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#1e40af">
+    Constrained: ConversationalOutput
+  </text>
+  <text x="187" y="154" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#475569">
+    Port :8001 (Local) / :8080 (Cloud Run)
+  </text>
+
+  <!-- ======================================================================= -->
+  <!-- ORTHOGONAL ELBOW ARROWS (Strictly Horizontal H & Vertical V Only)       -->
+  <!-- ======================================================================= -->
+
+  <!-- 1. START -> engage -->
+  <path d="M 120 324 H 156" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+
+  <!-- 2. engage -> route_engage -->
+  <path d="M 416 324 H 452" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+
+  <!-- 3. route_engage -> "continue" -> finalize_output (Top Bus) -->
+  <path d="M 539 282 V 104 H 1432 V 260" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <rect x="820" y="88" width="300" height="30" rx="15" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+  <text x="970" y="107" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#065f46">
+    "continue" — Direct reply (engage response)
+  </text>
+
+  <!-- 4. route_engage -> "filter" -> filter -->
+  <path d="M 622 298 H 636 V 189 H 732" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <rect x="652" y="159" width="64" height="22" rx="11" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.2"/>
+  <text x="684" y="174" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#1d4ed8">
+    "filter"
+  </text>
+
+  <!-- 5. filter -> finalize_output -->
+  <path d="M 992 189 H 1276 V 292 H 1316" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <!-- 6. route_engage -> "filter_smart" -> filter_smart -->
+  <path d="M 622 338 H 732" fill="none" stroke="#0d9488" stroke-width="2" marker-end="url(#arrow-teal)"/>
+  <rect x="641" y="309" width="86" height="22" rx="11" fill="#f0fdfa" stroke="#2dd4bf" stroke-width="1.2"/>
+  <text x="684" y="324" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#0f766e">
+    "filter_smart"
+  </text>
+
+  <!-- 7. filter_smart -> parse_filter_smart -->
+  <path d="M 992 330 H 1038" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow-slate)"/>
+
+  <!-- 8. parse_filter_smart -> "parsed" -> finalize_output -->
+  <path d="M 1234 330 H 1316" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <rect x="1246" y="301" width="60" height="22" rx="11" fill="#ecfdf5" stroke="#34d399" stroke-width="1.2"/>
+  <text x="1276" y="316" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#065f46">
+    "parsed"
+  </text>
+
+  <!-- 9. parse_filter_smart -> "repair_json" -> json_parser -->
+  <path d="M 1138 372 V 410" fill="none" stroke="#d97706" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow-amber)"/>
+  <rect x="1150" y="381" width="88" height="22" rx="11" fill="#fffbeb" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="1194" y="396" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#b45309">
+    "repair_json"
+  </text>
+
+  <!-- 10. json_parser -> finalize_output -->
+  <path d="M 1266 467 H 1388 V 374" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+
+  <!-- 11. route_engage -> "inspiration" -> inspiration -->
+  <path d="M 539 366 V 557 H 732" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <rect x="581" y="528" width="102" height="22" rx="11" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.2"/>
+  <text x="632" y="543" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#5b21b6">
+    "inspiration"
+  </text>
+
+  <!-- 12. inspiration -> finalize_output -->
+  <path d="M 992 557 H 1476 V 374" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)"/>
+
+  <!-- ======================================================================= -->
+  <!-- WORKFLOW NODES & SUB-AGENT BOXES                                        -->
+  <!-- Uniform Agent & Sub-Agent Structure:                                    -->
+  <!--   1. name                                                               -->
+  <!--   2. Tool call (when applicable)                                        -->
+  <!--   3. Small clear description                                            -->
+  <!--   4. Constrained OutputStructure                                        -->
+  <!--   5. Port (when applicable)                                             -->
+  <!-- ======================================================================= -->
+
+  <!-- START Node -->
+  <rect x="44" y="304" width="76" height="40" rx="20" fill="#0f172a" stroke="#0f172a" stroke-width="1.5"/>
+  <text x="82" y="329" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#ffffff">
+    START
+  </text>
+
+  <!-- Sub-Agent 1: engage (x=160..416, y=271..377, w=256, h=106) -->
+  <rect x="160" y="271" width="256" height="106" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+  <text x="288" y="295" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#1e40af">
+    engage
+  </text>
+  <text x="288" y="317" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Classifies user intent
+  </text>
+  <text x="288" y="338" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#1d4ed8">
+    Constrained: EngageOutput
+  </text>
+  <text x="288" y="359" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">
+    Port :8002 (standalone)
+  </text>
+
+  <!-- Workflow Node: route_engage (x=456..622, y=282..366, w=166, h=84) -->
+  <rect x="456" y="282" width="166" height="84" rx="8" fill="#fefce8" stroke="#ca8a04" stroke-width="1.8"/>
+  <text x="539" y="307" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#854d0e">
+    route_engage
+  </text>
+  <text x="539" y="328" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#713f12">
+    Workflow Router Node
+  </text>
+  <text x="539" y="348" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#a16207">
+    Branches by decision
+  </text>
+
+  <!-- Sub-Agent 2: filter (x=736..992, y=136..242, w=256, h=106) -->
+  <rect x="736" y="136" width="256" height="106" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+  <text x="864" y="160" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#1e40af">
+    filter
+  </text>
+  <text x="864" y="182" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Extracts direct, price, or stops
+  </text>
+  <text x="864" y="203" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#1d4ed8">
+    Constrained: FilterOutput
+  </text>
+  <text x="864" y="224" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">
+    Port :8003 (standalone)
+  </text>
+
+  <!-- Sub-Agent 3: filter_smart (x=736..992, y=266..394, w=256, h=128) -->
+  <rect x="736" y="266" width="256" height="128" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.8"/>
+  <text x="864" y="290" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0f766e">
+    filter_smart
+  </text>
+  <text x="864" y="311" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#0d9488">
+    Tool: google_search
+  </text>
+  <text x="864" y="332" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Filters airline, time &amp; amenities
+  </text>
+  <text x="864" y="353" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0f766e">
+    Unconstrained: FilterSmartOutput
+  </text>
+  <text x="864" y="374" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">
+    Port :8004 (standalone)
+  </text>
+
+  <!-- Workflow Node: parse_filter_smart (x=1042..1234, y=288..372, w=192, h=84) -->
+  <rect x="1042" y="288" width="192" height="84" rx="8" fill="#fefce8" stroke="#ca8a04" stroke-width="1.8"/>
+  <text x="1138" y="313" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#854d0e">
+    parse_filter_smart
+  </text>
+  <text x="1138" y="334" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#713f12">
+    JSON Validator Node
+  </text>
+  <text x="1138" y="354" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#a16207">
+    Checks FilterSmartOutput
+  </text>
+
+  <!-- Sub-Agent 4: json_parser (x=1010..1266, y=414..520, w=256, h=106) -->
+  <rect x="1010" y="414" width="256" height="106" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+  <text x="1138" y="438" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#b45309">
+    json_parser
+  </text>
+  <text x="1138" y="460" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Repairs malformed JSON output
+  </text>
+  <text x="1138" y="481" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#b45309">
+    Constrained: JSONParserOutput
+  </text>
+  <text x="1138" y="502" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">
+    Port :8006 (standalone)
+  </text>
+
+  <!-- Sub-Agent 5: inspiration (x=736..992, y=504..610, w=256, h=106) -->
+  <rect x="736" y="504" width="256" height="106" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.8"/>
+  <text x="864" y="528" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#5b21b6">
+    inspiration
+  </text>
+  <text x="864" y="550" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155">
+    Suggests destination &amp; dates
+  </text>
+  <text x="864" y="571" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#6d28d9">
+    Constrained: InspirationOutput
+  </text>
+  <text x="864" y="592" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">
+    Port :8005 (standalone)
+  </text>
+
+  <!-- Terminal Workflow Node: finalize_output (x=1320..1544, y=264..370, w=224, h=106) -->
+  <rect x="1320" y="264" width="224" height="106" rx="10" fill="#0f172a" stroke="#0f172a" stroke-width="1.8"/>
+  <text x="1432" y="290" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff">
+    finalize_output
+  </text>
+  <text x="1432" y="313" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#cbd5e1">
+    Normalizes final response
+  </text>
+  <text x="1432" y="335" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#38bdf8">
+    Constrained: ConversationalOutput
+  </text>
+  <text x="1432" y="355" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#94a3b8">
+    Excludes None fields
+  </text>
+
+  <!-- Footnote -->
+  <text x="40" y="645" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">
+    Note: In production &amp; standard local runs, all 5 sub-agents execute in-process inside conversational (:8001 / :8080). Standalone ports (:8002–:8006) are optional isolated servers for component testing.
+  </text>
+</svg>

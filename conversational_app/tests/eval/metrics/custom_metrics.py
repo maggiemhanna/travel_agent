@@ -25,11 +25,11 @@ Your task is to evaluate whether the agent's final JSON response (`Conversationa
 
 The agent's final response is a JSON object conforming to `ConversationalOutput`:
 - `agent_response` (str): Natural language message to the user.
-- `agent_decision` (Literal['filter', 'filter_smart', 'inspiration_agent', 'continue']): Routing decision selected by the agent.
+- `agent_decision` (Literal['filter', 'filter_smart', 'inspiration', 'continue']): Routing decision selected by the agent.
 - `filter_type` (Optional[Literal['direct', 'max_price', 'max_stops']]): Present when `agent_decision == 'filter'`.
 - `filter_value` (Optional[int]): Present when `agent_decision == 'filter'`.
 - `flights_output` (Optional[List[Flight]]): Filtered subset of session flights, present when `agent_decision == 'filter_smart'`.
-- `flights_search_output` (Optional[FlightParams]): Updated search parameters (`origin`, `destination`, `departure_date`, `return_date`, `passengers`), present when `agent_decision == 'inspiration_agent'`.
+- `flights_search_output` (Optional[FlightParams]): Updated search parameters (`origin`, `destination`, `departure_date`, `return_date`, `passengers`), present when `agent_decision == 'inspiration'`.
 
 # Evaluation
 ## Criteria
@@ -37,7 +37,7 @@ The agent's final response is a JSON object conforming to `ConversationalOutput`
 2. Structured Output Match:
    - If `agent_decision == 'filter'`, `filter_type` and `filter_value` must match the expected filter type and value in the plan.
    - If `agent_decision == 'filter_smart'`, `flights_output` must contain the flights from the session context that satisfy the user's filter criteria as described in the plan.
-   - If `agent_decision == 'inspiration_agent'`, `flights_search_output` must contain concrete, valid destination/date search parameters matching the user's request as described in the plan.
+   - If `agent_decision == 'inspiration'`, `flights_search_output` must contain concrete, valid destination/date search parameters matching the user's request as described in the plan.
    - If `agent_decision == 'continue'`, the agent must not fabricate filters or flights and must provide a helpful clarifying response.
 3. Natural Language Response Alignment: `agent_response` must accurately reflect the action taken and address the user's prompt.
 
@@ -264,7 +264,7 @@ def evaluate_schema_and_contract(instance: Dict[str, Any]) -> Dict[str, Any]:
             ),
         }
 
-    if decision == "inspiration_agent":
+    if decision == "inspiration":
         if parsed.flights_search_output is None or not isinstance(
             parsed.flights_search_output, FlightParams
         ):
@@ -272,7 +272,7 @@ def evaluate_schema_and_contract(instance: Dict[str, Any]) -> Dict[str, Any]:
                 "score": 0.0,
                 "explanation": (
                     "flights_search_output must be a valid FlightParams object "
-                    "when agent_decision='inspiration_agent'."
+                    "when agent_decision='inspiration'."
                 ),
             }
         fp = parsed.flights_search_output
@@ -284,7 +284,7 @@ def evaluate_schema_and_contract(instance: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "score": 1.0,
             "explanation": (
-                f"Valid ConversationalOutput for decision='inspiration_agent' "
+                f"Valid ConversationalOutput for decision='inspiration' "
                 f"({fp.origin} -> {fp.destination}, {fp.departure_date} to {fp.return_date})."
             ),
         }

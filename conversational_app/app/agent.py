@@ -138,7 +138,7 @@ def build_conversational_workflow(
                     "continue": finalize_node,
                     "filter": f_agent,
                     "filter_smart": fs_agent,
-                    "inspiration_agent": i_agent,
+                    "inspiration": i_agent,
                 },
             ),
             (f_agent, finalize_node),

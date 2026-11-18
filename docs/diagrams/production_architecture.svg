@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 545" width="980" height="545" role="img" aria-label="Travel Agent Platform Multi-Region Production Architecture">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#0d9488"/>
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <!-- Outer Card Background (readable in both Light and Dark Markdown Previews) -->
+  <rect x="2" y="2" width="976" height="541" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- Diagram Title -->
+  <text x="490" y="32" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#0f172a">
+    Travel Agent Platform — Multi-Region Cloud Run &amp; Vertex AI Production Topology
+  </text>
+
+  <!-- End-User Browser Box -->
+  <rect x="290" y="50" width="400" height="58" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.8"/>
+  <text x="490" y="74" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">
+    End-User Web Browser (React 18 SPA)
+  </text>
+  <text x="490" y="94" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#475569">
+    Stateless UI state + postWithRegionalFailover() client SDK
+  </text>
+
+  <!-- Primary Region Container (europe-west9) -->
+  <rect x="28" y="152" width="446" height="205" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.8"/>
+  <text x="46" y="176" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#1d4ed8">
+    Primary Region: europe-west9 (Paris) — Active Traffic
+  </text>
+
+  <!-- Primary Frontend -->
+  <rect x="46" y="190" width="410" height="50" rx="8" fill="#ffffff" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="251" y="212" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#0f172a">
+    frontend (Nginx 1.27 :8080)
+  </text>
+  <text x="251" y="229" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#475569">
+    min=2, max=20 | 1 vCPU / 512Mi | Generates /env-config.js at boot
+  </text>
+
+  <!-- Primary Flights Search -->
+  <rect x="46" y="254" width="198" height="86" rx="8" fill="#ffffff" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="145" y="276" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#0f172a">
+    flights-search-app (:8080)
+  </text>
+  <text x="145" y="295" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">
+    POST /api/v1/run-flights-search
+  </text>
+  <text x="145" y="312" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    ADK Agent | min=2..20
+  </text>
+  <text x="145" y="327" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    2 vCPU / 2Gi | SA: runtime
+  </text>
+
+  <!-- Primary Conversational -->
+  <rect x="258" y="254" width="198" height="86" rx="8" fill="#ffffff" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="357" y="276" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#0f172a">
+    conversational-app (:8080)
+  </text>
+  <text x="357" y="295" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">
+    POST /api/v1/run-conversational
+  </text>
+  <text x="357" y="312" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    5-Agent ADK Workflow | min=2..20
+  </text>
+  <text x="357" y="327" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    2 vCPU / 2Gi | SA: runtime
+  </text>
+
+  <!-- Secondary Region Container (europe-west1) -->
+  <rect x="506" y="152" width="446" height="205" rx="12" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <text x="524" y="176" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0f766e">
+    Warm Standby Region: europe-west1 (Belgium) — Prod DR
+  </text>
+
+  <!-- Secondary Frontend -->
+  <rect x="524" y="190" width="410" height="50" rx="8" fill="#ffffff" stroke="#5eead4" stroke-width="1.5"/>
+  <text x="729" y="212" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#0f172a">
+    frontend (:8080 — Warm Standby UI)
+  </text>
+  <text x="729" y="229" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#475569">
+    min=1, max=20 | Symmetric /env-config.js (targets Belgium first)
+  </text>
+
+  <!-- Secondary Flights Search -->
+  <rect x="524" y="254" width="198" height="86" rx="8" fill="#ffffff" stroke="#5eead4" stroke-width="1.5"/>
+  <text x="623" y="276" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#0f172a">
+    flights-search-app (:8080)
+  </text>
+  <text x="623" y="295" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">
+    Warm Standby Endpoint
+  </text>
+  <text x="623" y="312" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    ADK Agent | min=1..20
+  </text>
+  <text x="623" y="327" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    2 vCPU / 2Gi | SA: runtime
+  </text>
+
+  <!-- Secondary Conversational -->
+  <rect x="736" y="254" width="198" height="86" rx="8" fill="#ffffff" stroke="#5eead4" stroke-width="1.5"/>
+  <text x="835" y="276" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#0f172a">
+    conversational-app (:8080)
+  </text>
+  <text x="835" y="295" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#334155">
+    Warm Standby Endpoint
+  </text>
+  <text x="835" y="312" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    5-Agent ADK Workflow | min=1..20
+  </text>
+  <text x="835" y="327" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#64748b">
+    2 vCPU / 2Gi | SA: runtime
+  </text>
+
+  <!-- Arrows from Browser to Primary & Standby -->
+  <path d="M 380 108 L 265 148" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="225" y="135" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#1d4ed8">
+    1. Load SPA + POST /api/v1/*
+  </text>
+
+  <path d="M 600 108 L 715 148" fill="none" stroke="#0d9488" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow-teal)"/>
+  <text x="765" y="135" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0f766e">
+    2. Auto Failover on Network / 5xx (&lt;= 25s RTO)
+  </text>
+
+  <!-- Managed Backing Services Container -->
+  <rect x="28" y="395" width="924" height="130" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.6"/>
+  <text x="46" y="418" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#334155">
+    Google Cloud Managed AI &amp; Stateful Platform Assets
+  </text>
+
+  <!-- Arrows from Cloud Run Regions to Backing Services -->
+  <path d="M 251 357 L 251 391" fill="none" stroke="#475569" stroke-width="1.8" marker-end="url(#arrow-slate)"/>
+  <path d="M 729 357 L 729 391" fill="none" stroke="#475569" stroke-width="1.8" marker-end="url(#arrow-slate)"/>
+
+  <!-- Backing Card 1: Vertex AI Gemini -->
+  <rect x="44" y="430" width="222" height="80" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="155" y="451" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0f172a">
+    Vertex AI Gemini (global)
+  </text>
+  <text x="155" y="470" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" fill="#334155">
+    Primary: gemini-3.5-flash-lite
+  </text>
+  <text x="155" y="487" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" fill="#2563eb">
+    Backup: gemini-3.6-flash (5x retry)
+  </text>
+
+  <!-- Backing Card 2: Google Search Grounding -->
+  <rect x="278" y="430" width="206" height="80" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="381" y="451" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0f172a">
+    Google Search Grounding
+  </text>
+  <text x="381" y="470" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" fill="#334155">
+    Live web verification for cabin
+  </text>
+  <text x="381" y="487" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" font-weight="600" fill="#0f766e">
+    filter_smart sub-agent only
+  </text>
+
+  <!-- Backing Card 3: Artifact Registry -->
+  <rect x="496" y="430" width="214" height="80" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="603" y="451" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0f172a">
+    Artifact Registry (Stateful)
+  </text>
+  <text x="603" y="470" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" fill="#334155">
+    europe-west9 + europe-west1
+  </text>
+  <text x="603" y="487" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" fill="#64748b">
+    Retains 15 recent tags / service
+  </text>
+
+  <!-- Backing Card 4: GCS Terraform State -->
+  <rect x="722" y="430" width="214" height="80" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="829" y="451" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0f172a">
+    GCS Terraform State (Stateful)
+  </text>
+  <text x="829" y="470" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" fill="#334155">
+    gs://&lt;PROJECT_ID&gt;-tfstate (EU)
+  </text>
+  <text x="829" y="487" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.8" fill="#64748b">
+    Object Versioning enabled
+  </text>
+</svg>

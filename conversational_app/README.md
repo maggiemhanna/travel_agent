@@ -16,7 +16,7 @@ graph TD
     RouteEngage -->|"continue"| Finalize["finalize_output (ConversationalOutput)"]
     RouteEngage -->|"filter"| Filter["Filter Sub-Agent (direct / max_price / max_stops)"]
     RouteEngage -->|"filter_smart"| SmartFilter["Smart Filter Sub-Agent (+ Google Search Grounding)"]
-    RouteEngage -->|"inspiration_agent"| Inspiration["Inspiration Sub-Agent (Destination & Dates)"]
+    RouteEngage -->|"inspiration"| Inspiration["Inspiration Sub-Agent (Destination & Dates)"]
     
     Filter --> Finalize
     Inspiration --> Finalize
@@ -119,7 +119,7 @@ conversational_app/
      - **`continue`**: Returns `agent_response` directly via `finalize_output`.
      - **`filter`**: Runs **Filter** to extract hard filter parameters (`direct`, `max_price`, `max_stops`).
      - **`filter_smart`**: Runs **Smart Filter** on `flights_input` using reasoning + `google_search`, validated through `parse_filter_smart` (with automatic `repair_json` fallback to **JSON Parser**).
-     - **`inspiration_agent`**: Runs **Inspiration** on `flights_search_input` to suggest new destination/dates (`flights_search_output`).
+     - **`inspiration`**: Runs **Inspiration** on `flights_search_input` to suggest new destination/dates (`flights_search_output`).
   3. Normalizes output into a strict `ConversationalOutput` JSON response.
 
 <details>
@@ -194,7 +194,7 @@ conversational_app/
 ### 2. Engage Sub-Agent (Port `8002`)
 - **Location:** [`app/sub_agents/engage/`](app/sub_agents/engage/) | **Standalone Endpoint:** `POST /run-engage`
 - **Model Config:** `ENGAGE_MODEL` (defaults to `CONVERSATIONAL_MODEL` / `gemini-3.5-flash-lite`)
-- **Role:** Intent Triage Specialist classifying user messages into `inspiration_agent`, `filter`, `filter_smart`, or `continue`.
+- **Role:** Intent Triage Specialist classifying user messages into `inspiration`, `filter`, `filter_smart`, or `continue`.
 
 <details>
 <summary><b>Engage Schemas (<code>EngageInput</code> / <code>EngageOutput</code>)</b></summary>

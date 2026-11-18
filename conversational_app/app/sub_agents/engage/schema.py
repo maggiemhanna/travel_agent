@@ -25,11 +25,11 @@ class EngageOutput(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     agent_response: str = Field(..., description="The response from the agent.")
-    agent_decision: Literal["continue", "filter", "filter_smart", "inspiration_agent"] = Field(
+    agent_decision: Literal["continue", "filter", "filter_smart", "inspiration"] = Field(
         ...,
         description=(
             "The decision from the agent to continue the conversation or direct "
-            "to another agent filter, filter_smart, inspiration_agent."
+            "to another agent filter, filter_smart, inspiration."
         ),
     )
 

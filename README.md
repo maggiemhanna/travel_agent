@@ -103,7 +103,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 | :--- | :---: | :--- | :--- | :---: |
 | **Flights Search Service** (`flights_search_app`) | `8000` | `gemini-3.5-flash-lite` *(configurable)* | **Flight Simulator**: Generates 15 realistic, route-appropriate flight itineraries obeying timezone, duration, and filter rules. | [README](flights_search_app/README.md) |
 | **Conversational Workflow** (`conversational_app/app`) | `8001` | ADK v2 `Workflow` + FastAPI | **Orchestrator Gateway**: Executes the multi-agent workflow (`engage` → specialist → output normalization) in-process via `POST /run-conversational`. | [README](conversational_app/README.md#1-conversational-workflow-entrypoint--port-8001) |
-| **Engage Sub-Agent** (`sub_agents/engage`) | `8002`* | `gemini-3.5-flash-lite` *(configurable)* | **Intent Triage**: Classifies user messages into `continue`, `filter`, `filter_smart`, or `inspiration_agent`. | [README](conversational_app/README.md#2-engage-sub-agent-port-8002) |
+| **Engage Sub-Agent** (`sub_agents/engage`) | `8002`* | `gemini-3.5-flash-lite` *(configurable)* | **Intent Triage**: Classifies user messages into `continue`, `filter`, `filter_smart`, or `inspiration`. | [README](conversational_app/README.md#2-engage-sub-agent-port-8002) |
 | **Filter Sub-Agent** (`sub_agents/filter`) | `8003`* | `gemini-3.5-flash-lite` *(configurable)* | **Hard Filter Extractor**: Translates natural language into structured filters (`direct`, `max_price`, `max_stops`). | [README](conversational_app/README.md#3-filter-sub-agent-port-8003) |
 | **Smart Filter Sub-Agent** (`sub_agents/filter_smart`) | `8004`* | `gemini-3.5-flash-lite` + Google Search | **Semantic & Amenity Filter**: Filters flights by airline, time window, or amenities using live Google Search grounding. | [README](conversational_app/README.md#4-smart-filter-sub-agent-port-8004) |
 | **Inspiration Sub-Agent** (`sub_agents/inspiration`) | `8005`* | `gemini-3.5-flash-lite` *(configurable)* | **Discovery Architect**: Turns open-ended trip ideas (*"somewhere warm in December"*) into concrete search parameters. | [README](conversational_app/README.md#5-inspiration-sub-agent-port-8005) |
@@ -119,7 +119,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 - **Cross-Service Synchronization in the Web Interface:** The React chat assistant coordinates between the Conversational service and the Flights Search service based on the workflow's decision—updating the page's filter controls and visible cards when hard filters are returned, displaying Google Search-verified flights when smart filtering runs, or updating the search form and automatically triggering a new flight search when a new destination or date is suggested.  
   — *Implemented in [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx) & [`frontend/src/App.jsx`](frontend/src/App.jsx)*
 
----
+![agentic_architecture](agentic_architecture.png "Agentic Architecture")
 
 ## 🏗 Cloud Architecture & Production Engineering Layers
 
@@ -656,6 +656,7 @@ travel_agent/
 │   ├── staging.yaml                    # 5-stage CD pipeline for Staging (travel-agent-staging-512211)
 │   └── prod.yaml                       # 5-stage CD pipeline for Prod + cross-region /env-config.js smoke checks
 ├── docs/                               # API, Integration, SDK & Production Operational Documentation
+│   ├── diagrams/                       # Standalone SVG architecture, workflow, sequence & triage diagrams
 │   ├── api_documentation.md            # OpenAPI 3.1 endpoint reference, integration guides & JS/Python SDK docs
 │   ├── operational_documentation.md    # Operational Hub: SLOs/SLIs, telemetry/logging, IAM posture & severity matrix
 │   ├── deployment_guide.md             # 5-stage Cloud Build + Terraform CD guide, promotion flow, model rollouts & rollbacks

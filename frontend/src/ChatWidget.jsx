@@ -69,7 +69,7 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
             ...result.flights_search_output
           };
           setSearchParams(updatedParams);
-          if (decision === 'inspiration_agent' && fetchFlights) {
+          if (decision === 'inspiration' && fetchFlights) {
             fetchFlights(updatedParams);
           }
         }
@@ -108,8 +108,8 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
             setFlights(result.flights_output);
             setCurrentPage(1);
           }
-        } else if (decision === 'continue' || decision === 'inspiration_agent') {
-          const botResponse = result.agent_response || (decision === 'inspiration_agent' ? "Here is a new suggestion!" : "I see.");
+        } else if (decision === 'continue' || decision === 'inspiration') {
+          const botResponse = result.agent_response || (decision === 'inspiration' ? "Here is a new suggestion!" : "I see.");
           setMessages((prev) => [...prev, { sender: 'bot', text: botResponse }]);
         }
       } else {

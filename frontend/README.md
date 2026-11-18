@@ -14,7 +14,7 @@ The **Web Frontend** is a single-page React + Vite application (`:5173` locally,
   - Dynamically updates UI state based on `agent_decision`:
     - `filter`: Updates top-level filter controls and filters displayed flights instantaneously.
     - `filter_smart`: Updates displayed flights with semantically filtered / Google Search-verified itineraries.
-    - `inspiration_agent`: Updates search parameters (`origin`, `destination`, dates) and automatically triggers a fresh flight search.
+    - `inspiration`: Updates search parameters (`origin`, `destination`, dates) and automatically triggers a fresh flight search.
     - `continue`: Displays conversational guidance or clarifying questions.
   - **Independent Feature Isolation**: Network or backend errors from `conversational-app` are caught and shown gracefully inside the chat widget without interrupting flight search or manual filtering in `App.jsx`.
 - **Versioned API Client, Cross-Region Backend Failover & Price Helper ([`src/apiClient.js`](src/apiClient.js))**:

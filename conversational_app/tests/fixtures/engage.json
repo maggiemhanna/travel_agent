@@ -18,7 +18,7 @@
             "user: Hello",
             "bot: Hello, how can I help you?"
         ],
-        "expected_agent_decision": "inspiration_agent"
+        "expected_agent_decision": "inspiration"
     },
     {
         "user_message": "I want to show flights with good wifi",

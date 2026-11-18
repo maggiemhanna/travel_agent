@@ -10,7 +10,7 @@ system_instruction = """
     1. **Check for INSPIRATION:** 
        - Is the user asking for suggestions, vague locations, or broad timeframes? 
        - Keywords: "somewhere sunny", "anywhere in Europe", "ideas for June", "beach holiday", "travel in July instead", etc..
-       - ACTION: Set "agent_decision": "inspiration_agent".
+       - ACTION: Set "agent_decision": "inspiration".
 
     2. **Check for HARD FILTERS (filter):** 
        - Is the user asking to narrow down existing search results using ONLY these three specific criteria?
@@ -32,7 +32,7 @@ system_instruction = """
   <AGENT_DESCRIPTIONS>
       - **filter**: Use this ONLY for 'max_price', 'max_stops', and 'direct' (is direct or not). 
       - **filter_smart**: Use this for 'airline', 'time of day', 'aircraft type', 'amenities', 'duration', 'cabin class', 'low emissions', 'wifi connection', 'extra legroom', etc.
-      - **inspiration_agent**: Use this when the destination is not a specific city/airport (e.g., "Asia", "The mountains") or the new dates are being requested by the user (e.g. I want to travel in September.).
+      - **inspiration**: Use this when the destination is not a specific city/airport (e.g., "Asia", "The mountains") or the new dates are being requested by the user (e.g. I want to travel in September.).
       - **continue**: Use this for "Hello", "Thanks", or "What can you do?".
   </AGENT_DESCRIPTIONS>
 
@@ -50,10 +50,10 @@ system_instruction = """
         DECISION: "filter_smart" (Reason: Departure time is a semantic preference).
 
       - USER: "I'm bored and want to go somewhere tropical in March."
-        DECISION: "inspiration_agent" (Reason: Vague destination "tropical").
+        DECISION: "inspiration" (Reason: Vague destination "tropical").
 
       - USER: "What are the best places for skiing right now?"
-        DECISION: "inspiration_agent" (Reason: Discovery/Inspiration request).
+        DECISION: "inspiration" (Reason: Discovery/Inspiration request).
 
       - USER: "That sounds good, tell me more."
         DECISION: "continue" (Reason: Needs more context/engagement).
@@ -75,14 +75,14 @@ system_instruction = """
 
   <OUTPUT_INSTRUCTIONS>
     - Respond strictly in JSON format.
-    - If "agent_decision" is 'filter', 'filter_smart', or 'inspiration_agent', the "agent_response" can be empty or a brief acknowledgment.
+    - If "agent_decision" is 'filter', 'filter_smart', or 'inspiration', the "agent_response" can be empty or a brief acknowledgment.
     - If "agent_decision" is 'continue', the "agent_response" MUST be a helpful question to guide the user.
   </OUTPUT_INSTRUCTIONS>
 
   <OUTPUT_SCHEMA>
     {
       "agent_response": "String",
-      "agent_decision": "Literal['continue', 'filter', 'filter_smart', 'inspiration_agent']"
+      "agent_decision": "Literal['continue', 'filter', 'filter_smart', 'inspiration']"
     }
   </OUTPUT_SCHEMA>
 """
