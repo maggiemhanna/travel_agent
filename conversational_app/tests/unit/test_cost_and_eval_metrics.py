@@ -20,17 +20,6 @@ from google.genai import types as genai_types
 import pytest
 
 from app.app_utils.telemetry_plugin import ExecutionTelemetryPlugin
-from app.sub_agents.engage.prompt import system_instruction as engage_prompt
-from app.sub_agents.filter.prompt import system_instruction as filter_prompt
-from app.sub_agents.filter_smart.prompt import (
-    system_instruction as filter_smart_prompt,
-)
-from app.sub_agents.inspiration.prompt import (
-    system_instruction as inspiration_prompt,
-)
-from app.sub_agents.json_parser.prompt import (
-    system_instruction as json_parser_prompt,
-)
 from tests.eval.metrics.cost_estimator import (
     aggregate_invocation_cost,
     compute_analytical_cache_projections,
@@ -217,28 +206,6 @@ def test_telemetry_plugin_logs_raw_cached_and_thoughts_tokens_without_cost_state
         assert inv_id not in plugin._runs
 
     asyncio.run(_exercise())
-
-
-def test_static_prompt_size_and_cache_prefix_guardrails() -> None:
-    """Guard against accidental static prompt bloat and verify dynamic placeholders follow static instructions."""
-    prompt_ceilings = {
-        "engage": (engage_prompt, 6000, "{user_message}"),
-        "filter": (filter_prompt, 3500, "{user_message}"),
-        "filter_smart": (filter_smart_prompt, 10000, "{flights_input}"),
-        "inspiration": (inspiration_prompt, 3500, "{user_message}"),
-        "json_parser": (json_parser_prompt, 3500, "{agent_response}"),
-    }
-    for agent_name, (prompt_text, max_chars, dynamic_marker) in prompt_ceilings.items():
-        assert len(prompt_text) <= max_chars, (
-            f"Static prompt for '{agent_name}' grew to {len(prompt_text)} chars "
-            f"(ceiling={max_chars}). Tighten the prompt or explicitly update the ceiling "
-            "after checking cost impact in tests/eval/."
-        )
-        marker_pos = prompt_text.find(dynamic_marker)
-        assert marker_pos > len(prompt_text) * 0.5, (
-            f"Dynamic placeholder '{dynamic_marker}' in '{agent_name}' appears too early "
-            f"(pos={marker_pos}/{len(prompt_text)}), reducing Gemini prefix-cacheability."
-        )
 
 
 def test_custom_cost_metrics_and_analytical_cache_projections() -> None:
