@@ -1,0 +1,7 @@
+# GEAP Evaluation Experiments History
+
+Cumulative leaderboard of evaluation runs across model, prompt, caching, and architecture changes.
+
+| Run ID                     | Run Name   | Baseline   |   Cases | Git        |   multi_turn_task_success_v1 |   multi_turn_trajectory_quality_v1 |   tool_use_quality |   coherence |   schema_and_contract_valid |   conversation_plan_alignment | latency_seconds   | cost_per_1k_requests_usd   | llm_token_cost_per_1k_usd   | total_billable_tokens   | Description                                                                    |
+|----------------------------|------------|------------|---------|------------|------------------------------|------------------------------------|--------------------|-------------|-----------------------------|-------------------------------|-------------------|----------------------------|-----------------------------|-------------------------|--------------------------------------------------------------------------------|
+| `20261119_134306_baseline` | `baseline` | Yes        |      50 | `4e4b520*` |                        0.892 |                              0.977 |                  1 |        0.96 |                           1 |                          0.94 | 2.762s            | 5.447 USD/1k               | 2.087 USD/1k                | 3915.660 tok            | Clean 50-case baseline with Standard PayGo token & Google Search cost tracking |
