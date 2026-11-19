@@ -394,7 +394,7 @@ def _resolve_case_cost_summary(instance: Dict[str, Any]) -> Optional[Dict[str, A
     from tests.eval.metrics.cost_estimator import aggregate_invocation_cost
 
     cost_summary = _coerce_json_dict(instance.get("cost_summary"))
-    if cost_summary and "total_cost_usd" in cost_summary:
+    if cost_summary and int(cost_summary.get("llm_calls_count", 0)) > 0:
         return cost_summary
 
     steps = _coerce_json_list(instance.get("sub_agent_usages"))
@@ -411,8 +411,8 @@ def evaluate_cost_per_1k_requests_usd(
     summary = _resolve_case_cost_summary(instance)
     if summary is None:
         return {
-            "score": 0.0,
-            "explanation": "Cost telemetry unavailable in trace record.",
+            "score": None,
+            "explanation": "Cost telemetry unavailable in trace record (legacy trace predates token/cost capture).",
         }
 
     cost_1k = round(float(summary.get("cost_per_1k_requests_usd", 0.0)), 6)
@@ -445,8 +445,8 @@ def evaluate_llm_token_cost_per_1k_usd(
     summary = _resolve_case_cost_summary(instance)
     if summary is None:
         return {
-            "score": 0.0,
-            "explanation": "Token cost telemetry unavailable in trace record.",
+            "score": None,
+            "explanation": "Token cost telemetry unavailable in trace record (legacy trace predates token/cost capture).",
         }
 
     tok_1k = round(float(summary.get("llm_token_cost_per_1k_usd", 0.0)), 6)
@@ -472,8 +472,8 @@ def evaluate_total_billable_tokens(
     summary = _resolve_case_cost_summary(instance)
     if summary is None:
         return {
-            "score": 0.0,
-            "explanation": "Token count telemetry unavailable in trace record.",
+            "score": None,
+            "explanation": "Token count telemetry unavailable in trace record (legacy trace predates token/cost capture).",
         }
 
     total_tok = int(summary.get("total_tokens", 0))

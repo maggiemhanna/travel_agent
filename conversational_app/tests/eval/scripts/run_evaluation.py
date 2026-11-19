@@ -826,7 +826,8 @@ def evaluate_local_python_metrics_only(
             if m_type == "custom_python" and m_name in CUSTOM_PYTHON_METRICS_REGISTRY:
                 fn = CUSTOM_PYTHON_METRICS_REGISTRY[m_name]
                 out = fn(instance)
-                score_val = float(out.get("score", 0.0))
+                raw_score = out.get("score")
+                score_val = float(raw_score) if raw_score is not None else None
                 sdk_metric_results[m_name] = (
                     vertex_types.common.EvalCaseMetricResult(
                         metric_name=m_name,
@@ -834,7 +835,8 @@ def evaluate_local_python_metrics_only(
                         explanation=str(out.get("explanation") or ""),
                     )
                 )
-                scores_by_metric.setdefault(m_name, []).append(score_val)
+                if score_val is not None:
+                    scores_by_metric.setdefault(m_name, []).append(score_val)
             elif m_name in prior_map and isinstance(prior_map[m_name], dict):
                 restored = (
                     vertex_types.common.EvalCaseMetricResult.model_validate(
@@ -1650,6 +1652,17 @@ def run_evaluation(
             catalog=pricing_catalog,
             model_overrides=parsed_overrides,
         )
+        cases_with_usage = sum(
+            1 for r in traced_records if r.get("sub_agent_usages")
+        )
+        if traced_records and cases_with_usage == 0:
+            logger.warning(
+                f"Reused traces from '{traces_source}' contain no token/cost telemetry "
+                "(sub_agent_usages is empty across all cases — likely a legacy run captured "
+                "before cost tracking was added). Cost and token metrics will report N/A. "
+                "Run a fresh live baseline without --reuse-run / --reprice-only first "
+                "(e.g. `python3 -m tests.eval.scripts.run_evaluation --run-name baseline_with_cost --set-baseline`)."
+            )
         sibling_results = os.path.join(
             os.path.dirname(traces_source), RESULTS_FILENAME
         )

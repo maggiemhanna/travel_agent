@@ -243,6 +243,12 @@ def test_custom_cost_metrics_and_analytical_cache_projections() -> None:
     assert m_tok["score"] == pytest.approx(3.61)
     assert m_cnt["score"] == pytest.approx(6900.0)
 
+    # Legacy traces without token/usage capture must return score=None (N/A), not 0.0 PASS
+    legacy_instance = {"sub_agent_usages": [], "cost_summary": aggregate_invocation_cost([])}
+    assert evaluate_cost_per_1k_requests_usd(legacy_instance)["score"] is None
+    assert evaluate_llm_token_cost_per_1k_usd(legacy_instance)["score"] is None
+    assert evaluate_total_billable_tokens(legacy_instance)["score"] is None
+
     traced_records = [
         {
             "eval_id": "case-1",
