@@ -81,13 +81,8 @@ JSON_PARSER_BASE_URL = os.getenv(
     "JSON_PARSER_BASE_URL", f"http://{JSON_PARSER_HOST}:{JSON_PARSER_PORT}"
 ).rstrip("/")
 
-# --- ADK Plugin & Cost Telemetry Configuration ---
+# --- ADK Plugin Configuration ---
 ENABLE_TELEMETRY_PLUGIN = os.getenv(
     "ENABLE_TELEMETRY_PLUGIN", "true"
 ).strip().lower() in {"1", "true", "yes", "on"}
-EXPOSE_TELEMETRY_HEADER = os.getenv(
-    "EXPOSE_TELEMETRY_HEADER", "false"
-).strip().lower() in {"1", "true", "yes", "on"}
-PRICING_CONFIG_PATH = os.getenv("PRICING_CONFIG_PATH", "").strip() or None
-
 

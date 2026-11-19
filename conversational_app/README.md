@@ -60,7 +60,7 @@ conversational_app/
 │   ├── export_openapi.py        # Deterministic OpenAPI 3.1 contract snapshot exporter (openapi.json)
 │   ├── main.py                  # FastAPI gateway (/api/v1 + legacy routes), /healthz & /readyz probes, CORS & failover
 │   ├── schema.py                # Canonical Flight/FlightParams, ConversationalInput/Output/Response & boundary rules
-│   ├── app_utils/               # cost_tracker.py, pricing_config.json, health.py, logging.py, telemetry_plugin.py & versioning.py
+│   ├── app_utils/               # health.py, logging.py, telemetry_plugin.py & versioning.py (X-API-Version / Deprecation)
 │   └── sub_agents/              # Specialized ADK Sub-Agents (each with agent.py, main.py, prompt.py, schema.py)
 │       ├── engage/              # Intent triage & routing (:8002)
 │       ├── filter/              # Deterministic filter extraction (:8003)
@@ -69,13 +69,13 @@ conversational_app/
 │       └── json_parser/         # Self-healing JSON structure repair (:8006)
 ├── tests/
 │   ├── fixtures/                # Functional payloads + 10-case adversarial red-team suite (red_team.json)
-│   ├── unit/                    # Offline health, contract/versioning, cost/caching math, failover, red-team & brownout tests
-│   ├── integration/             # In-process TestClient tests with live Gemini calls + suite AI cost receipt (conftest.py)
+│   ├── unit/                    # Offline health, contract/versioning, cost/caching math, prompt-size, failover, red-team & brownout tests
+│   ├── integration/             # In-process TestClient tests with live Gemini calls + adversarial red-team suite
 │   ├── e2e/                     # Live HTTP client tests (configurable via *_BASE_URL env vars)
 │   └── eval/                    # 10-metric GEAP AI Quality, Immutability, Latency & Standard PayGo Cost Evaluation Suite
-│       ├── configs/             # eval_config.json, scenario_generation_config.json, session_input.json
+│       ├── configs/             # eval_config.json, pricing_config.json, scenario_generation_config.json, session_input.json
 │       ├── datasets/            # 50-case synthetic travel benchmark (conversational_synthetic.evalset.json)
-│       ├── metrics/             # Custom Python & LLM-as-a-Judge evaluation metrics
+│       ├── metrics/             # custom_metrics.py & cost_estimator.py (Standard PayGo pricing & cache projections)
 │       ├── results/             # Timestamped evaluation runs, traces & experiments_history.md
 │       └── scripts/             # generate_scenarios.py, run_evaluation.py, run_loss_analysis.py
 ├── openapi.json                 # Committed OpenAPI 3.1 contract snapshot verified automatically in CI
@@ -104,9 +104,7 @@ conversational_app/
 | `CONVERSATIONAL_BASE_URL` | `http://127.0.0.1:8001` | Target URL for `tests/e2e/test_conversational.py`. |
 | `ENGAGE_BASE_URL` ... `JSON_PARSER_BASE_URL` | `http://127.0.0.1:8002`–`8006` | Configurable standalone sub-agent URLs for microservice mode & E2E tests. |
 | `ALLOWED_ORIGINS` | `*` | Comma-separated allowed CORS origins. |
-| `ENABLE_TELEMETRY_PLUGIN` | `true` | Enables `ExecutionTelemetryPlugin` for per-agent latency, token, grounding, and Standard PayGo USD cost logs. |
-| `EXPOSE_TELEMETRY_HEADER` | `false` | When `true`, attaches an `X-AI-Telemetry` JSON response header with per-request token and cost totals for test/E2E inspection. |
-| `PRICING_CONFIG_PATH` | `app/app_utils/pricing_config.json` | Optional override path to a custom Vertex AI model & Google Search grounding pricing catalog JSON. |
+| `ENABLE_TELEMETRY_PLUGIN` | `true` | Enables `ExecutionTelemetryPlugin` for raw per-agent latency, token (in/cached/out/thoughts), and grounding logs. |
 
 ---
 
@@ -418,7 +416,7 @@ CONVERSATIONAL_BASE_URL="https://conversational-app-5tqnsbwara-od.a.run.app" \
 ```
 
 ### 2. GEAP AI Quality, Latency & Standard PayGo Cost Evaluation (`tests/eval/`)
-The [`tests/eval/`](tests/eval/) suite evaluates the full multi-agent workflow against 50 synthetic travel scenarios ([`conversational_synthetic.evalset.json`](tests/eval/datasets/conversational_synthetic.evalset.json)) across **10 automated metrics** configured in [`eval_config.json`](tests/eval/configs/eval_config.json) and priced against [`pricing_config.json`](app/app_utils/pricing_config.json) (Vertex AI Standard PayGo + Gemini 3 `$14/1k` per-query Google Search grounding), generating per-sub-agent attribution and **analytical response-caching & Gemini context-caching sensitivity projections** in `eval_summary.md`:
+The [`tests/eval/`](tests/eval/) suite evaluates the full multi-agent workflow against 50 synthetic travel scenarios ([`conversational_synthetic.evalset.json`](tests/eval/datasets/conversational_synthetic.evalset.json)) across **10 automated metrics** configured in [`eval_config.json`](tests/eval/configs/eval_config.json) and priced offline against [`pricing_config.json`](tests/eval/configs/pricing_config.json) (Vertex AI Standard PayGo + Gemini 3 `$14/1k` per-query Google Search grounding), generating per-sub-agent attribution and **analytical response-caching & Gemini context-caching sensitivity projections** in `eval_summary.md`:
 
 | Metric | Type | Threshold | What It Measures |
 | :--- | :---: | :---: | :--- |

@@ -12,8 +12,13 @@ import math
 import os
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
-DEFAULT_PRICING_CONFIG_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "pricing_config.json"
+DEFAULT_PRICING_CONFIG_PATH = os.path.normpath(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "configs",
+        "pricing_config.json",
+    )
 )
 
 

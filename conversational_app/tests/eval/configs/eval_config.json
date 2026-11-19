@@ -1,7 +1,7 @@
 {
   "eval_set_id": "conversational_synthetic",
   "judge_model": "gemini-2.5-flash",
-  "pricing_config_path": "../../app/app_utils/pricing_config.json",
+  "pricing_config_path": "pricing_config.json",
   "evaluation_service_qps": 5.0,
   "inference_concurrency": 4,
   "metrics": [

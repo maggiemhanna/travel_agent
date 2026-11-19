@@ -391,7 +391,7 @@ def _coerce_json_list(raw_val: Any) -> List[Dict[str, Any]]:
 
 
 def _resolve_case_cost_summary(instance: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    from app.app_utils.cost_tracker import aggregate_invocation_cost
+    from tests.eval.metrics.cost_estimator import aggregate_invocation_cost
 
     cost_summary = _coerce_json_dict(instance.get("cost_summary"))
     if cost_summary and "total_cost_usd" in cost_summary:

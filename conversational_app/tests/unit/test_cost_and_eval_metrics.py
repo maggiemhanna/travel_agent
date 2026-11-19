@@ -1,18 +1,17 @@
 # Copyright (c) 2024 Maggie Mhanna
 # All rights reserved.
 
-"""Unit tests for AI cost estimation, caching projections, telemetry headers, and GEAP cost metrics."""
+"""Unit tests for eval-only AI cost estimation, caching projections, prompt-size guardrails, and raw telemetry."""
 
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
-import os
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
 from google.adk.evaluation.conversation_scenarios import ConversationScenario
 from google.adk.evaluation.eval_case import EvalCase, SessionInput
 from google.adk.models.cache_metadata import CacheMetadata
@@ -20,22 +19,26 @@ from google.adk.models.llm_response import LlmResponse
 from google.genai import types as genai_types
 import pytest
 
-from app.app_utils.cost_tracker import (
+from app.app_utils.telemetry_plugin import ExecutionTelemetryPlugin
+from app.sub_agents.engage.prompt import system_instruction as engage_prompt
+from app.sub_agents.filter.prompt import system_instruction as filter_prompt
+from app.sub_agents.filter_smart.prompt import (
+    system_instruction as filter_smart_prompt,
+)
+from app.sub_agents.inspiration.prompt import (
+    system_instruction as inspiration_prompt,
+)
+from app.sub_agents.json_parser.prompt import (
+    system_instruction as json_parser_prompt,
+)
+from tests.eval.metrics.cost_estimator import (
     aggregate_invocation_cost,
-    build_dataset_cost_overview,
     compute_analytical_cache_projections,
     compute_step_cost_from_counts,
     extract_step_usage_and_cost,
     load_pricing_catalog,
-    parse_model_overrides,
-    reprice_traced_records,
     resolve_model_pricing,
 )
-from app.app_utils.telemetry_plugin import (
-    TELEMETRY_HEADER_NAME,
-    ExecutionTelemetryPlugin,
-)
-from app.main import api
 from tests.eval.metrics.custom_metrics import (
     evaluate_cost_per_1k_requests_usd,
     evaluate_llm_token_cost_per_1k_usd,
@@ -43,7 +46,6 @@ from tests.eval.metrics.custom_metrics import (
 )
 from tests.eval.scripts.run_evaluation import (
     DEFAULT_EVAL_CONFIG_PATH,
-    append_to_experiments_history,
     build_agent_info,
     run_evaluation,
     run_single_case_inference,
@@ -73,7 +75,7 @@ def test_pricing_catalog_and_model_resolution() -> None:
 
 
 def test_step_cost_accounting_tokens_thinking_caching_and_grounding() -> None:
-    """Verify cached-token subtraction, thinking output billing, >200k tiering, and Gemini 3 per-query search cost."""
+    """Verify cached-token subtraction, thinking output billing, >200k tiering, and Google Search SKU modes."""
     # 1. Gemini 3.5 Flash-Lite with context cache + thinking + 2 Google Search queries:
     # prompt=2000 (includes 1500 cached -> 500 uncached) + 100 tool_use_prompt = 600 uncached input @ $0.30/1M = $0.00018
     # cached=1500 @ $0.03/1M = $0.000045 (savings vs $0.30/1M = $0.000405)
@@ -126,7 +128,24 @@ def test_step_cost_accounting_tokens_thinking_caching_and_grounding() -> None:
     assert step["cost_per_1k_requests_usd"] == pytest.approx(29.475)
     assert step["context_cache_savings_usd"] == pytest.approx(0.000405)
 
-    # 2. Response cache hit short-circuit -> $0 billed cost, avoided cost preserved
+    # 2. Alternative per_grounded_request SKU mode bills 1 unit regardless of query count
+    per_req_catalog = copy.deepcopy(load_pricing_catalog())
+    per_req_catalog["models"]["gemini-2.5-flash"]["google_search_grounding"] = {
+        "billing_mode": "per_grounded_request",
+        "price_per_unit_usd": 0.035,
+    }
+    req_step = compute_step_cost_from_counts(
+        author="filter_smart",
+        resolved_model="gemini-2.5-flash",
+        prompt_tokens=1000,
+        candidates_output_tokens=100,
+        web_search_queries=["q1", "q2", "q3"],
+        catalog=per_req_catalog,
+    )
+    assert req_step["billable_search_units"] == 1
+    assert req_step["search_grounding_cost_usd"] == pytest.approx(0.035)
+
+    # 3. Response cache hit short-circuit -> $0 billed cost, avoided cost preserved
     cached_resp = LlmResponse(
         partial=False,
         usage_metadata=resp.usage_metadata,
@@ -143,7 +162,7 @@ def test_step_cost_accounting_tokens_thinking_caching_and_grounding() -> None:
     assert hit_step["search_grounding_cost_usd"] == 0.0
     assert hit_step["response_cache_avoided_cost_usd"] == pytest.approx(0.029475)
 
-    # 3. Long-context tier (>200k tokens) on gemini-3.1-pro-preview ($4.00/1M in, $18.00/1M out)
+    # 4. Long-context tier (>200k tokens) on gemini-3.1-pro-preview ($4.00/1M in, $18.00/1M out)
     long_step = compute_step_cost_from_counts(
         author="filter_smart",
         resolved_model="gemini-3.1-pro-preview",
@@ -156,95 +175,70 @@ def test_step_cost_accounting_tokens_thinking_caching_and_grounding() -> None:
     )
 
 
-def test_telemetry_plugin_completed_runs_and_http_header() -> None:
-    """Verify ExecutionTelemetryPlugin retains bounded completed summaries and emits X-AI-Telemetry only when enabled."""
-    from google.adk.models.google_llm import Gemini
+def test_telemetry_plugin_logs_raw_cached_and_thoughts_tokens_without_cost_state() -> None:
+    """Verify ExecutionTelemetryPlugin stays lightweight (raw cached & thoughts tokens only, no retained cost buffer)."""
+    plugin = ExecutionTelemetryPlugin()
+    assert not hasattr(plugin, "_completed_runs")
 
-    async def _fake_generate_content_async(self, llm_request, stream=False):
-        body = {
-            "agent_response": "Hello! Tell me where you would like to fly.",
-            "agent_decision": "continue",
-        }
-        yield LlmResponse(
-            model_version="gemini-3.5-flash-lite",
-            content=genai_types.Content(
-                role="model",
-                parts=[genai_types.Part.from_text(text=json.dumps(body))],
+    async def _exercise():
+        inv_id = "inv-raw-tokens-001"
+        inv_ctx = SimpleNamespace(invocation_id=inv_id)
+        cb_ctx = SimpleNamespace(invocation_id=inv_id, agent_name="filter_smart")
+        await plugin.before_run_callback(invocation_context=inv_ctx)
+        await plugin.before_agent_callback(
+            agent=SimpleNamespace(name="filter_smart"), callback_context=cb_ctx
+        )
+        await plugin.after_model_callback(
+            callback_context=cb_ctx,
+            llm_response=LlmResponse(
+                partial=False,
+                usage_metadata=genai_types.GenerateContentResponseUsageMetadata(
+                    prompt_token_count=1800,
+                    cached_content_token_count=1200,
+                    candidates_token_count=220,
+                    thoughts_token_count=140,
+                ),
+                grounding_metadata=genai_types.GroundingMetadata(
+                    web_search_queries=["Air France WiFi speed"]
+                ),
             ),
-            usage_metadata=genai_types.GenerateContentResponseUsageMetadata(
-                prompt_token_count=1000,
-                candidates_token_count=40,
-                thoughts_token_count=60,
-            ),
-            partial=False,
         )
 
-    payload = {
-        "user_message": "Hello!",
-        "conversational_history": [],
-        "flights_search_input": {
-            "origin": "Paris",
-            "destination": "New York",
-            "departure_date": "2026-05-10",
-            "return_date": "2026-05-20",
-            "passengers": 1,
-        },
-        "flights_input": [],
+        run_state = plugin._runs[inv_id]
+        assert run_state["in_tokens"] == 1800
+        assert run_state["out_tokens"] == 220
+        assert run_state["cached_tokens"] == 1200
+        assert run_state["thoughts_tokens"] == 140
+        assert run_state["rows"][0][4] == "Air France WiFi speed"
+        assert run_state["rows"][0][5] == 1200
+        assert run_state["rows"][0][6] == 140
+
+        await plugin.after_run_callback(invocation_context=inv_ctx)
+        assert inv_id not in plugin._runs
+
+    asyncio.run(_exercise())
+
+
+def test_static_prompt_size_and_cache_prefix_guardrails() -> None:
+    """Guard against accidental static prompt bloat and verify dynamic placeholders follow static instructions."""
+    prompt_ceilings = {
+        "engage": (engage_prompt, 6000, "{user_message}"),
+        "filter": (filter_prompt, 3500, "{user_message}"),
+        "filter_smart": (filter_smart_prompt, 10000, "{flights_input}"),
+        "inspiration": (inspiration_prompt, 3500, "{user_message}"),
+        "json_parser": (json_parser_prompt, 3500, "{agent_response}"),
     }
-
-    with patch.object(
-        Gemini, "generate_content_async", new=_fake_generate_content_async
-    ):
-        with TestClient(api) as client:
-            # Default: header is NOT exposed
-            resp_default = client.post("/api/v1/run-conversational", json=payload)
-            assert resp_default.status_code == 200
-            assert TELEMETRY_HEADER_NAME not in resp_default.headers
-
-            # Enabled via EXPOSE_TELEMETRY_HEADER=true
-            with patch.dict(
-                os.environ, {"EXPOSE_TELEMETRY_HEADER": "true"}, clear=False
-            ):
-                resp_enabled = client.post(
-                    "/api/v1/run-conversational", json=payload
-                )
-                assert resp_enabled.status_code == 200
-                assert TELEMETRY_HEADER_NAME in resp_enabled.headers
-                hdr = json.loads(resp_enabled.headers[TELEMETRY_HEADER_NAME])
-                assert hdr["llm_calls"] == 1
-                assert hdr["total_tokens"] == 1100
-                assert hdr["thoughts_tokens"] == 60
-                # 1000 in @ $0.30/1M ($0.0003) + 100 out+thoughts @ $2.50/1M ($0.00025) = $0.00055 ($0.55/1k)
-                assert hdr["cost_per_1k_requests_usd"] == pytest.approx(0.55)
-
-    # Verify ring buffer eviction respects max_completed_runs
-    plugin = ExecutionTelemetryPlugin(max_completed_runs=2)
-
-    async def _fill_ring():
-        for i in range(3):
-            inv_id = f"inv-ring-{i}"
-            inv_ctx = SimpleNamespace(invocation_id=inv_id)
-            cb_ctx = SimpleNamespace(invocation_id=inv_id, agent_name="engage")
-            await plugin.before_run_callback(invocation_context=inv_ctx)
-            await plugin.before_agent_callback(
-                agent=SimpleNamespace(name="engage", model="gemini-3.5-flash-lite"),
-                callback_context=cb_ctx,
-            )
-            await plugin.after_model_callback(
-                callback_context=cb_ctx,
-                llm_response=LlmResponse(
-                    partial=False,
-                    usage_metadata=genai_types.GenerateContentResponseUsageMetadata(
-                        prompt_token_count=100, candidates_token_count=20
-                    ),
-                ),
-            )
-            await plugin.after_run_callback(invocation_context=inv_ctx)
-
-    asyncio.run(_fill_ring())
-    assert plugin.get_completed_run("inv-ring-0") is None
-    assert plugin.get_completed_run("inv-ring-1") is not None
-    assert plugin.get_latest_run()["invocation_id"] == "inv-ring-2"
+    for agent_name, (prompt_text, max_chars, dynamic_marker) in prompt_ceilings.items():
+        assert len(prompt_text) <= max_chars, (
+            f"Static prompt for '{agent_name}' grew to {len(prompt_text)} chars "
+            f"(ceiling={max_chars}). Tighten the prompt or explicitly update the ceiling "
+            "after checking cost impact in tests/eval/."
+        )
+        marker_pos = prompt_text.find(dynamic_marker)
+        assert marker_pos > len(prompt_text) * 0.5, (
+            f"Dynamic placeholder '{dynamic_marker}' in '{agent_name}' appears too early "
+            f"(pos={marker_pos}/{len(prompt_text)}), reducing Gemini prefix-cacheability."
+        )
 
 
 def test_custom_cost_metrics_and_analytical_cache_projections() -> None:
@@ -396,7 +390,7 @@ def test_offline_reprice_and_experiments_history_column_expansion(
     flash_lite_cost_1k = record["cost_summary"]["cost_per_1k_requests_usd"]
     assert flash_lite_cost_1k > 0.0
 
-    # Seed a legacy 13-column experiments_history.md (matching existing repo state before cost columns)
+    # Seed a legacy experiments_history.md (matching existing repo state before cost columns)
     results_dir = tmp_path / "results"
     base_dir = results_dir / "20261118_000001_seed"
     base_dir.mkdir(parents=True)
@@ -471,7 +465,6 @@ def test_offline_reprice_and_experiments_history_column_expansion(
     header_cols = [c.strip() for c in table_lines[0].strip("|").split("|")]
     assert header_cols[-1] == "Description"
     assert "cost_per_1k_requests_usd" in header_cols
-    # Legacy row gracefully gets N/A for newly added cost metrics
     legacy_cells = [c.strip() for c in table_lines[2].strip("|").split("|")]
     cost_col_idx = header_cols.index("cost_per_1k_requests_usd")
     assert legacy_cells[cost_col_idx] == "N/A"

@@ -31,7 +31,8 @@ import vertexai
 from vertexai import types as vertex_types
 
 from app.agent import APP_NAME, app, conversational
-from app.app_utils.cost_tracker import (
+from app.app_utils.logging import format_table_for_logs, setup_logging
+from tests.eval.metrics.cost_estimator import (
     DEFAULT_PRICING_CONFIG_PATH,
     aggregate_invocation_cost,
     build_dataset_cost_overview,
@@ -40,7 +41,6 @@ from app.app_utils.cost_tracker import (
     parse_model_overrides,
     reprice_traced_records,
 )
-from app.app_utils.logging import format_table_for_logs, setup_logging
 from tests.eval.metrics.custom_metrics import (
     CUSTOM_PYTHON_METRICS_REGISTRY,
     build_evaluation_metrics,
