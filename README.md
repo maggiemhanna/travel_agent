@@ -34,6 +34,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
   - [**IV/ Performance & Cost Optimization**](#iv-performance--cost-optimization)
     - [1. Scalability & Elasticity](#1-scalability--elasticity)
     - [2. Resource Efficiency](#2-resource-efficiency)
+    - [3. AI Cost Management](#3-ai-cost-management)
   - [**V/ Security, Privacy, and Compliance**](#v-security-privacy-and-compliance)
     - [1. Authentication & Authorization](#1-authentication--authorization)
   - [**VI/ Reliability & Resilience**](#vi-reliability--resilience)
@@ -50,7 +51,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 - [**Testing, AI Evaluation & Verification**](#-testing-ai-evaluation--verification)
   - [1. Offline Unit Test Suites](#1-offline-unit-test-suites)
   - [2. Live In-Process Integration & HTTP End-to-End (E2E) Suites](#2-live-in-process-integration--http-end-to-end-e2e-suites)
-  - [3. GEAP 7-Metric AI Evaluation & Loss Analysis Flywheel](#3-geap-7-metric-ai-evaluation--loss-analysis-flywheel)
+  - [3. GEAP 10-Metric AI Quality, Latency & Cost Evaluation Flywheel](#3-geap-10-metric-ai-quality-latency--cost-evaluation-flywheel)
   - [4. Manual API Testing via `curl`](#4-manual-api-testing-via-curl)
   - [5. Interactive Web Dashboard Workflow](#5-interactive-web-dashboard-workflow)
   - [6. Multi-Region Failover & Infrastructure Backup Drills](#6-multi-region-failover--infrastructure-backup-drills)
@@ -123,20 +124,21 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 
 ## 🏗 Cloud Architecture & Production Engineering Layers
 
-The platform is engineered for reproducible multi-environment deployment (`dev`, `staging`, `prod`) on **Google Cloud Platform (GCP)** across **6 architectural domains (`I`–`VI`) and 13 production engineering layers**, verified by the automated test, evaluation, resilience, and CI/CD suites in [`flights_search_app/tests/`](flights_search_app/tests/), [`conversational_app/tests/`](conversational_app/tests/), [`frontend/src/`](frontend/src/), [`deployment/`](deployment/), and [`.cloudbuild/`](.cloudbuild/):
+The platform is engineered for reproducible multi-environment deployment (`dev`, `staging`, `prod`) on **Google Cloud Platform (GCP)** across **6 architectural domains (`I`–`VI`) and 14 production engineering layers**, verified by the automated test, evaluation, resilience, and CI/CD suites in [`flights_search_app/tests/`](flights_search_app/tests/), [`conversational_app/tests/`](conversational_app/tests/), [`frontend/src/`](frontend/src/), [`deployment/`](deployment/), and [`.cloudbuild/`](.cloudbuild/):
 
 | Domain | Layer | Pillars & Focus Areas |
 | :--- | :--- | :--- |
 | [**I. Cloud Architecture**](#i-cloud-architecture) | [**1. Cloud Deployment**](#1-cloud-deployment-cloud-architecture--google-cloud-services-used) | Three-service Cloud Run setup across separate `dev`, `staging`, and `prod` Google Cloud projects (with warm backup servers in Belgium for `prod`), automatic backend URL wiring, and managed Google Cloud services for compute, AI, live web search, image storage, CI/CD, permissions, and logging |
 | [**II. Operational Excellence**](#ii-operational-excellence) | [**1. Infrastructure as Code (IaC)**](#1-infrastructure-as-code-iac) | Version-controlled Terraform setup, versioned multi-region Cloud Storage state backups, remote Cloud Build Terraform execution, two-step first-run project setup, and identical `dev`/`staging`/`prod` infrastructure files |
 | [**II. Operational Excellence**](#ii-operational-excellence) | [**2. CI/CD & Deployment**](#2-cicd--deployment) | Pull Request test checks, 5-stage deployment pipelines across `dev`, `staging`, and `prod` (with a manual approval step on `prod`), zero-downtime Cloud Run updates with automated health checks, and one-command Git-commit rollbacks |
-| [**II. Operational Excellence**](#ii-operational-excellence) | [**3. Testing & Quality Engineering**](#3-testing--quality-engineering) | Four-level test pyramid (offline unit tests, live Gemini integration tests, live HTTP end-to-end tests, and a 50-scenario 7-check AI quality & evaluation suite), automated pipeline test gates, and dedicated tests for every service and specialist agent |
+| [**II. Operational Excellence**](#ii-operational-excellence) | [**3. Testing & Quality Engineering**](#3-testing--quality-engineering) | Four-level test pyramid (offline unit & static prompt-size/cost-floor guardrails, live Gemini integration tests, live HTTP end-to-end tests, and a 50-scenario 10-check AI quality, latency & cost evaluation suite), automated pipeline test gates, and dedicated tests for every service and specialist agent |
 | [**III. Designing for Change**](#iii-designing-for-change) | [**1. Configuration Management**](#1-configuration-management) | Externalized backend and Terraform settings, startup backend URL configuration for the web frontend, isolated `dev`/`staging`/`prod` vs. local environments, and feature/infrastructure toggles |
 | [**III. Designing for Change**](#iii-designing-for-change) | [**2. Modularity & Abstraction**](#2-modularity--abstraction) | Independent Flight Search, Chat, and Frontend services, 5 self-contained specialist agent folders, strict input/output validation, global and per-agent Gemini model switching, and reusable session setup |
 | [**III. Designing for Change**](#iii-designing-for-change) | [**3. Extensibility**](#3-extensibility) | Step-by-step event routing between agents, automatic performance and token-tracking plugins, plug-and-play specialist agent and evaluation folders, and GitHub webhook deployment triggers |
 | [**III. Designing for Change**](#iii-designing-for-change) | [**4. API Design & Versioning**](#4-api-design--versioning) | Versioned `/api/v1` endpoints with working legacy `/run-*` URLs and deprecation headers, explicit response schemas with CI-checked OpenAPI contract files, and safe field evolution with matching flight formats across services |
 | [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**1. Scalability & Elasticity**](#1-scalability--elasticity) | Independent scaling per service, running chat agents together without extra network calls, automatic container scaling (`0–5` dev, `0–10` staging, `2–20` prod Paris + `1–20` warm Belgium backup), configurable CPU/memory, Cloud Run HTTPS load balancing, and global Vertex AI capacity |
 | [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**2. Resource Efficiency**](#2-resource-efficiency) | Right-sized CPU & memory per service, fast default AI models & lean search/prompt usage, `$0` idle shutdown in `dev`/`staging` with pay-per-request CPU billing, and automatic cleanup of old container images with cached builds and Gzip compression |
+| [**IV. Performance & Cost Optimization**](#iv-performance--cost-optimization) | [**3. AI Cost Management**](#3-ai-cost-management) | Raw per-agent token & grounding telemetry (input, cached, output, thinking, search queries), eval-only Vertex AI Standard PayGo cost & `$14/1k` search-grounding estimator, 10-metric GEAP cost/token gates with per-sub-agent attribution, `$0` counterfactual model repricing, analytical response/context-caching projections, and offline CI static prompt-size, route cost-floor & prefix-cacheability guardrails |
 | [**V. Security, Privacy, and Compliance**](#v-security-privacy-and-compliance) | [**1. Authentication & Authorization**](#1-authentication--authorization) | Three separate Service Accounts per project, version-controlled permissions, automatic removal of extra permissions from default Google accounts, non-root backend containers, and keyless Vertex AI authentication with configurable allowed website origins |
 | [**VI. Reliability & Resilience**](#vi-reliability--resilience) | [**1. Availability Design**](#1-availability-design) | Always-on backup containers in production, automatic backup Gemini model & safe updates that block broken releases, two-level health checks ("alive" vs. "ready"), and a warm backup region in Belgium with automatic browser failover & one-command regional recovery |
 | [**VI. Reliability & Resilience**](#vi-reliability--resilience) | [**2. Graceful Degradation**](#2-graceful-degradation) | Automatic repair of messy JSON replies, safe handling of plain-text replies, separate Flight Search and Chat failure boundaries, 3-step backend address fallback, 5-attempt automatic retries across all 6 agents, and 5-minute backend request timeouts |
@@ -266,14 +268,14 @@ Code verification, container builds, infrastructure rollouts, and post-deploy he
 Quality, schema compliance, sub-agent routing, non-hallucination, and response latency are verified across a four-tier testing and AI evaluation pyramid:
 
 - **3.1 Pillar 1 — Unit, Integration, End-to-End (E2E) & AI Evaluation Testing**
-  - **Tier 1 — Offline Unit Tests (`tests/unit/` & `frontend/src/`):** Verifies service health endpoints, validates request schemas and input safety limits (`HTTP 422`), and tests simulated AI/regional failovers, JSON repair routing, and multi-user concurrency across both backend applications, all five sub-agents, and the web frontend without requiring live cloud calls.  
+  - **Tier 1 — Offline Unit Tests (`tests/unit/` & `frontend/src/`):** Verifies service health endpoints, validates request schemas and input safety limits (`HTTP 422`), enforces static prompt-size, route cost-floor, prefix-cacheability, and AI cost-math guardrails, and tests simulated AI/regional failovers, JSON repair routing, and multi-user concurrency across both backend applications, all five sub-agents, and the web frontend without requiring live cloud calls.  
     — *Implemented in [`flights_search_app/tests/unit/`](flights_search_app/tests/unit/), [`conversational_app/tests/unit/`](conversational_app/tests/unit/) & [`frontend/src/apiClient.test.js`](frontend/src/apiClient.test.js)*
   - **Tier 2 — Live In-Process Integration Tests (`tests/integration/`):** Exercises the full FastAPI and ADK runner stack in-process using `TestClient` with live Vertex AI Gemini calls across the Flight Search service, the Conversational workflow, all five individual sub-agents, and red-team prompt-safety scenarios, verifying that every returned response satisfies its output schema and safety contract.  
     — *Implemented in [`flights_search_app/tests/integration/test_flights_search.py`](flights_search_app/tests/integration/test_flights_search.py), [`conversational_app/tests/integration/test_conversational.py`](conversational_app/tests/integration/test_conversational.py), [`conversational_app/tests/integration/test_engage.py`](conversational_app/tests/integration/test_engage.py), [`conversational_app/tests/integration/test_filter.py`](conversational_app/tests/integration/test_filter.py), [`conversational_app/tests/integration/test_filter_smart.py`](conversational_app/tests/integration/test_filter_smart.py), [`conversational_app/tests/integration/test_inspiration.py`](conversational_app/tests/integration/test_inspiration.py), [`conversational_app/tests/integration/test_json_parser.py`](conversational_app/tests/integration/test_json_parser.py) & [`conversational_app/tests/integration/test_red_team.py`](conversational_app/tests/integration/test_red_team.py)*
   - **Tier 3 — Live HTTP End-to-End (E2E) Tests (`tests/e2e/`):** Sends real HTTP requests over the network to locally running servers (`127.0.0.1:8000`–`8006`) or live deployed Cloud Run URLs to verify end-to-end service reachability and response contracts.  
     — *Implemented in [`flights_search_app/tests/e2e/test_flights_search.py`](flights_search_app/tests/e2e/test_flights_search.py), [`conversational_app/tests/e2e/test_conversational.py`](conversational_app/tests/e2e/test_conversational.py), [`conversational_app/tests/e2e/test_engage.py`](conversational_app/tests/e2e/test_engage.py), [`conversational_app/tests/e2e/test_filter.py`](conversational_app/tests/e2e/test_filter.py), [`conversational_app/tests/e2e/test_filter_smart.py`](conversational_app/tests/e2e/test_filter_smart.py), [`conversational_app/tests/e2e/test_inspiration.py`](conversational_app/tests/e2e/test_inspiration.py) & [`conversational_app/tests/e2e/test_json_parser.py`](conversational_app/tests/e2e/test_json_parser.py)*
-  - **Tier 4 — 7-Metric AI Quality, Non-Hallucination & Latency Evaluation Suite (`conversational_app/tests/eval/`):** Benchmarks the conversational workflow against 50 synthetic travel scenarios across 7 automated metrics—measuring task completion, sub-agent routing trajectory, appropriate Google Search tool usage, response coherence, deterministic schema compliance with zero hallucinated flight numbers or altered prices (`>= 0.95`), ground-truth plan alignment, and single-turn response latency (`<= 15.0s`)—paired with automated failure root-cause clustering and experiment history tracking.  
-    — *Implemented in [`conversational_app/tests/eval/configs/eval_config.json`](conversational_app/tests/eval/configs/eval_config.json), [`conversational_app/tests/eval/metrics/custom_metrics.py`](conversational_app/tests/eval/metrics/custom_metrics.py), [`conversational_app/tests/eval/scripts/generate_scenarios.py`](conversational_app/tests/eval/scripts/generate_scenarios.py), [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py) & [`conversational_app/tests/eval/scripts/run_loss_analysis.py`](conversational_app/tests/eval/scripts/run_loss_analysis.py)*
+  - **Tier 4 — 10-Metric AI Quality, Non-Hallucination, Latency & Cost Evaluation Suite (`conversational_app/tests/eval/`):** Benchmarks the conversational workflow against 50 synthetic travel scenarios across 10 automated metrics—measuring task completion, sub-agent routing trajectory, appropriate Google Search tool usage, response coherence, deterministic schema compliance with zero hallucinated flight numbers or altered prices (`>= 0.95`), ground-truth plan alignment, single-turn response latency (`<= 15.0s`), total Standard PayGo cost per 1,000 requests (`<= $15.00/1k`), LLM token-only cost per 1,000 requests (`<= $5.00/1k`), and total billable tokens per request (`<= 6,000 tok`)—paired with per-sub-agent cost attribution, caching projections, `$0` counterfactual repricing, automated failure root-cause clustering, and experiment history tracking.  
+    — *Implemented in [`conversational_app/tests/eval/configs/eval_config.json`](conversational_app/tests/eval/configs/eval_config.json), [`conversational_app/tests/eval/configs/pricing_config.json`](conversational_app/tests/eval/configs/pricing_config.json), [`conversational_app/tests/eval/metrics/cost_estimator.py`](conversational_app/tests/eval/metrics/cost_estimator.py), [`conversational_app/tests/eval/metrics/custom_metrics.py`](conversational_app/tests/eval/metrics/custom_metrics.py), [`conversational_app/tests/eval/scripts/generate_scenarios.py`](conversational_app/tests/eval/scripts/generate_scenarios.py), [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py) & [`conversational_app/tests/eval/scripts/run_loss_analysis.py`](conversational_app/tests/eval/scripts/run_loss_analysis.py)*
 
 - **3.2 Pillar 2 — Test Automation**
   - **Automated Pre-Build & Post-Deploy Quality Gates:** Every Cloud Build pipeline (`pr_checks.yaml`, `dev.yaml`, `staging.yaml`, `prod.yaml`) and frontend image build automatically runs offline unit tests before shipping containers or applying Terraform changes, while PR checks additionally automate disaster-recovery and backup script self-checks, frontend bundle verification, and Terraform schema validation, and CD pipelines automate post-deploy HTTP smoke checks.  
@@ -451,7 +453,7 @@ Server sizes, AI token usage, idle container shutdowns, and image storage cleanu
   - **Right-Sized CPU & Memory per Service:** Resources match what each service actually does—giving `2 vCPU` and `2 GiB` of RAM to the Python AI backends (`flights-search-app` and `conversational-app`) and a lightweight `1 vCPU` and `512 MiB` of RAM to the static Nginx `frontend`.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf) & [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf)*
   - **Fast Model Defaults & Lean Prompt/Search Usage:**
-    - All six agents default to fast, cost-effective `gemini-3.5-flash-lite` (which reached a `0.946` quality score with a `4.64s` average response time in [`experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md)) while still allowing individual agents to use larger models if needed.
+    - All six agents default to fast, cost-effective `gemini-3.5-flash-lite` (which reached `0.892` task success, `0.977` trajectory quality, `1.000` tool-use and schema validity, `2.76s` average latency, and `$5.45 / 1,000` requests in the pinned 50-case baseline in [`experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md); see [3. AI Cost Management](#3-ai-cost-management)) while still allowing individual agents to use larger models if needed.
     - The Flight Search agent turns off extra internal "thinking" steps that aren't needed when generating flight schedules, every agent receives only the exact inputs it needs, and the Smart Filter agent skips Google Search whenever the flight list already contains the answer.  
     — *Implemented in [`flights_search_app/app/agent.py`](flights_search_app/app/agent.py), [`conversational_app/app/config.py`](conversational_app/app/config.py) & [`conversational_app/app/sub_agents/filter_smart/prompt.py`](conversational_app/app/sub_agents/filter_smart/prompt.py)*
 
@@ -469,6 +471,55 @@ Server sizes, AI token usage, idle container shutdowns, and image storage cleanu
 
 > **Note on Unimplemented / Non-Relevant Pillars:**
 > - **GPU Sizing & Spot Virtual Machines (*Not Implemented — Not Relevant*):** GPU sizing and Spot/Preemptible virtual machines do not apply because the project manages zero virtual machines or GPUs—AI calls are billed per token on **Vertex AI** and containers run on serverless **Cloud Run**.
+
+---
+
+### 3. AI Cost Management
+
+Token consumption, Google Search grounding fees, per-sub-agent unit economics, caching ROI, and prompt-size regressions are measured and governed through raw runtime telemetry, an offline Vertex AI Standard PayGo pricing engine inside the GEAP evaluation suite, and sub-second CI guardrails:
+
+| Sub-Agent (`20261119_134306_baseline`) | Model | Case Invocation Rate | Avg Prompt / Out Tok | Search Queries (50 cases) | Amortized Cost / 1k Reqs | Share of SUT Cost |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| `engage` | `gemini-3.5-flash-lite` | `100.0%` | `1,377` / `28` | `0` | `$0.4831` | `8.9%` |
+| `filter` | `gemini-3.5-flash-lite` | `34.0%` | `987` / `44` | `0` | `$0.1382` | `2.5%` |
+| `filter_smart` | `gemini-3.5-flash-lite` | `36.0%` | `4,313` / `1,076` | `12` | `$4.7104` | `86.5%` |
+| `inspiration` | `gemini-3.5-flash-lite` | `16.0%` | `1,237` / `139` | `0` | `$0.1149` | `2.1%` |
+| **Total SUT Baseline** | `gemini-3.5-flash-lite` | `1.86` calls/req | `3,463` / `452` *(avg `3,916` tot)* | `12` (`0.24`/req) | **`$5.4466`** *(`$2.09` tokens + `$3.36` search)* | **`100.0%`** |
+
+- **3.1 Pillar 1 — Raw Runtime Telemetry & Strict Eval-Only Cost Separation**
+  - **Zero-Overhead Raw Runtime Telemetry (`ExecutionTelemetryPlugin`):** Captures per-sub-agent latency, prompt input tokens, cached input tokens (`cached_content_token_count`), visible output tokens, reasoning/thinking tokens (`thoughts_token_count`), and exact Google Search grounding queries per invocation—while keeping all dollar pricing logic out of production runtime containers so live request handling stays lean and decoupled from billing catalog updates.  
+    — *Implemented in [`conversational_app/app/app_utils/telemetry_plugin.py`](conversational_app/app/app_utils/telemetry_plugin.py)*
+  - **Versioned Vertex AI Standard PayGo Pricing Catalog & Estimator:** Models exact Vertex AI Standard PayGo unit economics offline inside the evaluation suite (`2026-11-vertex-paygo-v1`), supporting exact and longest-prefix model resolution (including publisher-prefixed and versioned IDs with safe fallback), `90%`-discounted cached input tokens, thinking-token billing at output rates, `>200k` long-context tiering, and Gemini 3+ per-query Google Search grounding (`$14.00 / 1,000` executed web queries).  
+    — *Implemented in [`conversational_app/tests/eval/configs/pricing_config.json`](conversational_app/tests/eval/configs/pricing_config.json) & [`conversational_app/tests/eval/metrics/cost_estimator.py`](conversational_app/tests/eval/metrics/cost_estimator.py)*  
+    — *Verified in [`conversational_app/tests/unit/test_cost_and_eval_metrics.py`](conversational_app/tests/unit/test_cost_and_eval_metrics.py)*
+
+- **3.2 Pillar 2 — Automated Cost-Performance Benchmarking & Per-Agent Attribution**
+  - **Cost & Token Threshold Gates in the 10-Metric GEAP Evaluation Suite:** Extends the 50-scenario benchmark with three deterministic cost/efficiency metrics—`cost_per_1k_requests_usd` (`<= $15.00/1k`), `llm_token_cost_per_1k_usd` (`<= $5.00/1k`), and `total_billable_tokens` (`<= 6,000 tok/req`)—reporting quality-adjusted cost per 1,000 successful tasks (`$6.11/1k` in baseline), per-request cost percentiles (Mean / P50 / P95 / Max), `json_parser` repair fallback rate (`0.0%`), and strict separation between System-Under-Test (SUT) inference spend (`$0.272`) and Phase 2B LLM-judge overhead (`$0.446`).  
+    — *Implemented in [`conversational_app/tests/eval/configs/eval_config.json`](conversational_app/tests/eval/configs/eval_config.json), [`conversational_app/tests/eval/metrics/custom_metrics.py`](conversational_app/tests/eval/metrics/custom_metrics.py) & [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py)*  
+    — *Recorded in [`conversational_app/tests/eval/results/experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md) & [`conversational_app/tests/eval/results/20261119_134306_baseline/eval_summary.md`](conversational_app/tests/eval/results/20261119_134306_baseline/eval_summary.md)*
+  - **Granular Cost Driver Visibility:** Separating LLM token cost (`38.3%`, `$2.09/1k`) from Google Search grounding fees (`61.7%`, `$3.36/1k`) and attributing spend per sub-agent highlights that `filter_smart` drives `86.5%` of total cost across `36%` of requests—focusing optimization work where it yields the highest return.  
+    — *Recorded in [`conversational_app/tests/eval/results/20261119_134306_baseline/eval_summary.md`](conversational_app/tests/eval/results/20261119_134306_baseline/eval_summary.md)*
+
+- **3.3 Pillar 3 — Counterfactual Model Modeling & Caching Sensitivity Projections**
+  - **Instant `$0` Counterfactual Model Repricing (`--reprice-only`):** Replays saved evaluation traces with global or per-sub-agent `--override-model` flags (for example, `filter_smart=gemini-3.1-pro-preview`) to model the exact unit-cost impact of hybrid model routing before spending live Vertex AI inference or judge quota—while safely reporting `N/A` and emitting a warning if legacy traces lack token telemetry.  
+    — *Implemented in [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py) & [`conversational_app/tests/eval/metrics/cost_estimator.py`](conversational_app/tests/eval/metrics/cost_estimator.py)*  
+    — *Verified in [`conversational_app/tests/unit/test_cost_and_eval_metrics.py`](conversational_app/tests/unit/test_cost_and_eval_metrics.py)*
+  - **Analytical Caching ROI & Context-Cache Eligibility Projections:** Automatically extrapolates two caching levers on every evaluation summary from the cold-run baseline:
+    - *Application / Semantic Response Caching:* Short-circuits both LLM tokens and `$14/1k` Google Search grounding fees, projecting linear savings up to `-$2.72/1k` (`-50.0%`) and `1.38s` mean latency at a `50%` hit rate.
+    - *Gemini Context Caching:* Discounts cached input prefix tokens only (leaving output and search grounding unchanged) and enforces Gemini 3's `4,096`-token minimum prefix threshold—showing `filter_smart` (`4,313` avg prompt tok) is `100%` eligible while shorter sub-agents (`engage`, `filter`, `inspiration`) remain below threshold (`-5.9%` threshold-gated savings at a `95%` hit rate).  
+    — *Implemented in [`conversational_app/tests/eval/metrics/cost_estimator.py`](conversational_app/tests/eval/metrics/cost_estimator.py) & [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py)*
+
+- **3.4 Pillar 4 — Offline CI Prompt-Size, Cost-Floor & Prefix-Cacheability Guardrails**
+  - **Sub-Second `$0` Pull Request Cost-Regression Gate:** Executes automatically on every PR in `.cloudbuild/pr_checks.yaml` without live API calls to enforce:
+    - *Per-Sub-Agent Static Prompt Budgets:* Fails CI if any sub-agent's system instruction exceeds its character or estimated-token ceiling (~`15%` headroom above baseline) or if a new workflow sub-agent is added without a declared budget.
+    - *End-to-End Route Static Token & Cost-Floor Ceilings:* Caps cumulative static input tokens and Standard PayGo `$/1k` input cost floors across all five workflow trajectories (`continue`, `filter`, `inspiration`, `filter_smart`, and `filter_smart_with_repair`).
+    - *Prefix-Cacheability & Hygiene Checks:* Prevents duplicate top-level XML prompt sections and verifies that dynamic ADK state placeholders (`{user_message}`, `{conversational_history}`, `{flights_input}`) remain positioned at the tail of each prompt so static rules stay prefix-cacheable.  
+    — *Implemented in [`conversational_app/tests/unit/test_prompt_size_guardrails.py`](conversational_app/tests/unit/test_prompt_size_guardrails.py)*  
+    — *Called in [`.cloudbuild/pr_checks.yaml`](.cloudbuild/pr_checks.yaml)*
+
+> **Note on Unimplemented / Non-Relevant Pillars:**
+> - **Live Semantic Response Cache & Explicit Vertex AI Context Cache Provisioning (*Not Implemented — Relevant*):** The evaluation suite quantifies the exact ROI of both caching layers and CI guardrails already preserve cache-friendly prompt prefixes (`filter_smart` is `100%` eligible at `>4,096` tokens); wiring a live semantic response cache (e.g., Memorystore/Redis) and explicit Vertex AI context caching is a ready-to-enable next step as production traffic grows.
+> - **Cloud Billing Budget Alerts & Per-Tenant Spend Quotas (*Not Implemented — Relevant*):** Automated GCP Billing budget alert policies and per-user rate/spend quotas are not yet provisioned in Terraform and remain practical production upgrades once user authentication is added.
 
 ---
 
@@ -713,7 +764,7 @@ travel_agent/
 │   │   ├── app_utils/
 │   │   │   ├── health.py               # Standardized /healthz liveness & /readyz deep readiness payload builders
 │   │   │   ├── logging.py              # Structured logging & table formatting helpers
-│   │   │   ├── telemetry_plugin.py     # ADK ExecutionTelemetryPlugin (latency, token & search grounding telemetry)
+│   │   │   ├── telemetry_plugin.py     # ADK ExecutionTelemetryPlugin (raw latency, in/cached/out/thoughts token & grounding telemetry)
 │   │   │   └── versioning.py           # X-API-Version & RFC 8594 Deprecation/Link header middleware
 │   │   └── sub_agents/                 # 5 Self-Contained Specialist Sub-Agents (each with agent.py, main.py, prompt.py, schema.py)
 │   │       ├── engage/                 # Intent triage & safety-hardened routing specialist (:8002)
@@ -723,13 +774,13 @@ travel_agent/
 │   │       └── json_parser/            # Self-healing JSON structure repair specialist (:8006)
 │   ├── tests/
 │   │   ├── fixtures/                   # Functional payloads + 10-case red-team safety suite (red_team.json)
-│   │   ├── unit/                       # Offline health, API contract/versioning, failover, fault-injection & red-team tests (10 modules)
+│   │   ├── unit/                       # Offline health, API contract/versioning, cost/caching math, prompt-size guardrails, failover, fault-injection & red-team tests (12 modules)
 │   │   ├── integration/                # Live Gemini integration + red-team prompt-safety tests (test_red_team.py)
 │   │   ├── e2e/                        # Live HTTP client tests against :8001–:8006 or Cloud Run (6 test modules)
-│   │   └── eval/                       # 7-Metric GEAP AI Quality, Flight/Price Protection & Latency Evaluation Suite
-│   │       ├── configs/                # eval_config.json, scenario_generation_config.json, session_input.json
+│   │   └── eval/                       # 10-Metric GEAP AI Quality, Flight/Price Protection, Latency & Standard PayGo Cost Evaluation Suite
+│   │       ├── configs/                # eval_config.json, pricing_config.json, scenario_generation_config.json, session_input.json
 │   │       ├── datasets/               # 50-case synthetic travel benchmark (conversational_synthetic.evalset.json)
-│   │       ├── metrics/                # Custom deterministic Python & LLM-as-a-Judge metrics (custom_metrics.py)
+│   │       ├── metrics/                # custom_metrics.py & cost_estimator.py (Standard PayGo pricing & caching projections)
 │   │       ├── results/                # Timestamped evaluation runs, traces, loss clusters & experiments_history.md
 │   │       └── scripts/                # generate_scenarios.py, run_evaluation.py, run_loss_analysis.py
 │   ├── openapi.json                    # Committed OpenAPI 3.1 contract snapshot verified automatically in CI
@@ -907,32 +958,43 @@ Run the fast offline unit, API contract/versioning, failure-simulation, safety-b
 (cd conversational_app && CONVERSATIONAL_BASE_URL="https://<conversational-cloud-run-url>" python3 -m pytest tests/e2e/test_conversational.py -v -s)
 ```
 
-### 3. GEAP 7-Metric AI Evaluation & Loss Analysis Flywheel
-Run the 50-scenario synthetic evaluation benchmark and automated loss-clustering pipeline in [`conversational_app/tests/eval/`](conversational_app/tests/eval/):
+### 3. GEAP 10-Metric AI Quality, Latency & Cost Evaluation Flywheel
+Run the 50-scenario synthetic evaluation benchmark, Standard PayGo cost & caching attribution, and automated loss-clustering pipeline in [`conversational_app/tests/eval/`](conversational_app/tests/eval/):
 
 | Metric | Type | Target Threshold | What It Verifies |
 | :--- | :---: | :---: | :--- |
 | `multi_turn_task_success_v1` | Predefined Rubric | `>= 0.80` | End-to-end user goal completion across the conversational turn. |
 | `multi_turn_trajectory_quality_v1` | Predefined Rubric | `>= 0.80` | Sub-agent orchestration trajectory (`engage` → specialist → output normalization). |
 | `tool_use_quality` | Custom LLM Judge | `>= 0.80` | Mandatory Google Search calls on qualitative amenities vs. zero calls on structured filters. |
-| `coherence` | Custom LLM Judge | `>= 0.80` | Clarity of the natural-language response and consistency with returned JSON fields. |
+| `coherence` | Predefined Rubric | `>= 0.80` | Clarity of the natural-language response and consistency with returned JSON fields. |
 | `schema_and_contract_valid` | Deterministic Python | `>= 0.95` | Strict output schema validity, decision invariants, **zero hallucinated flights & exact flight/price immutability**. |
 | `conversation_plan_alignment` | Custom LLM Judge | `>= 0.80` | Alignment with expected ground-truth conversation plan. |
 | `latency_seconds` | Deterministic Python | `<= 15.0s` | Single-turn end-to-end latency with per-sub-agent execution breakdown. |
+| `cost_per_1k_requests_usd` | Deterministic Python | `<= 15.00 USD/1k` | Total SUT Standard PayGo cost per 1,000 requests (LLM tokens + thinking + Gemini 3 `$14/1k` Google Search grounding). |
+| `llm_token_cost_per_1k_usd` | Deterministic Python | `<= 5.00 USD/1k` | Pure LLM token cost per 1,000 requests (uncached input + cached input + visible output + thinking tokens). |
+| `total_billable_tokens` | Deterministic Python | `<= 6000.0 tok` | Total LLM tokens consumed per request across all executed sub-agents. |
 
 ```bash
 cd conversational_app
 
-# 1. Run full inference + 7-metric evaluation (records results in tests/eval/results/experiments_history.md)
-python3 -m tests.eval.scripts.run_evaluation --run-name baseline
+# 1. Run full inference + 10-metric evaluation (records quality, latency & cost in tests/eval/results/experiments_history.md)
+python3 -m tests.eval.scripts.run_evaluation --run-name baseline --set-baseline
 
-# 2. Benchmark an alternative Gemini model without changing application code
-CONVERSATIONAL_MODEL="gemini-2.5-pro" \
+# 2. Benchmark an alternative or hybrid Gemini model setup without changing application code
+FILTER_SMART_MODEL="gemini-3.1-pro-preview" \
   python3 -m tests.eval.scripts.run_evaluation \
-  --run-name gemini_2_5_pro \
-  --description "Benchmark Gemini 2.5 Pro across all conversational sub-agents"
+  --run-name hybrid_smart_pro \
+  --description "Upgrade only filter_smart to Gemini 3.1 Pro Preview"
 
-# 3. Cluster failure root causes with automated LLM loss analysis
+# 3. Instant $0 counterfactual repricing on saved traces before spending live API quota
+python3 -m tests.eval.scripts.run_evaluation \
+  --reuse-run baseline \
+  --reprice-only \
+  --override-model filter_smart=gemini-3.1-pro-preview \
+  --run-name whatif_smart_pro \
+  --no-history
+
+# 4. Cluster failure root causes with automated LLM loss analysis
 python3 -m tests.eval.scripts.run_loss_analysis
 ```
 
