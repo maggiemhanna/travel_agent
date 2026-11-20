@@ -10,7 +10,7 @@ load_dotenv()
 
 # --- AI Model Configuration ---
 DEFAULT_GEMINI_MODEL = os.getenv(
-    "CONVERSATIONAL_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    "CONVERSATIONAL_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 )
 FALLBACK_GEMINI_MODEL = os.getenv("FALLBACK_GEMINI_MODEL", "gemini-3.6-flash")
 GEMINI_MODEL_LOCATION = os.getenv("GEMINI_MODEL_LOCATION", "global")

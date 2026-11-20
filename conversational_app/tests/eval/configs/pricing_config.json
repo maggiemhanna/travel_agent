@@ -2,7 +2,7 @@
   "catalog_version": "2026-11-vertex-paygo-v1",
   "billing_tier": "vertex_ai_standard_paygo",
   "currency": "USD",
-  "default_model": "gemini-3.5-flash-lite",
+  "default_model": "gemini-3.8-flash",
   "analytical_response_cache_hit_rates": [0.0, 0.1, 0.2, 0.3, 0.5],
   "analytical_context_cache_hit_rates": [0.0, 0.5, 0.8, 0.95],
   "context_cache_min_tokens": {
@@ -17,6 +17,22 @@
     "notes": "Vertex AI Standard PayGo for Gemini 3+ bills Google Search grounding at $14.00 per 1,000 executed web search queries ($0.014/query) beyond project free tier."
   },
   "models": {
+    "gemini-3.8-flash": {
+      "family": "gemini_3",
+      "input_per_1m_usd": 0.75,
+      "cached_input_per_1m_usd": 0.075,
+      "output_per_1m_usd": 3.75,
+      "long_context_threshold_tokens": 200000,
+      "long_context_input_per_1m_usd": 1.50,
+      "long_context_cached_input_per_1m_usd": 0.15,
+      "long_context_output_per_1m_usd": 7.50,
+      "cache_storage_per_1m_hour_usd": 1.00,
+      "google_search_grounding": {
+        "billing_mode": "per_search_query",
+        "price_per_unit_usd": 0.014
+      },
+      "notes": "Vertex AI Standard PayGo active promotional rate through Dec 31, 2026 ($0.75/1M input, $3.75/1M output; standard 2027 rate $1.50/$7.50)."
+    },
     "gemini-3.5-flash-lite": {
       "family": "gemini_3",
       "input_per_1m_usd": 0.30,

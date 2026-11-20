@@ -65,7 +65,7 @@ def resolve_model_pricing(
     """
     cat = catalog or load_pricing_catalog()
     models_map: Mapping[str, Any] = cat.get("models") or {}
-    default_key = str(cat.get("default_model") or "gemini-3.5-flash-lite")
+    default_key = str(cat.get("default_model") or "gemini-3.8-flash")
 
     normalized = normalize_model_name(model_name)
     if normalized and normalized in models_map:
@@ -139,7 +139,7 @@ def compute_step_cost_from_counts(
     effective_model = (
         normalize_model_name(resolved_model)
         or normalize_model_name(configured_model)
-        or str(cat.get("default_model") or "gemini-3.5-flash-lite")
+        or str(cat.get("default_model") or "gemini-3.8-flash")
     )
     pricing_key, spec, fallback_used = resolve_model_pricing(effective_model, cat)
 

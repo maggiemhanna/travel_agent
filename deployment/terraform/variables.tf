@@ -39,13 +39,13 @@ variable "image_tag" {
 variable "flights_search_model" {
   description = "Gemini model ID injected into flights-search-app at runtime."
   type        = string
-  default     = "gemini-3.5-flash-lite"
+  default     = "gemini-3.8-flash"
 }
 
 variable "conversational_model" {
   description = "Default Gemini model ID injected into conversational-app sub-agents at runtime."
   type        = string
-  default     = "gemini-3.5-flash-lite"
+  default     = "gemini-3.8-flash"
 }
 
 variable "fallback_gemini_model" {

@@ -67,16 +67,17 @@ PROMPT_BUDGETS: Dict[str, Dict[str, Any]] = {
     },
 }
 
-# Combined static instruction token ceilings along each end-to-end workflow trajectory.
+# Combined static instruction token ceilings along each end-to-end workflow trajectory
+# (cost floors priced against default model gemini-3.8-flash @ $0.75/1M input).
 ROUTE_STATIC_TOKEN_CEILINGS: Dict[str, Tuple[Tuple[str, ...], int, float]] = {
-    "continue": (("engage",), 1315, 0.50),
-    "filter": (("engage", "filter"), 2015, 0.75),
-    "inspiration": (("engage", "inspiration"), 2055, 0.75),
-    "filter_smart": (("engage", "filter_smart"), 3690, 1.30),
+    "continue": (("engage",), 1315, 1.10),
+    "filter": (("engage", "filter"), 2015, 1.65),
+    "inspiration": (("engage", "inspiration"), 2055, 1.70),
+    "filter_smart": (("engage", "filter_smart"), 3690, 3.05),
     "filter_smart_with_repair": (
         ("engage", "filter_smart", "json_parser"),
         4380,
-        1.55,
+        3.60,
     ),
 }
 
@@ -181,10 +182,10 @@ def test_end_to_end_route_static_prompt_token_and_cost_floor_guardrail(
         est_tok = _estimate_tokens(str(node.instruction or ""))
         total_static_tokens += est_tok
 
-        # Price static prompt floor against Standard PayGo default model (gemini-3.5-flash-lite)
+        # Price static prompt floor against Standard PayGo default model (gemini-3.8-flash)
         step = compute_step_cost_from_counts(
             author=ag_name,
-            resolved_model=catalog.get("default_model", "gemini-3.5-flash-lite"),
+            resolved_model=catalog.get("default_model", "gemini-3.8-flash"),
             prompt_tokens=est_tok,
             catalog=catalog,
         )
