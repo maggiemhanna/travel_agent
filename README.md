@@ -103,12 +103,12 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 | Service / Agent | Local Port | Default Model / Tech | Role & Responsibility | Docs |
 | :--- | :---: | :--- | :--- | :---: |
 | **Flights Search Service** (`flights_search_app`) | `8000` | `gemini-3.5-flash-lite` *(configurable)* | **Flight Simulator**: Generates 15 realistic, route-appropriate flight itineraries obeying timezone, duration, and filter rules. | [README](flights_search_app/README.md) |
-| **Conversational Workflow** (`conversational_app/app`) | `8001` | ADK v2 `Workflow` + FastAPI | **Orchestrator Gateway**: Executes the multi-agent workflow (`engage` → specialist → output normalization) in-process via `POST /run-conversational`. | [README](conversational_app/README.md#1-conversational-workflow-entrypoint--port-8001) |
-| **Engage Sub-Agent** (`sub_agents/engage`) | `8002`* | `gemini-3.5-flash-lite` *(configurable)* | **Intent Triage**: Classifies user messages into `continue`, `filter`, `filter_smart`, or `inspiration`. | [README](conversational_app/README.md#2-engage-sub-agent-port-8002) |
-| **Filter Sub-Agent** (`sub_agents/filter`) | `8003`* | `gemini-3.5-flash-lite` *(configurable)* | **Hard Filter Extractor**: Translates natural language into structured filters (`direct`, `max_price`, `max_stops`). | [README](conversational_app/README.md#3-filter-sub-agent-port-8003) |
-| **Smart Filter Sub-Agent** (`sub_agents/filter_smart`) | `8004`* | `gemini-3.5-flash-lite` + Google Search | **Semantic & Amenity Filter**: Filters flights by airline, time window, or amenities using live Google Search grounding. | [README](conversational_app/README.md#4-smart-filter-sub-agent-port-8004) |
-| **Inspiration Sub-Agent** (`sub_agents/inspiration`) | `8005`* | `gemini-3.5-flash-lite` *(configurable)* | **Discovery Architect**: Turns open-ended trip ideas (*"somewhere warm in December"*) into concrete search parameters. | [README](conversational_app/README.md#5-inspiration-sub-agent-port-8005) |
-| **JSON Parser Sub-Agent** (`sub_agents/json_parser`) | `8006`* | `gemini-3.5-flash-lite` *(configurable)* | **Self-Healing Repair**: Repairs malformed or markdown-wrapped JSON from `filter_smart` into strict schema compliance. | [README](conversational_app/README.md#6-json-parser-sub-agent-port-8006) |
+| **Conversational Workflow** (`conversational_app/app`) | `8001` | ADK v2 `Workflow` + FastAPI | **Orchestrator Gateway**: Executes the multi-agent workflow (`engage` → specialist → output normalization) in-process via `POST /api/v1/run-conversational`. | [Workflow & Schemas](#conversational-workflow--sub-agents-reference) · [API](docs/api_documentation.md) |
+| **Engage Sub-Agent** (`sub_agents/engage`) | `8002`* | `gemini-3.5-flash-lite` *(configurable)* | **Intent Triage**: Classifies user messages into `continue`, `filter`, `filter_smart`, or `inspiration`. | [Sub-Agent](#conversational-workflow--sub-agents-reference) |
+| **Filter Sub-Agent** (`sub_agents/filter`) | `8003`* | `gemini-3.5-flash-lite` *(configurable)* | **Hard Filter Extractor**: Translates natural language into structured filters (`direct`, `max_price`, `max_stops`). | [Sub-Agent](#conversational-workflow--sub-agents-reference) |
+| **Smart Filter Sub-Agent** (`sub_agents/filter_smart`) | `8004`* | `gemini-3.5-flash-lite` + Google Search | **Semantic & Amenity Filter**: Filters flights by airline, time window, or amenities using live Google Search grounding. | [Sub-Agent](#conversational-workflow--sub-agents-reference) |
+| **Inspiration Sub-Agent** (`sub_agents/inspiration`) | `8005`* | `gemini-3.5-flash-lite` *(configurable)* | **Discovery Architect**: Turns open-ended trip ideas (*"somewhere warm in December"*) into concrete search parameters. | [Sub-Agent](#conversational-workflow--sub-agents-reference) |
+| **JSON Parser Sub-Agent** (`sub_agents/json_parser`) | `8006`* | `gemini-3.5-flash-lite` *(configurable)* | **Self-Healing Repair**: Repairs malformed or markdown-wrapped JSON from `filter_smart` into strict schema compliance. | [Sub-Agent](#conversational-workflow--sub-agents-reference) |
 | **Web Frontend** (`frontend`) | `5173` | React + Vite + Nginx | **User Interface**: Interactive flight search, filters, pagination, and conversational chat assistant. | [README](frontend/README.md) |
 
 *\*Note: In standard operation (local & Cloud Run), `conversational_app` (`:8001`) executes all 5 sub-agents in-process inside its workflow. Ports `8002`–`8006` are optional standalone FastAPI servers for isolated sub-agent debugging and component E2E tests.*
@@ -121,6 +121,48 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
   — *Implemented in [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx) & [`frontend/src/App.jsx`](frontend/src/App.jsx)*
 
 ![agentic_architecture](docs/diagrams/agentic_architecture.png "Agentic Architecture")
+
+#### Conversational Workflow & Sub-Agents Reference
+
+The `conversational_app` service wires all five specialist sub-agents into a single ADK v2 `Workflow` graph (`route_engage` → specialist → `parse_filter_smart` / `repair_json` → `finalize_output`), while also exposing each sub-agent as an optional standalone FastAPI microservice on ports `8002`–`8006`:
+
+```mermaid
+graph TD
+    Client(["Frontend / ChatWidget"]) -->|"POST /api/v1/run-conversational"| StartNode["START (Conversational Workflow :8001)"]
+
+    StartNode --> Engage["Engage Sub-Agent (Intent Triage)"]
+    Engage --> RouteEngage{"route_engage (agent_decision)"}
+
+    RouteEngage -->|"continue"| Finalize["finalize_output (ConversationalOutput)"]
+    RouteEngage -->|"filter"| Filter["Filter Sub-Agent (direct / max_price / max_stops)"]
+    RouteEngage -->|"filter_smart"| SmartFilter["Smart Filter Sub-Agent (+ Google Search Grounding)"]
+    RouteEngage -->|"inspiration"| Inspiration["Inspiration Sub-Agent (Destination & Dates)"]
+
+    Filter --> Finalize
+    Inspiration --> Finalize
+
+    SmartFilter --> ParseSmart{"parse_filter_smart"}
+    ParseSmart -->|"Valid JSON & Schema (parsed)"| Finalize
+    ParseSmart -.->|"Syntax or Schema Error (repair_json)"| JSONParser["JSON Parser Sub-Agent (Self-Healing Repair)"]
+    JSONParser --> Finalize
+
+    Finalize --> ReturnClient(["Unified JSON Response to Frontend"])
+```
+
+<details>
+<summary><b>Sub-Agent Endpoints, Model Overrides &amp; I/O Contracts</b></summary>
+
+| Component | Standalone Endpoint *(+ Legacy Alias)* | Model & Fallback Env Vars | Request / Response Schemas & Key Outputs |
+| :--- | :--- | :--- | :--- |
+| **Conversational Workflow** (`app/`) | `POST /api/v1/run-conversational` *(+ `/run-conversational`)* | `CONVERSATIONAL_MODEL` / `CONVERSATIONAL_FALLBACK_MODEL` | `ConversationalInput` → `ConversationalOutput` (`agent_response`, `agent_decision`, plus optional `filter_type`/`filter_value`, `flights_output`, or `flights_search_output`). |
+| **Engage** (`sub_agents/engage/`) | `POST /api/v1/run-engage` *(+ `/run-engage`)* | `ENGAGE_MODEL` / `ENGAGE_FALLBACK_MODEL` | `EngageInput` (`user_message`, `conversational_history`) → `EngageOutput` (`agent_response`, `agent_decision` ∈ `continue`, `filter`, `filter_smart`, `inspiration`). |
+| **Filter** (`sub_agents/filter/`) | `POST /api/v1/run-filter` *(+ `/run-filter`)* | `FILTER_MODEL` / `FILTER_FALLBACK_MODEL` | `FilterInput` → `FilterOutput` (`agent_response`, `filter_type` ∈ `direct` \| `max_price` \| `max_stops`, `filter_value`: `1`/`0`, integer price, or `0`/`1`/`2` stops). |
+| **Smart Filter** (`sub_agents/filter_smart/`) | `POST /api/v1/run-filter-smart` *(+ `/run-filter-smart`)* | `FILTER_SMART_MODEL` / `FILTER_SMART_FALLBACK_MODEL` + `google_search` | `FilterSmartInput` (`user_message`, `conversational_history`, `flights_input`) → `FilterSmartOutput` (`agent_response`, filtered `flights_output`). |
+| **Inspiration** (`sub_agents/inspiration/`) | `POST /api/v1/run-inspiration` *(+ `/run-inspiration`)* | `INSPIRATION_MODEL` / `INSPIRATION_FALLBACK_MODEL` | `InspirationInput` (`user_message`, `conversational_history`, `flights_search_input`) → `InspirationOutput` (`agent_response`, `flights_search_output`). |
+| **JSON Parser** (`sub_agents/json_parser/`) | `POST /api/v1/run-json-parser` *(+ `/run-json-parser`)* | `JSON_PARSER_MODEL` / `JSON_PARSER_FALLBACK_MODEL` | Raw malformed `filter_smart` text → `JSONParserOutput` matching strict `FilterSmartOutput` without mutating or hallucinating flights. |
+
+*Every server (`:8001`–`:8006`) also exposes `GET /healthz`, `GET /readyz`, and `GET /`. To refresh the committed OpenAPI 3.1 contract snapshot after schema changes, run `python3 -m app.export_openapi` from `conversational_app/`. See [`docs/api_documentation.md`](docs/api_documentation.md) for complete JSON payload examples.*
+</details>
 
 ## 🏗 Cloud Architecture & Production Engineering Layers
 
@@ -786,8 +828,7 @@ travel_agent/
 │   ├── openapi.json                    # Committed OpenAPI 3.1 contract snapshot verified automatically in CI
 │   ├── Dockerfile                      # Hardened non-root (appuser) Python 3.11 container image
 │   ├── .env.example                    # Template environment, per-agent model & endpoint configuration
-│   ├── requirements.txt                # Pinned Python runtime dependencies
-│   └── README.md                       # Conversational Workflow, Sub-Agents & GEAP Evaluation documentation
+│   └── requirements.txt                # Pinned Python runtime dependencies
 └── frontend/                           # React + Vite SPA & Nginx Cloud Run Container (Local :5173 / Cloud Run :8080)
     ├── src/
     │   ├── App.jsx                     # Flight search form, manual filter controls & paginated itinerary cards
@@ -833,18 +874,21 @@ CONVERSATIONAL_MODEL=gemini-3.5-flash-lite
 FALLBACK_GEMINI_MODEL=gemini-3.6-flash
 CONVERSATIONAL_FALLBACK_MODEL=gemini-3.6-flash
 GEMINI_MODEL_LOCATION=global
-# Optional per-sub-agent model overrides (fall back to CONVERSATIONAL_MODEL / CONVERSATIONAL_FALLBACK_MODEL):
-# ENGAGE_MODEL=gemini-3.5-flash-lite
-# FILTER_MODEL=gemini-3.5-flash-lite
-# FILTER_SMART_MODEL=gemini-3.5-flash-lite
-# INSPIRATION_MODEL=gemini-3.5-flash-lite
-# JSON_PARSER_MODEL=gemini-3.5-flash-lite
+# Optional per-sub-agent primary & fallback model overrides (fall back to CONVERSATIONAL_MODEL / CONVERSATIONAL_FALLBACK_MODEL):
+# ENGAGE_MODEL=gemini-3.5-flash-lite          # ENGAGE_FALLBACK_MODEL=gemini-3.6-flash
+# FILTER_MODEL=gemini-3.5-flash-lite          # FILTER_FALLBACK_MODEL=gemini-3.6-flash
+# FILTER_SMART_MODEL=gemini-3.5-flash-lite    # FILTER_SMART_FALLBACK_MODEL=gemini-3.6-flash
+# INSPIRATION_MODEL=gemini-3.5-flash-lite     # INSPIRATION_FALLBACK_MODEL=gemini-3.6-flash
+# JSON_PARSER_MODEL=gemini-3.5-flash-lite     # JSON_PARSER_FALLBACK_MODEL=gemini-3.6-flash
 
-# Server, CORS & E2E Target Endpoints
+# Server, CORS, Telemetry & E2E Target Endpoints
 HOST=0.0.0.0
 PORT=8001
 ALLOWED_ORIGINS=*
+ENABLE_TELEMETRY_PLUGIN=true
 CONVERSATIONAL_BASE_URL=http://127.0.0.1:8001
+# Optional standalone sub-agent E2E URLs (default http://127.0.0.1:8002–8006):
+# ENGAGE_BASE_URL=... FILTER_BASE_URL=... FILTER_SMART_BASE_URL=... INSPIRATION_BASE_URL=... JSON_PARSER_BASE_URL=...
 ```
 
 ### 2. Install Python Backend Dependencies
@@ -949,9 +993,10 @@ Run the fast offline unit, API contract/versioning, failure-simulation, safety-b
 (cd conversational_app && python3 -m pytest tests/integration -v -s)
 (cd conversational_app && python3 -m pytest tests/integration/test_red_team.py -v -s)
 
-# 2. Run live HTTP E2E tests against local servers (:8000 and :8001)
+# 2. Run live HTTP E2E tests against local servers (:8000, :8001, or standalone sub-agents :8002–:8006)
 (cd flights_search_app && python3 -m pytest tests/e2e -v -s)
 (cd conversational_app && python3 -m pytest tests/e2e/test_conversational.py -v -s)
+(cd conversational_app && python3 -m pytest tests/e2e -v -s)  # Requires standalone sub-agents on :8002–:8006
 
 # 3. Run live HTTP E2E tests against deployed Cloud Run services
 (cd flights_search_app && FLIGHTS_SEARCH_BASE_URL="https://<flights-cloud-run-url>" python3 -m pytest tests/e2e -v -s)
@@ -976,6 +1021,9 @@ Run the 50-scenario synthetic evaluation benchmark, Standard PayGo cost & cachin
 
 ```bash
 cd conversational_app
+
+# 0. (Optional) Regenerate the 50 synthetic evaluation scenarios
+python3 -m tests.eval.scripts.generate_scenarios
 
 # 1. Run full inference + 10-metric evaluation (records quality, latency & cost in tests/eval/results/experiments_history.md)
 python3 -m tests.eval.scripts.run_evaluation --run-name baseline --set-baseline
