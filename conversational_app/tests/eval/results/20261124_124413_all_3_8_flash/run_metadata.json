@@ -1,0 +1,461 @@
+{
+  "run_id": "20261124_124413_all_3_8_flash",
+  "run_name": "all_3_8_flash",
+  "description": "All sub-agents on gemini-3.8-flash (thinking budget 0 on engage/filter/inspiration/json_parser, 512 on filter_smart)",
+  "timestamp": "2026-11-24T12:44:13.826421+00:00",
+  "eval_set_id": "conversational_synthetic",
+  "num_cases_evaluated": 50,
+  "is_baseline": false,
+  "reused_traces_from": null,
+  "reprice_only": false,
+  "pricing_model_overrides": null,
+  "git_info": {
+    "commit_sha": "de99a49",
+    "branch": "eval/clean-model-benchmark",
+    "dirty": false
+  },
+  "agent_configs": {
+    "engage": {
+      "model": "gemini-3.8-flash",
+      "client_kwargs": {
+        "location": "global"
+      },
+      "use_interactions_api": false,
+      "instruction_sha256": "5308d715db76",
+      "instruction_length": 4560,
+      "include_contents": "none",
+      "tools": [],
+      "planner": {
+        "type": "BuiltInPlanner",
+        "thinking_config": {
+          "include_thoughts": false,
+          "thinking_budget": 0
+        }
+      },
+      "generate_content_config": null
+    },
+    "filter": {
+      "model": "gemini-3.8-flash",
+      "client_kwargs": {
+        "location": "global"
+      },
+      "use_interactions_api": false,
+      "instruction_sha256": "1817f7a21c23",
+      "instruction_length": 2385,
+      "include_contents": "none",
+      "tools": [],
+      "planner": {
+        "type": "BuiltInPlanner",
+        "thinking_config": {
+          "include_thoughts": false,
+          "thinking_budget": 0
+        }
+      },
+      "generate_content_config": null
+    },
+    "filter_smart": {
+      "model": "gemini-3.8-flash",
+      "client_kwargs": {
+        "location": "global"
+      },
+      "use_interactions_api": false,
+      "instruction_sha256": "e5760e6d2697",
+      "instruction_length": 6720,
+      "include_contents": "none",
+      "tools": [
+        "google_search"
+      ],
+      "planner": {
+        "type": "BuiltInPlanner",
+        "thinking_config": {
+          "include_thoughts": false,
+          "thinking_budget": 512
+        }
+      },
+      "generate_content_config": null
+    },
+    "inspiration": {
+      "model": "gemini-3.8-flash",
+      "client_kwargs": {
+        "location": "global"
+      },
+      "use_interactions_api": false,
+      "instruction_sha256": "6df18991944b",
+      "instruction_length": 2508,
+      "include_contents": "none",
+      "tools": [],
+      "planner": {
+        "type": "BuiltInPlanner",
+        "thinking_config": {
+          "include_thoughts": false,
+          "thinking_budget": 0
+        }
+      },
+      "generate_content_config": null
+    },
+    "json_parser": {
+      "model": "gemini-3.8-flash",
+      "client_kwargs": {
+        "location": "global"
+      },
+      "use_interactions_api": false,
+      "instruction_sha256": "e7fc8bdbc711",
+      "instruction_length": 2321,
+      "include_contents": "none",
+      "tools": [],
+      "planner": {
+        "type": "BuiltInPlanner",
+        "thinking_config": {
+          "include_thoughts": false,
+          "thinking_budget": 0
+        }
+      },
+      "generate_content_config": null
+    }
+  },
+  "pricing_catalog": {
+    "catalog_version": "2026-11-vertex-paygo-v1",
+    "billing_tier": "vertex_ai_standard_paygo",
+    "currency": "USD",
+    "default_model": "gemini-3.8-flash",
+    "analytical_response_cache_hit_rates": [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.5
+    ],
+    "analytical_context_cache_hit_rates": [
+      0.0,
+      0.5,
+      0.8,
+      0.95
+    ],
+    "context_cache_min_tokens": {
+      "gemini_4": 4096,
+      "gemini_3": 4096,
+      "gemini_2_5": 2048
+    },
+    "grounding_defaults": {
+      "billing_mode": "per_search_query",
+      "price_per_unit_usd": 0.014,
+      "price_per_1k_units_usd": 14.0,
+      "monthly_free_tier_queries": 5000,
+      "notes": "Vertex AI Standard PayGo for Gemini 3+ bills Google Search grounding at $14.00 per 1,000 executed web search queries ($0.014/query) beyond project free tier."
+    },
+    "models": {
+      "gemini-4-neon": {
+        "family": "gemini_4",
+        "input_per_1m_usd": 3.0,
+        "cached_input_per_1m_usd": 0.3,
+        "output_per_1m_usd": 15.0,
+        "long_context_threshold_tokens": 1048576,
+        "long_context_input_per_1m_usd": 3.0,
+        "long_context_cached_input_per_1m_usd": 0.3,
+        "long_context_output_per_1m_usd": 15.0,
+        "cache_storage_per_1m_hour_usd": 0.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        },
+        "notes": "Vertex AI Standard PayGo flat 1M context rate ($3.00/1M input, $0.30/1M implicit cached input, $15.00/1M output including thinking tokens)."
+      },
+      "gemini-4-hydrogen": {
+        "family": "gemini_4",
+        "input_per_1m_usd": 1.5,
+        "cached_input_per_1m_usd": 0.15,
+        "output_per_1m_usd": 7.5,
+        "long_context_threshold_tokens": 1048576,
+        "long_context_input_per_1m_usd": 1.5,
+        "long_context_cached_input_per_1m_usd": 0.15,
+        "long_context_output_per_1m_usd": 7.5,
+        "cache_storage_per_1m_hour_usd": 0.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        },
+        "notes": "Vertex AI Standard PayGo flat 1M context rate ($1.50/1M input, $0.15/1M implicit cached input, $7.50/1M output including thinking tokens)."
+      },
+      "gemini-4-argon": {
+        "family": "gemini_4",
+        "input_per_1m_usd": 4.0,
+        "cached_input_per_1m_usd": 0.4,
+        "output_per_1m_usd": 20.0,
+        "long_context_threshold_tokens": 1048576,
+        "long_context_input_per_1m_usd": 4.0,
+        "long_context_cached_input_per_1m_usd": 0.4,
+        "long_context_output_per_1m_usd": 20.0,
+        "cache_storage_per_1m_hour_usd": 0.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        },
+        "notes": "Vertex AI Standard PayGo flat 1M context rate ($4.00/1M input, $0.40/1M implicit cached input, $20.00/1M output including thinking tokens)."
+      },
+      "gemini-4-carbon": {
+        "family": "gemini_4",
+        "input_per_1m_usd": 4.0,
+        "cached_input_per_1m_usd": 0.4,
+        "output_per_1m_usd": 20.0,
+        "long_context_threshold_tokens": 1048576,
+        "long_context_input_per_1m_usd": 4.0,
+        "long_context_cached_input_per_1m_usd": 0.4,
+        "long_context_output_per_1m_usd": 20.0,
+        "cache_storage_per_1m_hour_usd": 0.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        },
+        "notes": "Vertex AI Standard PayGo flat 1M context rate ($4.00/1M input, $0.40/1M implicit cached input, $20.00/1M output including thinking tokens)."
+      },
+      "gemini-3.8-flash": {
+        "family": "gemini_3",
+        "input_per_1m_usd": 0.75,
+        "cached_input_per_1m_usd": 0.075,
+        "output_per_1m_usd": 3.75,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 1.5,
+        "long_context_cached_input_per_1m_usd": 0.15,
+        "long_context_output_per_1m_usd": 7.5,
+        "cache_storage_per_1m_hour_usd": 1.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        },
+        "notes": "Vertex AI Standard PayGo active promotional rate through Dec 31, 2026 ($0.75/1M input, $3.75/1M output; standard 2027 rate $1.50/$7.50)."
+      },
+      "gemini-3.5-flash-lite": {
+        "family": "gemini_3",
+        "input_per_1m_usd": 0.3,
+        "cached_input_per_1m_usd": 0.03,
+        "output_per_1m_usd": 2.5,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 0.6,
+        "long_context_cached_input_per_1m_usd": 0.06,
+        "long_context_output_per_1m_usd": 3.75,
+        "cache_storage_per_1m_hour_usd": 1.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        },
+        "notes": "Vertex AI Standard PayGo Global endpoint rate ($0.30/1M input, $2.50/1M output including thinking tokens)."
+      },
+      "gemini-3.6-flash": {
+        "family": "gemini_3",
+        "input_per_1m_usd": 0.75,
+        "cached_input_per_1m_usd": 0.075,
+        "output_per_1m_usd": 3.75,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 1.5,
+        "long_context_cached_input_per_1m_usd": 0.15,
+        "long_context_output_per_1m_usd": 7.5,
+        "cache_storage_per_1m_hour_usd": 1.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        },
+        "notes": "Vertex AI Standard PayGo active promotional rate through Dec 31, 2026 ($0.75/1M input, $3.75/1M output; standard 2027 rate $1.50/$7.50)."
+      },
+      "gemini-3-flash-preview": {
+        "family": "gemini_3",
+        "input_per_1m_usd": 0.5,
+        "cached_input_per_1m_usd": 0.05,
+        "output_per_1m_usd": 3.0,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 1.0,
+        "long_context_cached_input_per_1m_usd": 0.1,
+        "long_context_output_per_1m_usd": 6.0,
+        "cache_storage_per_1m_hour_usd": 1.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        }
+      },
+      "gemini-3-flash": {
+        "family": "gemini_3",
+        "input_per_1m_usd": 0.5,
+        "cached_input_per_1m_usd": 0.05,
+        "output_per_1m_usd": 3.0,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 1.0,
+        "long_context_cached_input_per_1m_usd": 0.1,
+        "long_context_output_per_1m_usd": 6.0,
+        "cache_storage_per_1m_hour_usd": 1.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        }
+      },
+      "gemini-3.1-pro-preview": {
+        "family": "gemini_3",
+        "input_per_1m_usd": 2.0,
+        "cached_input_per_1m_usd": 0.2,
+        "output_per_1m_usd": 12.0,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 4.0,
+        "long_context_cached_input_per_1m_usd": 0.4,
+        "long_context_output_per_1m_usd": 18.0,
+        "cache_storage_per_1m_hour_usd": 4.5,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        }
+      },
+      "gemini-3.1-pro": {
+        "family": "gemini_3",
+        "input_per_1m_usd": 2.0,
+        "cached_input_per_1m_usd": 0.2,
+        "output_per_1m_usd": 12.0,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 4.0,
+        "long_context_cached_input_per_1m_usd": 0.4,
+        "long_context_output_per_1m_usd": 18.0,
+        "cache_storage_per_1m_hour_usd": 4.5,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        }
+      },
+      "gemini-3-pro-preview": {
+        "family": "gemini_3",
+        "input_per_1m_usd": 2.0,
+        "cached_input_per_1m_usd": 0.2,
+        "output_per_1m_usd": 12.0,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 4.0,
+        "long_context_cached_input_per_1m_usd": 0.4,
+        "long_context_output_per_1m_usd": 18.0,
+        "cache_storage_per_1m_hour_usd": 4.5,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        }
+      },
+      "gemini-2.5-flash": {
+        "family": "gemini_2_5",
+        "input_per_1m_usd": 0.3,
+        "cached_input_per_1m_usd": 0.03,
+        "output_per_1m_usd": 2.5,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 0.6,
+        "long_context_cached_input_per_1m_usd": 0.06,
+        "long_context_output_per_1m_usd": 3.75,
+        "cache_storage_per_1m_hour_usd": 1.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        }
+      },
+      "gemini-2.5-flash-lite": {
+        "family": "gemini_2_5",
+        "input_per_1m_usd": 0.1,
+        "cached_input_per_1m_usd": 0.01,
+        "output_per_1m_usd": 0.4,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 0.2,
+        "long_context_cached_input_per_1m_usd": 0.02,
+        "long_context_output_per_1m_usd": 0.8,
+        "cache_storage_per_1m_hour_usd": 1.0,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        }
+      },
+      "gemini-2.5-pro": {
+        "family": "gemini_2_5",
+        "input_per_1m_usd": 1.25,
+        "cached_input_per_1m_usd": 0.125,
+        "output_per_1m_usd": 10.0,
+        "long_context_threshold_tokens": 200000,
+        "long_context_input_per_1m_usd": 2.5,
+        "long_context_cached_input_per_1m_usd": 0.25,
+        "long_context_output_per_1m_usd": 15.0,
+        "cache_storage_per_1m_hour_usd": 4.5,
+        "google_search_grounding": {
+          "billing_mode": "per_search_query",
+          "price_per_unit_usd": 0.014
+        }
+      }
+    }
+  },
+  "eval_config": {
+    "eval_set_id": "conversational_synthetic",
+    "judge_model": "gemini-4-hydrogen",
+    "pricing_config_path": "pricing_config.json",
+    "evaluation_service_qps": 5.0,
+    "inference_concurrency": 4,
+    "metrics": [
+      {
+        "name": "multi_turn_task_success_v1",
+        "type": "predefined_rubric",
+        "rubric_metric": "MULTI_TURN_TASK_SUCCESS",
+        "threshold": 0.8,
+        "description": "Predefined adaptive rubric metric evaluating end-to-end 1-turn goal completion."
+      },
+      {
+        "name": "multi_turn_trajectory_quality_v1",
+        "type": "predefined_rubric",
+        "rubric_metric": "MULTI_TURN_TRAJECTORY_QUALITY",
+        "threshold": 0.8,
+        "description": "Predefined adaptive rubric metric evaluating sub-agent routing trajectory (engage -> specialist)."
+      },
+      {
+        "name": "tool_use_quality",
+        "type": "custom_llm",
+        "threshold": 0.8,
+        "description": "Custom LLM-as-a-Judge metric evaluating external google_search tool usage on filter_smart without confusing workflow sub-agents with tools."
+      },
+      {
+        "name": "coherence",
+        "type": "predefined_rubric",
+        "rubric_metric": "COHERENCE",
+        "threshold": 0.8,
+        "description": "Coherence metric evaluating logical flow, clarity, and organization of the response."
+      },
+      {
+        "name": "schema_and_contract_valid",
+        "type": "custom_python",
+        "threshold": 0.95,
+        "description": "Deterministic Python metric validating ConversationalOutput Pydantic schema, decision-field invariants, and non-hallucinated flight subsets."
+      },
+      {
+        "name": "conversation_plan_alignment",
+        "type": "custom_llm",
+        "threshold": 0.8,
+        "description": "Custom LLM-as-a-Judge metric grading whether the ConversationalOutput JSON matches the expected ground truth in conversation_plan."
+      },
+      {
+        "name": "latency_seconds",
+        "type": "custom_python",
+        "direction": "lower_is_better",
+        "unit": "s",
+        "threshold": 15.0,
+        "description": "End-to-end 1-turn application response latency in seconds (lower is better; threshold is max acceptable latency in seconds)."
+      },
+      {
+        "name": "cost_per_1k_requests_usd",
+        "type": "custom_python",
+        "direction": "lower_is_better",
+        "unit": " USD/1k",
+        "threshold": 15.0,
+        "description": "Estimated Vertex AI Standard PayGo total SUT cost per 1,000 requests in USD, combining LLM input/cached/output/thinking tokens and Gemini 3 per-query Google Search grounding ($14/1k queries)."
+      },
+      {
+        "name": "llm_token_cost_per_1k_usd",
+        "type": "custom_python",
+        "direction": "lower_is_better",
+        "unit": " USD/1k",
+        "threshold": 5.0,
+        "description": "Estimated Vertex AI Standard PayGo LLM token-only cost per 1,000 requests in USD (isolating model, prompt, caching, and thinking token efficiency from Google Search grounding fees)."
+      },
+      {
+        "name": "total_billable_tokens",
+        "type": "custom_python",
+        "direction": "lower_is_better",
+        "unit": " tok",
+        "threshold": 6000.0,
+        "description": "Total LLM tokens consumed per request across all executed sub-agents (prompt + tool_use_prompt + candidates_output + thoughts)."
+      }
+    ]
+  }
+}
