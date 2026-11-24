@@ -12,7 +12,7 @@ load_dotenv()
 
 # --- AI Model Configuration ---
 DEFAULT_GEMINI_MODEL = os.getenv(
-    "CONVERSATIONAL_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    "CONVERSATIONAL_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 )
 FALLBACK_GEMINI_MODEL = os.getenv("FALLBACK_GEMINI_MODEL", "gemini-3.6-flash")
 GEMINI_MODEL_LOCATION = os.getenv("GEMINI_MODEL_LOCATION", "global")
@@ -20,7 +20,7 @@ GEMINI_MODEL_LOCATION = os.getenv("GEMINI_MODEL_LOCATION", "global")
 # Per-sub-agent model overrides (fall back to DEFAULT_GEMINI_MODEL)
 ENGAGE_MODEL = os.getenv("ENGAGE_MODEL", DEFAULT_GEMINI_MODEL)
 FILTER_MODEL = os.getenv("FILTER_MODEL", DEFAULT_GEMINI_MODEL)
-FILTER_SMART_MODEL = os.getenv("FILTER_SMART_MODEL", "gemini-3.8-flash")
+FILTER_SMART_MODEL = os.getenv("FILTER_SMART_MODEL", DEFAULT_GEMINI_MODEL)
 INSPIRATION_MODEL = os.getenv("INSPIRATION_MODEL", DEFAULT_GEMINI_MODEL)
 JSON_PARSER_MODEL = os.getenv("JSON_PARSER_MODEL", DEFAULT_GEMINI_MODEL)
 
