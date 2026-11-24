@@ -425,20 +425,29 @@ def test_offline_reprice_and_experiments_history_column_expansion(
         pro_cost_1k - flash_lite_cost_1k
     )
 
-    # Verify experiments_history.md has uniform column count across legacy + new rows and Description stays last
+    # Verify experiments_history.md is transposed (Run ID columns), Description is right after Run Name,
+    # sub-agent models and readable metric labels are present, and legacy runs migrate cleanly.
     updated_md = history_file.read_text(encoding="utf-8")
     table_lines = [
         ln.strip()
         for ln in updated_md.splitlines()
         if ln.strip().startswith("|")
     ]
-    assert len(table_lines) == 5  # header + separator + 1 legacy + 2 new runs
     col_counts = {len(ln.strip("|").split("|")) for ln in table_lines}
     assert len(col_counts) == 1, f"Mismatched Markdown table columns: {updated_md}"
     header_cols = [c.strip() for c in table_lines[0].strip("|").split("|")]
-    assert header_cols[-1] == "Description"
-    assert "cost_per_1k_requests_usd" in header_cols
-    legacy_cells = [c.strip() for c in table_lines[2].strip("|").split("|")]
-    cost_col_idx = header_cols.index("cost_per_1k_requests_usd")
-    assert legacy_cells[cost_col_idx] == "N/A"
-    assert legacy_cells[-1] == "Legacy baseline"
+    assert header_cols[0] == "Run ID"
+    assert len(header_cols) == 4  # "Run ID" + 1 legacy + 2 new runs
+    row_map = {}
+    row_order = []
+    for ln in table_lines[2:]:
+        cells = [c.strip() for c in ln.strip("|").split("|")]
+        label = cells[0].strip("*").strip()
+        row_order.append(label)
+        row_map[label] = cells[1:]
+    assert row_order[:3] == ["Run Name", "Description", "Baseline"]
+    assert "Model (`filter_smart`)" in row_map
+    assert "Total Cost per 1k Requests (USD)" in row_map
+    assert "Latency (in seconds)" in row_map
+    assert row_map["Total Cost per 1k Requests (USD)"][0] == "N/A"
+    assert row_map["Description"][0] == "Legacy baseline"

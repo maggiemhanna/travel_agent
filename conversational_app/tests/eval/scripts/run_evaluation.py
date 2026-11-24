@@ -1453,6 +1453,35 @@ def log_summary_table(
         logger.info(f"Saved formatted summary report to {summary_output_path}")
 
 
+METRIC_DISPLAY_LABELS: Dict[str, str] = {
+    "multi_turn_task_success_v1": "Task Success Rate",
+    "multi_turn_trajectory_quality_v1": "Trajectory Quality",
+    "tool_use_quality": "Tool Use Quality",
+    "coherence": "Response Coherence",
+    "schema_and_contract_valid": "Schema & Contract Validity",
+    "conversation_plan_alignment": "Conversation Plan Alignment",
+    "latency_seconds": "Latency (in seconds)",
+    "cost_per_1k_requests_usd": "Total Cost per 1k Requests (USD)",
+    "llm_token_cost_per_1k_usd": "LLM Token Cost per 1k Requests (USD)",
+    "total_billable_tokens": "Total Billable Tokens (avg/req)",
+}
+
+SUB_AGENT_DISPLAY_ORDER: tuple[str, ...] = (
+    "engage",
+    "filter",
+    "filter_smart",
+    "inspiration",
+    "json_parser",
+)
+
+
+def _format_metric_label(metric_name: str) -> str:
+    """Maps raw metric identifiers to concise human-readable display labels."""
+    return METRIC_DISPLAY_LABELS.get(
+        metric_name, metric_name.replace("_", " ").title()
+    )
+
+
 def _parse_existing_markdown_table(
     md_text: str,
 ) -> tuple[List[str], List[Dict[str, str]], str]:
@@ -1488,22 +1517,75 @@ def _parse_existing_markdown_table(
     return header_cells, parsed_rows, preamble
 
 
+def _strip_md_bold(label: str) -> str:
+    cleaned = label.strip()
+    if cleaned.startswith("**") and cleaned.endswith("**") and len(cleaned) >= 4:
+        return cleaned[2:-2].strip()
+    return cleaned
+
+
+def _extract_existing_runs_as_columns(
+    existing_headers: List[str],
+    existing_rows: List[Dict[str, str]],
+) -> tuple[List[str], List[str], List[Dict[str, str]]]:
+    """Normalizes either transposed or legacy horizontal tables into ``(run_cols, row_labels, col_maps)``."""
+    if not existing_headers:
+        return [], [], []
+
+    # Detect legacy horizontal table: columns are Run ID, Run Name, Baseline, Cases, ...
+    if (
+        len(existing_headers) >= 2
+        and _strip_md_bold(existing_headers[0]) == "Run ID"
+        and _strip_md_bold(existing_headers[1]) == "Run Name"
+    ):
+        run_cols: List[str] = []
+        col_maps: List[Dict[str, str]] = []
+        row_labels: List[str] = []
+        for h in existing_headers[1:]:
+            lbl = _format_metric_label(h) if h in METRIC_DISPLAY_LABELS else h
+            if lbl not in row_labels:
+                row_labels.append(lbl)
+        for row in existing_rows:
+            run_id_col = row.get(existing_headers[0], "unknown")
+            run_cols.append(run_id_col)
+            col_map: Dict[str, str] = {}
+            for h in existing_headers[1:]:
+                lbl = _format_metric_label(h) if h in METRIC_DISPLAY_LABELS else h
+                col_map[lbl] = row.get(h, "N/A")
+            col_maps.append(col_map)
+        return run_cols, row_labels, col_maps
+
+    # Transposed format: header[0] is "Run ID", header[1:] are individual Run IDs
+    key_col = existing_headers[0]
+    run_cols = list(existing_headers[1:])
+    row_labels = [_strip_md_bold(r.get(key_col, "")) for r in existing_rows]
+    col_maps = []
+    for run_col in run_cols:
+        col_map = {}
+        for r, lbl in zip(existing_rows, row_labels):
+            col_map[lbl] = r.get(run_col, "N/A")
+        col_maps.append(col_map)
+    return run_cols, row_labels, col_maps
+
+
 def append_to_experiments_history(
     report: Dict[str, Any],
     run_metadata: Dict[str, Any],
     history_path: str = DEFAULT_HISTORY_PATH,
 ) -> None:
-    """Appends a single-row summary to experiments_history.md, expanding columns safely when new metrics are added."""
+    """Appends a new Run ID column to the transposed experiments_history.md leaderboard."""
     os.makedirs(os.path.dirname(history_path), exist_ok=True)
-    metric_names = [m["metric_name"] for m in report.get("summary_metrics", [])]
-    score_map = {
-        m["metric_name"]: (
-            f"{m['mean_score']:.3f}{m.get('unit') or ''}"
-            if m.get("mean_score") is not None
-            else "N/A"
+    metric_entries = [
+        (
+            _format_metric_label(m["metric_name"]),
+            (
+                f"{m['mean_score']:.3f}{m.get('unit') or ''}"
+                if m.get("mean_score") is not None
+                else "N/A"
+            ),
         )
         for m in report.get("summary_metrics", [])
-    }
+    ]
 
     git_info = run_metadata.get("git_info") or {}
     commit_tag = git_info.get("commit_sha", "unknown")
@@ -1515,28 +1597,32 @@ def append_to_experiments_history(
         (report.get("description") or "-").replace("|", "/").replace("\n", " ")
     )
 
-    desired_headers = [
-        "Run ID",
-        "Run Name",
-        "Baseline",
-        "Cases",
-        "Git",
-        *metric_names,
-        "Description",
+    agent_configs = run_metadata.get("agent_configs") or {}
+    ordered_agents = [
+        ag for ag in SUB_AGENT_DISPLAY_ORDER if ag in agent_configs
+    ] + [ag for ag in sorted(agent_configs) if ag not in SUB_AGENT_DISPLAY_ORDER]
+    model_entries = [
+        (f"Model (`{ag}`)", f"`{agent_configs[ag].get('model', 'unknown')}`")
+        for ag in ordered_agents
     ]
-    new_row_map: Dict[str, str] = {
-        "Run ID": f"`{report.get('run_id')}`",
-        "Run Name": f"`{report.get('run_name')}`",
-        "Baseline": is_base_str,
-        "Cases": str(report.get("num_cases_evaluated")),
-        "Git": f"`{commit_tag}`",
-        **{m: score_map.get(m, "N/A") for m in metric_names},
-        "Description": desc_clean,
-    }
+
+    run_col_header = f"`{report.get('run_id')}`"
+    new_entries: List[tuple[str, str]] = [
+        ("Run Name", f"`{report.get('run_name')}`"),
+        ("Description", desc_clean),
+        ("Baseline", is_base_str),
+        ("Cases", str(report.get("num_cases_evaluated"))),
+        ("Git", f"`{commit_tag}`"),
+        *model_entries,
+        *metric_entries,
+    ]
+    new_col_map: Dict[str, str] = dict(new_entries)
+    desired_row_labels = [k for k, _ in new_entries]
 
     default_preamble = (
         "# GEAP Evaluation Experiments History\n\n"
-        "Cumulative leaderboard of evaluation runs across model, prompt, caching, and architecture changes."
+        "Cumulative leaderboard of evaluation runs across model, prompt, caching, and architecture changes. "
+        "Each column represents a single evaluation Run ID."
     )
 
     if os.path.isfile(history_path):
@@ -1545,26 +1631,31 @@ def append_to_experiments_history(
         existing_headers, existing_rows, preamble = (
             _parse_existing_markdown_table(existing_text)
         )
+        existing_run_cols, existing_row_labels, existing_col_maps = (
+            _extract_existing_runs_as_columns(existing_headers, existing_rows)
+        )
     else:
-        existing_headers, existing_rows, preamble = [], [], default_preamble
+        existing_run_cols, existing_row_labels, existing_col_maps = [], [], []
+        preamble = default_preamble
 
-    if existing_headers:
-        merged_headers: List[str] = []
-        for h in existing_headers:
-            if h != "Description" and h not in merged_headers:
-                merged_headers.append(h)
-        for h in desired_headers:
-            if h != "Description" and h not in merged_headers:
-                merged_headers.append(h)
-        merged_headers.append("Description")
-    else:
-        merged_headers = desired_headers
+    # Preserve canonical top ordering (Run Name, Description, Baseline, Cases, Git, Models, Metrics)
+    merged_row_labels: List[str] = []
+    for lbl in desired_row_labels:
+        if lbl not in merged_row_labels:
+            merged_row_labels.append(lbl)
+    for lbl in existing_row_labels:
+        if lbl not in merged_row_labels:
+            merged_row_labels.append(lbl)
 
-    all_row_maps = [*existing_rows, new_row_map]
+    all_run_cols = [*existing_run_cols, run_col_header]
+    all_col_maps = [*existing_col_maps, new_col_map]
+
+    headers = ["Run ID", *all_run_cols]
     matrix = [
-        [rm.get(col, "N/A") for col in merged_headers] for rm in all_row_maps
+        [f"**{lbl}**", *[cm.get(lbl, "N/A") for cm in all_col_maps]]
+        for lbl in merged_row_labels
     ]
-    table_str = tabulate(matrix, headers=merged_headers, tablefmt="github")
+    table_str = tabulate(matrix, headers=headers, tablefmt="github")
     final_preamble = preamble.strip() or default_preamble
     with open(history_path, "w", encoding="utf-8") as f:
         f.write(f"{final_preamble}\n\n{table_str}\n")
