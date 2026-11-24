@@ -461,7 +461,7 @@ Server sizes, AI token usage, idle container shutdowns, and image storage cleanu
   - **Right-Sized CPU & Memory per Service:** Resources match what each service actually does—giving `2 vCPU` and `2 GiB` of RAM to the Python AI backends (`flights-search-app` and `conversational-app`) and a lightweight `1 vCPU` and `512 MiB` of RAM to the static web `frontend`.  
     — *Provisioned in [`deployment/terraform/cloud_run.tf`](deployment/terraform/cloud_run.tf) & [`deployment/terraform/variables.tf`](deployment/terraform/variables.tf)*
   - **Fast Model Defaults & Lean Prompt/Search Usage:**
-    - All six agents default to fast, cost-effective `gemini-3.5-flash-lite` (averaging `2.76s` response time and `$5.45 per 1,000 requests` with strong quality scores in our 50-case baseline in [`experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md); see [3. AI Cost Management](#3-ai-cost-management)) while still allowing individual agents to use larger models if needed.
+    - Following our 4-experiment model benchmark in [`experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md), all conversational sub-agents default to `gemini-3.8-flash` (with thinking disabled on fast routing/extraction steps and capped at `512` tokens on `filter_smart`), delivering `0.923` task success, `0.980` response coherence, `1.000` tool-use and schema validity, `7.91s` average latency, and `$12.09 per 1,000 requests` (see [3. AI Cost Management](#3-ai-cost-management)) while still allowing individual agents to be switched via configuration.
     - The Flight Search agent turns off extra internal "thinking" steps that aren't needed when generating flight schedules, every agent receives only the exact inputs it needs, and the Smart Filter agent skips Google Search whenever the flight list already contains the answer.  
     — *Implemented in [`flights_search_app/app/agent.py`](flights_search_app/app/agent.py), [`conversational_app/app/config.py`](conversational_app/app/config.py) & [`conversational_app/app/sub_agents/filter_smart/prompt.py`](conversational_app/app/sub_agents/filter_smart/prompt.py)*
 
@@ -484,15 +484,15 @@ Server sizes, AI token usage, idle container shutdowns, and image storage cleanu
 
 ### 3. AI Cost Management
 
-AI token usage, Google Search fees, per-agent costs, caching savings, and prompt-size growth are tracked and controlled through lightweight runtime monitoring, an offline Vertex AI cost calculator in the evaluation suite, and fast Pull Request checks:
+AI token usage, Google Search fees, per-agent costs, caching savings, and prompt-size growth are tracked and controlled through lightweight runtime monitoring, an offline Vertex AI cost calculator in the evaluation suite, and fast Pull Request checks. Following our 4-experiment model benchmark ([`experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md)), all conversational sub-agents now run on `gemini-3.8-flash` (with thinking budget `0` on `engage`, `filter`, `inspiration`, and `json_parser`, and `512` on `filter_smart`):
 
-| Sub-Agent (`20261119_134306_baseline`) | Model | Used In (% of Cases) | Avg Input / Output Tokens | Google Searches (50 cases) | Cost per 1,000 Requests | Share of Total Cost |
+| Sub-Agent (`20261124_124413_all_3_8_flash`) | Model | Used In (% of Cases) | Avg Input / Output (+ Thinking) Tokens | Google Searches (50 cases) | Cost per 1,000 Requests | Share of Total Cost |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| `engage` | `gemini-3.5-flash-lite` | `100.0%` | `1,377` / `28` | `0` | `$0.4831` | `8.9%` |
-| `filter` | `gemini-3.5-flash-lite` | `34.0%` | `987` / `44` | `0` | `$0.1382` | `2.5%` |
-| `filter_smart` | `gemini-3.5-flash-lite` | `36.0%` | `4,313` / `1,076` | `12` | `$4.7104` | `86.5%` |
-| `inspiration` | `gemini-3.5-flash-lite` | `16.0%` | `1,237` / `139` | `0` | `$0.1149` | `2.1%` |
-| **Total Assistant Baseline** | `gemini-3.5-flash-lite` | `1.86` calls/req | `3,463` / `452` *(avg `3,916` tot)* | `12` (`0.24`/req) | **`$5.4466`** *(`$2.09` tokens + `$3.36` search)* | **`100.0%`** |
+| `engage` | `gemini-3.8-flash` | `100.0%` | `1,422` / `32` (+ `77`) | `0` | `$1.4742` | `12.2%` |
+| `filter` | `gemini-3.8-flash` | `20.0%` | `1,014` / `39` (+ `11`) | `0` | `$0.1895` | `1.6%` |
+| `filter_smart` | `gemini-3.8-flash` | `40.0%` | `3,932` / `1,416` (+ `273`) | `23` | `$10.1534` | `84.0%` |
+| `inspiration` | `gemini-3.8-flash` | `20.0%` | `1,256` / `119` (+ `0`) | `0` | `$0.2775` | `2.3%` |
+| **Total Active Baseline** | `gemini-3.8-flash` | `1.80` calls/req | `3,448` / `630` (+ `188`; avg `4,266` tot) | `23` (`0.46`/req) | **`$12.0945`** *(`$5.65` tokens + `$6.44` search)* | **`100.0%`** |
 
 - **3.1 Pillar 1 — Lightweight Usage Tracking & Offline Cost Calculation**
   - **Tracking Raw Usage Without Slowing Down Live Traffic:** A built-in monitoring plugin records each agent's response time, input tokens, cached tokens, output tokens, internal thinking tokens, and exact Google Search count—while keeping all dollar-pricing math out of live production servers so real user requests stay fast and unaffected when cloud prices change.  
@@ -502,19 +502,19 @@ AI token usage, Google Search fees, per-agent costs, caching savings, and prompt
     — *Verified in [`conversational_app/tests/unit/test_cost_and_eval_metrics.py`](conversational_app/tests/unit/test_cost_and_eval_metrics.py)*
 
 - **3.2 Pillar 2 — Automated Cost Budgets & Per-Agent Breakdown**
-  - **Cost & Token Limits in the 10-Check Evaluation Suite:** Every 50-scenario evaluation checks three cost limits—total cost per 1,000 requests (`<= $15.00`), model token cost per 1,000 requests (`<= $5.00`), and total tokens per request (`<= 6,000`). The report also shows cost per 1,000 *successful* tasks (`$6.11` in baseline), typical vs. worst-case request costs, how often JSON repair was needed (`0.0%`), and keeps actual assistant costs (`$0.272`) strictly separate from the AI grading judge's own cost (`$0.446`).  
+  - **Cost & Token Limits in the 10-Check Evaluation Suite:** Every 50-scenario evaluation checks three cost limits—total cost per 1,000 requests (`<= $15.00`), model token cost per 1,000 requests (`<= $5.00`), and total tokens per request (`<= 6,000`). On `gemini-3.8-flash`, total cost (`$12.09/1k`) and token usage (`4,266` avg/req) pass while token-only spend (`$5.65/1k`) sits slightly above the `$5.00` target as an intentional quality trade-off. The report also shows cost per 1,000 *successful* tasks (`$13.10`), typical vs. worst-case request costs, how often JSON repair was needed (`0.0%`), and keeps actual assistant costs (`$0.605`) strictly separate from the AI grading judge's own cost (`$1.893`).  
     — *Implemented in [`conversational_app/tests/eval/configs/eval_config.json`](conversational_app/tests/eval/configs/eval_config.json), [`conversational_app/tests/eval/metrics/custom_metrics.py`](conversational_app/tests/eval/metrics/custom_metrics.py) & [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py)*  
-    — *Recorded in [`conversational_app/tests/eval/results/experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md) & [`conversational_app/tests/eval/results/20261119_134306_baseline/eval_summary.md`](conversational_app/tests/eval/results/20261119_134306_baseline/eval_summary.md)*
-  - **Seeing Exactly Where Money Goes:** Splitting AI token spend (`38.3%`, `$2.09/1k`) from Google Search fees (`61.7%`, `$3.36/1k`) and breaking costs down by specialist makes it clear that `filter_smart` drives `86.5%` of total spend even though it only runs on `36%` of requests—showing exactly where optimization has the biggest payoff.  
-    — *Recorded in [`conversational_app/tests/eval/results/20261119_134306_baseline/eval_summary.md`](conversational_app/tests/eval/results/20261119_134306_baseline/eval_summary.md)*
+    — *Recorded in [`conversational_app/tests/eval/results/experiments_history.md`](conversational_app/tests/eval/results/experiments_history.md) & [`conversational_app/tests/eval/results/20261124_124413_all_3_8_flash/eval_summary.md`](conversational_app/tests/eval/results/20261124_124413_all_3_8_flash/eval_summary.md)*
+  - **Seeing Exactly Where Money Goes:** Splitting AI token spend (`46.8%`, `$5.65/1k`) from Google Search fees (`53.2%`, `$6.44/1k`) and breaking costs down by specialist makes it clear that `filter_smart` drives `84.0%` of total spend even though it only runs on `40%` of requests—showing exactly where optimization has the biggest payoff.  
+    — *Recorded in [`conversational_app/tests/eval/results/20261124_124413_all_3_8_flash/eval_summary.md`](conversational_app/tests/eval/results/20261124_124413_all_3_8_flash/eval_summary.md)*
 
 - **3.3 Pillar 3 — Free "What-If" Model Comparisons & Caching Estimates**
   - **Instant `$0` Model Cost Comparisons:** Teams can replay saved evaluation logs with different model choices (for example, testing a stronger model on `filter_smart` only) to see the exact cost impact before spending a cent on live Vertex AI calls.  
     — *Implemented in [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py) & [`conversational_app/tests/eval/metrics/cost_estimator.py`](conversational_app/tests/eval/metrics/cost_estimator.py)*  
     — *Verified in [`conversational_app/tests/unit/test_cost_and_eval_metrics.py`](conversational_app/tests/unit/test_cost_and_eval_metrics.py)*
   - **Automatic Caching Savings Projections:** Every evaluation summary estimates how much money and time two caching strategies would save:
-    - *Reusing Recent Answers (Response Caching):* Skips both Gemini calls and `$14/1k` Google Search fees for repeat questions, projecting up to `50%` lower cost (`-$2.72/1k`) and `1.38s` average latency if half of requests hit the cache.
-    - *Gemini Context Caching:* Discounts repeated prompt instructions (while keeping output and search costs the same) and checks Gemini 3's `4,096`-token minimum requirement—showing that `filter_smart` (`4,313` average input tokens) qualifies `100%` of the time while shorter agents stay below the threshold (`-5.9%` projected savings at a `95%` cache hit rate).  
+    - *Reusing Recent Answers (Response Caching):* Skips both Gemini calls and `$14/1k` Google Search fees for repeat questions, projecting up to `50%` lower cost (`-$6.05/1k`) and `3.95s` average latency (down from `7.91s`) if half of requests hit the cache.
+    - *Gemini Context Caching:* Discounts repeated prompt instructions (while keeping output and search costs the same) and checks Gemini 3's `4,096`-token minimum requirement—showing that after prompt optimization, all four sub-agents (including `filter_smart` at `3,932` average input tokens) currently stay just below the `4,096`-token threshold (`0%` threshold-gated savings today, vs. up to `-18.3%` / `-$2.21/1k` theoretically if prompt prefixes exceed `4,096` tokens).  
     — *Implemented in [`conversational_app/tests/eval/metrics/cost_estimator.py`](conversational_app/tests/eval/metrics/cost_estimator.py) & [`conversational_app/tests/eval/scripts/run_evaluation.py`](conversational_app/tests/eval/scripts/run_evaluation.py)*
 
 - **3.4 Pillar 4 — Automatic Pull Request Prompt-Size & Cost Guardrails**
@@ -526,7 +526,7 @@ AI token usage, Google Search fees, per-agent costs, caching savings, and prompt
     — *Called in [`.cloudbuild/pr_checks.yaml`](.cloudbuild/pr_checks.yaml)*
 
 > **Note on Unimplemented / Non-Relevant Pillars:**
-> - **Live Response Cache & Vertex AI Context Caching (*Not Implemented — Relevant*):** The evaluation suite already measures the exact savings from both caching layers and CI checks keep prompts cache-friendly (`filter_smart` already qualifies at `>4,096` tokens); turning on a live cache (such as Memorystore/Redis) and Vertex AI context caching is ready as a next step as production traffic grows.
+> - **Live Response Cache & Vertex AI Context Caching (*Not Implemented — Relevant*):** The evaluation suite already measures the exact savings from both caching layers (up to `-50%` from response caching) and CI checks keep prompts cache-friendly if they grow past Gemini 3's `4,096`-token prefix threshold; turning on a live response cache (such as Memorystore/Redis) is ready as a next step as production traffic grows.
 > - **Cloud Billing Budget Alerts & Per-User Spend Limits (*Not Implemented — Relevant*):** Automated Google Cloud billing alerts and per-user rate or spend caps are not yet configured in Terraform and remain practical upgrades once user accounts are added.
 
 ---
