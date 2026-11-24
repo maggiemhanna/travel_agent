@@ -11,6 +11,9 @@ from app.config import (
     GEMINI_MODEL_LOCATION,
     INSPIRATION_FALLBACK_MODEL,
     INSPIRATION_MODEL,
+    INSPIRATION_THINKING_BUDGET,
+    INSPIRATION_THINKING_LEVEL,
+    build_thinking_config,
 )
 from app.sub_agents.inspiration.prompt import system_instruction
 from app.sub_agents.inspiration.schema import InspirationInput, InspirationOutput
@@ -45,12 +48,13 @@ def build_inspiration_agent(model_name: str) -> Agent:
         state_schema=InspirationInput,
         output_schema=InspirationOutput,
         include_contents='none',
-        #planner=BuiltInPlanner(
-        #    thinking_config=ThinkingConfig(
-        #        include_thoughts=False,
-        #        thinking_budget=0,
-        #    )
-        #)
+        planner=BuiltInPlanner(
+            thinking_config=build_thinking_config(
+                model_name,
+                thinking_budget=INSPIRATION_THINKING_BUDGET,
+                thinking_level=INSPIRATION_THINKING_LEVEL,
+            )
+        ),
     )
 
 

@@ -10,7 +10,10 @@ from google.genai.types import HttpRetryOptions, ThinkingConfig
 from app.config import (
     ENGAGE_FALLBACK_MODEL,
     ENGAGE_MODEL,
+    ENGAGE_THINKING_BUDGET,
+    ENGAGE_THINKING_LEVEL,
     GEMINI_MODEL_LOCATION,
+    build_thinking_config,
 )
 from app.sub_agents.engage.prompt import system_instruction
 from app.sub_agents.engage.schema import EngageInput, EngageOutput
@@ -44,12 +47,13 @@ def build_engage_agent(model_name: str) -> Agent:
         state_schema=EngageInput,
         output_schema=EngageOutput,
         include_contents='none',
-        #planner=BuiltInPlanner(
-        #    thinking_config=ThinkingConfig(
-        #        include_thoughts=False,
-        #        thinking_budget=0,
-        #    )
-        #)
+        planner=BuiltInPlanner(
+            thinking_config=build_thinking_config(
+                model_name,
+                thinking_budget=ENGAGE_THINKING_BUDGET,
+                thinking_level=ENGAGE_THINKING_LEVEL,
+            )
+        ),
     )
 
 

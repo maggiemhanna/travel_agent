@@ -11,6 +11,9 @@ from app.config import (
     GEMINI_MODEL_LOCATION,
     JSON_PARSER_FALLBACK_MODEL,
     JSON_PARSER_MODEL,
+    JSON_PARSER_THINKING_BUDGET,
+    JSON_PARSER_THINKING_LEVEL,
+    build_thinking_config,
 )
 from app.sub_agents.json_parser.prompt import system_instruction
 from app.sub_agents.json_parser.schema import JSONParserInput, JSONParserOutput
@@ -44,12 +47,13 @@ def build_json_parser_agent(model_name: str) -> Agent:
         state_schema=JSONParserInput,
         output_schema=JSONParserOutput,
         include_contents='none',
-        #planner=BuiltInPlanner(
-        #    thinking_config=ThinkingConfig(
-        #        include_thoughts=False,
-        #        thinking_budget=0,
-        #    )
-        #)
+        planner=BuiltInPlanner(
+            thinking_config=build_thinking_config(
+                model_name,
+                thinking_budget=JSON_PARSER_THINKING_BUDGET,
+                thinking_level=JSON_PARSER_THINKING_LEVEL,
+            )
+        ),
     )
 
 

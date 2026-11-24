@@ -11,7 +11,10 @@ from google.genai.types import HttpRetryOptions, ThinkingConfig
 from app.config import (
     FILTER_SMART_FALLBACK_MODEL,
     FILTER_SMART_MODEL,
+    FILTER_SMART_THINKING_BUDGET,
+    FILTER_SMART_THINKING_LEVEL,
     GEMINI_MODEL_LOCATION,
+    build_thinking_config,
 )
 from app.sub_agents.filter_smart.prompt import system_instruction
 from app.sub_agents.filter_smart.schema import FilterSmartInput, FilterSmartOutput
@@ -45,12 +48,13 @@ def build_filter_smart_agent(model_name: str) -> Agent:
         tools=[google_search],
         state_schema=FilterSmartInput,
         include_contents='none',
-        #planner=BuiltInPlanner(
-        #    thinking_config=ThinkingConfig(
-        #        include_thoughts=False,
-        #        thinking_budget=0,
-        #    )
-        #)
+        planner=BuiltInPlanner(
+            thinking_config=build_thinking_config(
+                model_name,
+                thinking_budget=FILTER_SMART_THINKING_BUDGET,
+                thinking_level=FILTER_SMART_THINKING_LEVEL,
+            )
+        ),
     )
 
 

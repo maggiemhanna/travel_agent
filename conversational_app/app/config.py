@@ -2,8 +2,10 @@
 # All rights reserved.
 
 import os
+from typing import Optional
 
 from dotenv import load_dotenv
+from google.genai.types import ThinkingConfig, ThinkingLevel
 
 # Ensure .env overrides are loaded before reading model or endpoint configuration
 load_dotenv()
@@ -21,6 +23,57 @@ FILTER_MODEL = os.getenv("FILTER_MODEL", DEFAULT_GEMINI_MODEL)
 FILTER_SMART_MODEL = os.getenv("FILTER_SMART_MODEL", DEFAULT_GEMINI_MODEL)
 INSPIRATION_MODEL = os.getenv("INSPIRATION_MODEL", DEFAULT_GEMINI_MODEL)
 JSON_PARSER_MODEL = os.getenv("JSON_PARSER_MODEL", DEFAULT_GEMINI_MODEL)
+
+# Per-sub-agent thinking budget (tokens; 0 disables thinking on models that support thinking_budget)
+ENGAGE_THINKING_BUDGET = int(os.getenv("ENGAGE_THINKING_BUDGET", "0"))
+FILTER_THINKING_BUDGET = int(os.getenv("FILTER_THINKING_BUDGET", "0"))
+INSPIRATION_THINKING_BUDGET = int(os.getenv("INSPIRATION_THINKING_BUDGET", "0"))
+JSON_PARSER_THINKING_BUDGET = int(os.getenv("JSON_PARSER_THINKING_BUDGET", "0"))
+FILTER_SMART_THINKING_BUDGET = int(os.getenv("FILTER_SMART_THINKING_BUDGET", "512"))
+
+# Optional per-sub-agent thinking level (LOW, MEDIUM, HIGH, MINIMAL) — required for Gemini 4 models
+ENGAGE_THINKING_LEVEL: Optional[str] = (
+    os.getenv("ENGAGE_THINKING_LEVEL", "").strip().upper() or None
+)
+FILTER_THINKING_LEVEL: Optional[str] = (
+    os.getenv("FILTER_THINKING_LEVEL", "").strip().upper() or None
+)
+INSPIRATION_THINKING_LEVEL: Optional[str] = (
+    os.getenv("INSPIRATION_THINKING_LEVEL", "").strip().upper() or None
+)
+JSON_PARSER_THINKING_LEVEL: Optional[str] = (
+    os.getenv("JSON_PARSER_THINKING_LEVEL", "").strip().upper() or None
+)
+FILTER_SMART_THINKING_LEVEL: Optional[str] = (
+    os.getenv("FILTER_SMART_THINKING_LEVEL", "").strip().upper() or None
+)
+
+
+def build_thinking_config(
+    model_name: str,
+    *,
+    thinking_budget: Optional[int] = 0,
+    thinking_level: Optional[str] = None,
+) -> ThinkingConfig:
+    """Builds a model-compatible ThinkingConfig without passing conflicting budget/level fields."""
+    if thinking_level:
+        return ThinkingConfig(
+            include_thoughts=False,
+            thinking_level=ThinkingLevel[thinking_level.upper()],
+        )
+    normalized = (model_name or "").strip().lower()
+    if normalized.startswith("gemini-4"):
+        # Gemini 4 models reject thinking_budget and require thinking_level (LOW/MEDIUM/HIGH).
+        level = (
+            ThinkingLevel.LOW
+            if thinking_budget is None or thinking_budget <= 0
+            else ThinkingLevel.MEDIUM
+        )
+        return ThinkingConfig(include_thoughts=False, thinking_level=level)
+    return ThinkingConfig(
+        include_thoughts=False,
+        thinking_budget=0 if thinking_budget is None else int(thinking_budget),
+    )
 
 # Per-sub-agent backup model overrides (fall back to FALLBACK_GEMINI_MODEL)
 ENGAGE_FALLBACK_MODEL = os.getenv("ENGAGE_FALLBACK_MODEL", FALLBACK_GEMINI_MODEL)
