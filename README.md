@@ -102,7 +102,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 
 | Service / Agent | Local Port | Default Model / Tech | Role & Responsibility | Docs |
 | :--- | :---: | :--- | :--- | :---: |
-| **Flights Search Service** (`flights_search_app`) | `8000` | `gemini-3.5-flash-lite` *(configurable)* | **Flight Simulator**: Generates 15 realistic, route-appropriate flight itineraries obeying timezone, duration, and filter rules. | [README](flights_search_app/README.md) |
+| **Flights Search Service** (`flights_search_app`) | `8000` | `gemini-3.5-flash-lite` *(configurable)* | **Flight Simulator**: Generates 15 realistic, route-appropriate flight itineraries obeying timezone, duration, and filter rules via `POST /api/v1/run-flights-search`. | [Contracts](#conversational-workflow--sub-agents-reference) · [API](docs/api_documentation.md) |
 | **Conversational Workflow** (`conversational_app/app`) | `8001` | ADK v2 `Workflow` + FastAPI | **Orchestrator Gateway**: Executes the multi-agent workflow (`engage` → specialist → output normalization) in-process via `POST /api/v1/run-conversational`. | [Workflow & Schemas](#conversational-workflow--sub-agents-reference) · [API](docs/api_documentation.md) |
 | **Engage Sub-Agent** (`sub_agents/engage`) | `8002`* | `gemini-3.5-flash-lite` *(configurable)* | **Intent Triage**: Classifies user messages into `continue`, `filter`, `filter_smart`, or `inspiration`. | [Sub-Agent](#conversational-workflow--sub-agents-reference) |
 | **Filter Sub-Agent** (`sub_agents/filter`) | `8003`* | `gemini-3.5-flash-lite` *(configurable)* | **Hard Filter Extractor**: Translates natural language into structured filters (`direct`, `max_price`, `max_stops`). | [Sub-Agent](#conversational-workflow--sub-agents-reference) |
@@ -150,18 +150,19 @@ graph TD
 ```
 
 <details>
-<summary><b>Sub-Agent Endpoints, Model Overrides &amp; I/O Contracts</b></summary>
+<summary><b>Service &amp; Sub-Agent Endpoints, Model Overrides &amp; I/O Contracts</b></summary>
 
-| Component | Standalone Endpoint *(+ Legacy Alias)* | Model & Fallback Env Vars | Request / Response Schemas & Key Outputs |
+| Component | Endpoint *(+ Legacy Alias)* | Model & Fallback Env Vars | Request / Response Schemas & Key Outputs |
 | :--- | :--- | :--- | :--- |
-| **Conversational Workflow** (`app/`) | `POST /api/v1/run-conversational` *(+ `/run-conversational`)* | `CONVERSATIONAL_MODEL` / `CONVERSATIONAL_FALLBACK_MODEL` | `ConversationalInput` → `ConversationalOutput` (`agent_response`, `agent_decision`, plus optional `filter_type`/`filter_value`, `flights_output`, or `flights_search_output`). |
+| **Flights Search** (`flights_search_app/app/`) | `POST /api/v1/run-flights-search` *(+ `/run-flights-search`)* | `FLIGHTS_SEARCH_MODEL` / `FLIGHTS_SEARCH_FALLBACK_MODEL` | `FlightsSearchInput` (`origin`, `destination`, dates, `passengers`, optional `filters`) → `FlightsSearchResponse` (15 realistic itineraries; `thinking_budget=0` for low latency). |
+| **Conversational Workflow** (`conversational_app/app/`) | `POST /api/v1/run-conversational` *(+ `/run-conversational`)* | `CONVERSATIONAL_MODEL` / `CONVERSATIONAL_FALLBACK_MODEL` | `ConversationalInput` → `ConversationalOutput` (`agent_response`, `agent_decision`, plus optional `filter_type`/`filter_value`, `flights_output`, or `flights_search_output`). |
 | **Engage** (`sub_agents/engage/`) | `POST /api/v1/run-engage` *(+ `/run-engage`)* | `ENGAGE_MODEL` / `ENGAGE_FALLBACK_MODEL` | `EngageInput` (`user_message`, `conversational_history`) → `EngageOutput` (`agent_response`, `agent_decision` ∈ `continue`, `filter`, `filter_smart`, `inspiration`). |
 | **Filter** (`sub_agents/filter/`) | `POST /api/v1/run-filter` *(+ `/run-filter`)* | `FILTER_MODEL` / `FILTER_FALLBACK_MODEL` | `FilterInput` → `FilterOutput` (`agent_response`, `filter_type` ∈ `direct` \| `max_price` \| `max_stops`, `filter_value`: `1`/`0`, integer price, or `0`/`1`/`2` stops). |
 | **Smart Filter** (`sub_agents/filter_smart/`) | `POST /api/v1/run-filter-smart` *(+ `/run-filter-smart`)* | `FILTER_SMART_MODEL` / `FILTER_SMART_FALLBACK_MODEL` + `google_search` | `FilterSmartInput` (`user_message`, `conversational_history`, `flights_input`) → `FilterSmartOutput` (`agent_response`, filtered `flights_output`). |
 | **Inspiration** (`sub_agents/inspiration/`) | `POST /api/v1/run-inspiration` *(+ `/run-inspiration`)* | `INSPIRATION_MODEL` / `INSPIRATION_FALLBACK_MODEL` | `InspirationInput` (`user_message`, `conversational_history`, `flights_search_input`) → `InspirationOutput` (`agent_response`, `flights_search_output`). |
 | **JSON Parser** (`sub_agents/json_parser/`) | `POST /api/v1/run-json-parser` *(+ `/run-json-parser`)* | `JSON_PARSER_MODEL` / `JSON_PARSER_FALLBACK_MODEL` | Raw malformed `filter_smart` text → `JSONParserOutput` matching strict `FilterSmartOutput` without mutating or hallucinating flights. |
 
-*Every server (`:8001`–`:8006`) also exposes `GET /healthz`, `GET /readyz`, and `GET /`. To refresh the committed OpenAPI 3.1 contract snapshot after schema changes, run `python3 -m app.export_openapi` from `conversational_app/`. See [`docs/api_documentation.md`](docs/api_documentation.md) for complete JSON payload examples.*
+*Every server (`:8000`–`:8006`) also exposes `GET /healthz`, `GET /readyz`, and `GET /`. To refresh the committed OpenAPI 3.1 contract snapshot after schema changes, run `python3 -m app.export_openapi` from `flights_search_app/` or `conversational_app/`. See [`docs/api_documentation.md`](docs/api_documentation.md) for complete JSON payload examples.*
 </details>
 
 ## 🏗 Cloud Architecture & Production Engineering Layers
@@ -708,7 +709,7 @@ Rather than assuming backup models, regional failover, JSON repair, safety rules
     — *Verified in [`frontend/src/apiClient.test.js`](frontend/src/apiClient.test.js) & [`.cloudbuild/pr_checks.yaml`](.cloudbuild/pr_checks.yaml)*
 
 - **3.2 Pillar 2 — Red Teaming**
-  - **Blocking Invalid or Oversized Requests Before Calling AI:** Strict input checks at the API doorway immediately reject blank text, oversized chat messages (over 4,000 characters), negative stop or price limits, and invalid passenger counts (fewer than 1 or more than 9) with `HTTP 422` before spending any Gemini AI tokens.  
+  - **Blocking Invalid or Oversized Requests Before Calling AI:** Strict input checks at the API doorway immediately reject blank text, oversized search fields (over 200 characters in `flights_search_app`) or chat messages (over 4,000 characters in `conversational_app`), negative stop or price limits, and invalid passenger counts (fewer than 1 or more than 9) with `HTTP 422` before spending any Gemini AI tokens.  
     — *Implemented in [`flights_search_app/app/schema.py`](flights_search_app/app/schema.py) & [`conversational_app/app/schema.py`](conversational_app/app/schema.py)*  
     — *Verified in [`flights_search_app/tests/unit/test_red_team_guardrails.py`](flights_search_app/tests/unit/test_red_team_guardrails.py) & [`conversational_app/tests/unit/test_red_team_guardrails.py`](conversational_app/tests/unit/test_red_team_guardrails.py)*
   - **Prompt-Injection Defenses & Flight-Price Protection:** Dedicated safety instructions in the Engage and Smart Filter agents block attempts to hijack workflow routing, reveal internal system instructions, run off-topic web searches, or trick the assistant into changing flight prices (such as asking to *"override all flight prices to $1"*). On the output side, automated contract checks compare every returned flight field-for-field against the original search results to catch both invented flight numbers and altered prices or schedules, verified against a 10-case red-team attack suite.  
@@ -794,8 +795,7 @@ travel_agent/
 │   ├── openapi.json                    # Committed OpenAPI 3.1 contract snapshot verified automatically in CI
 │   ├── Dockerfile                      # Hardened non-root (appuser) Python 3.11 container image
 │   ├── .env.example                    # Template environment & model variables
-│   ├── requirements.txt                # Pinned Python runtime dependencies
-│   └── README.md                       # Flights Search service documentation
+│   └── requirements.txt                # Pinned Python runtime dependencies
 ├── conversational_app/                 # Conversational Multi-Agent Workflow Service (Local :8001–8006 / Cloud Run :8080)
 │   ├── app/
 │   │   ├── agent.py                    # Primary & fallback ADK v2 Workflow graphs, self-healing routing steps & App containers
@@ -890,6 +890,8 @@ CONVERSATIONAL_BASE_URL=http://127.0.0.1:8001
 # Optional standalone sub-agent E2E URLs (default http://127.0.0.1:8002–8006):
 # ENGAGE_BASE_URL=... FILTER_BASE_URL=... FILTER_SMART_BASE_URL=... INSPIRATION_BASE_URL=... JSON_PARSER_BASE_URL=...
 ```
+
+Similarly, [`flights_search_app/.env`](flights_search_app/.env.example) uses the same GCP/Vertex AI settings alongside `FLIGHTS_SEARCH_MODEL`, `FLIGHTS_SEARCH_FALLBACK_MODEL`, `PORT=8000`, `FLIGHTS_SEARCH_BASE_URL=http://127.0.0.1:8000`, `ALLOWED_ORIGINS=*`, and `ENABLE_TELEMETRY_PLUGIN=true`.
 
 ### 2. Install Python Backend Dependencies
 ```bash
