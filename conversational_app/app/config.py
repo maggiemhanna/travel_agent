@@ -12,7 +12,7 @@ load_dotenv()
 
 # --- AI Model Configuration ---
 DEFAULT_GEMINI_MODEL = os.getenv(
-    "CONVERSATIONAL_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    "CONVERSATIONAL_MODEL", os.getenv("GEMINI_MODEL", "gemini-4-neon")
 )
 FALLBACK_GEMINI_MODEL = os.getenv("FALLBACK_GEMINI_MODEL", "gemini-3.6-flash")
 GEMINI_MODEL_LOCATION = os.getenv("GEMINI_MODEL_LOCATION", "global")
@@ -33,19 +33,19 @@ FILTER_SMART_THINKING_BUDGET = int(os.getenv("FILTER_SMART_THINKING_BUDGET", "51
 
 # Optional per-sub-agent thinking level (LOW, MEDIUM, HIGH, MINIMAL) — required for Gemini 4 models
 ENGAGE_THINKING_LEVEL: Optional[str] = (
-    os.getenv("ENGAGE_THINKING_LEVEL", "").strip().upper() or None
+    os.getenv("ENGAGE_THINKING_LEVEL", "LOW").strip().upper() or None
 )
 FILTER_THINKING_LEVEL: Optional[str] = (
-    os.getenv("FILTER_THINKING_LEVEL", "").strip().upper() or None
+    os.getenv("FILTER_THINKING_LEVEL", "LOW").strip().upper() or None
 )
 INSPIRATION_THINKING_LEVEL: Optional[str] = (
-    os.getenv("INSPIRATION_THINKING_LEVEL", "").strip().upper() or None
+    os.getenv("INSPIRATION_THINKING_LEVEL", "LOW").strip().upper() or None
 )
 JSON_PARSER_THINKING_LEVEL: Optional[str] = (
-    os.getenv("JSON_PARSER_THINKING_LEVEL", "").strip().upper() or None
+    os.getenv("JSON_PARSER_THINKING_LEVEL", "LOW").strip().upper() or None
 )
 FILTER_SMART_THINKING_LEVEL: Optional[str] = (
-    os.getenv("FILTER_SMART_THINKING_LEVEL", "").strip().upper() or None
+    os.getenv("FILTER_SMART_THINKING_LEVEL", "MEDIUM").strip().upper() or None
 )
 
 
