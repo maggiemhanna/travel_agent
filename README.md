@@ -120,7 +120,7 @@ Instead of relying on a single monolithic prompt or static form filters, the pla
 - **Cross-Service Synchronization in the Web Interface:** The React chat assistant coordinates between the Conversational service and the Flights Search service based on the workflow's decision—updating the page's filter controls and visible cards when hard filters are returned, displaying Google Search-verified flights when smart filtering runs, or updating the search form and automatically triggering a new flight search when a new destination or date is suggested.  
   — *Implemented in [`frontend/src/ChatWidget.jsx`](frontend/src/ChatWidget.jsx) & [`frontend/src/App.jsx`](frontend/src/App.jsx)*
 
-![agentic_architecture](agentic_architecture.png "Agentic Architecture")
+![agentic_architecture](docs/diagrams/agentic_architecture.png "Agentic Architecture")
 
 ## 🏗 Cloud Architecture & Production Engineering Layers
 
@@ -181,7 +181,7 @@ The platform runs as three containerized services on **Google Cloud Run** in Par
     — *Provisioned in [`deployment/terraform/apis.tf`](deployment/terraform/apis.tf) & [`deployment/terraform/iam.tf`](deployment/terraform/iam.tf)*  
     — *Implemented in [`flights_search_app/app/app_utils/logging.py`](flights_search_app/app/app_utils/logging.py) & [`conversational_app/app/app_utils/logging.py`](conversational_app/app/app_utils/logging.py)*
 
-![gcp_cloud_architecture](gcp_cloud_architecture.svg "GCP Cloud Architecture")
+![gcp_cloud_architecture](docs/diagrams/gcp_cloud_architecture.svg "GCP Cloud Architecture")
 
 ---
 
@@ -709,7 +709,7 @@ travel_agent/
 │   ├── staging.yaml                    # 5-stage CD pipeline for Staging (travel-agent-staging-512211)
 │   └── prod.yaml                       # 5-stage CD pipeline for Prod + cross-region /env-config.js smoke checks
 ├── docs/                               # API, Integration, SDK & Production Operational Documentation
-│   ├── diagrams/                       # Standalone SVG architecture, workflow, sequence & triage diagrams
+│   ├── diagrams/                       # Architecture, workflow, sequence & triage diagrams (PNG & SVG)
 │   ├── api_documentation.md            # OpenAPI 3.1 endpoint reference, integration guides & JS/Python SDK docs
 │   ├── operational_documentation.md    # Operational Hub: SLOs/SLIs, telemetry/logging, IAM posture & severity matrix
 │   ├── deployment_guide.md             # 5-stage Cloud Build + Terraform CD guide, promotion flow, model rollouts & rollbacks
