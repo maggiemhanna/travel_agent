@@ -139,3 +139,10 @@ ENABLE_TELEMETRY_PLUGIN = os.getenv(
     "ENABLE_TELEMETRY_PLUGIN", "true"
 ).strip().lower() in {"1", "true", "yes", "on"}
 
+# --- In-Memory Session Management Configuration ---
+SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "1800"))
+MAX_IN_MEMORY_SESSIONS = int(os.getenv("MAX_IN_MEMORY_SESSIONS", "1000"))
+MAX_HISTORY_MESSAGES = int(os.getenv("MAX_HISTORY_MESSAGES", "50"))
+DEFAULT_SESSION_USER_ID = os.getenv("DEFAULT_SESSION_USER_ID", "anonymous")
+
+
