@@ -266,7 +266,9 @@ def test_automatic_backup_model_failover():
                 == "Backup gemini-3.6-flash response"
             )
             assert seen_apps == [app, fallback_app]
-            assert len(set(seen_sessions)) == 2
+            assert len(seen_sessions) == 2
+            assert seen_sessions[0] == seen_sessions[1]
+            assert resp.json()["session_id"] == seen_sessions[0]
 
         # 3. Both primary and backup fail -> HTTP 500
         with patch.object(
