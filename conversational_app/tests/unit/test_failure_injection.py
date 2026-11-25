@@ -190,11 +190,11 @@ def test_plain_text_non_json_reply_graceful_degradation():
         with patch.object(Runner, "run_debug", autospec=True, side_effect=_plain_text_reply):
             resp = client.post("/run-conversational", json=payload)
             assert resp.status_code == 200
-            assert resp.json() == {
-                "status": "success",
-                "results": {
-                    "raw_text": "I am temporarily returning plain text instead of JSON."
-                },
+            body = resp.json()
+            assert body["status"] == "success"
+            assert isinstance(body.get("session_id"), str) and body["session_id"]
+            assert body["results"] == {
+                "raw_text": "I am temporarily returning plain text instead of JSON."
             }
 
     # Verify standalone sub-agent also degrades safely to {"raw_text": ...}

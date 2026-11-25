@@ -12,6 +12,7 @@ const CONVERSATIONAL_FALLBACK_API_URL = resolveBackendUrl(
 
 function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchFlights, setCurrentPage }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([
     { sender: 'bot', text: 'Hello! I can help you filter or find flights. Try "flights under $500", "flights with good wifi", or "flights with lower emission".' }
   ]);
@@ -29,12 +30,9 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
     setMessages((prev) => [...prev, { sender: 'user', text: userMessage }]);
     setLoading(true);
 
-    // Build history from previous messages
-    const conversationalHistory = messages.map(m => `${m.sender}: ${m.text}`);
-
     const payload = {
+      ...(sessionId ? { session_id: sessionId } : {}),
       user_message: userMessage,
-      conversational_history: conversationalHistory,
       flights_input: flights,
       flights_search_input: {
         origin: searchParams.origin,
@@ -58,6 +56,10 @@ function ChatWidget({ flights, setFlights, searchParams, setSearchParams, fetchF
       }
 
       const data = await response.json();
+
+      if (data.session_id) {
+        setSessionId(data.session_id);
+      }
 
       if (data.status === 'success' && data.results) {
         const result = data.results;

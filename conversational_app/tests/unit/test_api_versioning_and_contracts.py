@@ -174,14 +174,16 @@ def test_v1_and_legacy_routes_across_orchestrator_and_sub_agents() -> None:
 
     assert v1_resp.status_code == 200
     assert legacy_resp.status_code == 200
-    assert v1_resp.json() == legacy_resp.json()
-    assert v1_resp.json() == {
-        "status": "success",
-        "results": {
-            "agent_response": "Happy to help! Tell me your budget or travel preferences.",
-            "agent_decision": "continue",
-        },
+    v1_body = v1_resp.json()
+    legacy_body = legacy_resp.json()
+    assert isinstance(v1_body.get("session_id"), str) and v1_body["session_id"]
+    assert isinstance(legacy_body.get("session_id"), str) and legacy_body["session_id"]
+    expected_results = {
+        "agent_response": "Happy to help! Tell me your budget or travel preferences.",
+        "agent_decision": "continue",
     }
+    assert v1_body["status"] == "success" and v1_body["results"] == expected_results
+    assert legacy_body["status"] == "success" and legacy_body["results"] == expected_results
 
     assert v1_resp.headers.get("X-API-Version") == API_VERSION
     assert "Deprecation" not in v1_resp.headers

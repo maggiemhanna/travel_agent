@@ -67,18 +67,38 @@ class ConversationalInput(BaseModel):
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
+    session_id: Optional[str] = Field(
+        None,
+        min_length=1,
+        max_length=128,
+        description=(
+            "Optional server-managed session identifier to continue an existing "
+            "multi-turn conversation. Omit to start a new session."
+        ),
+    )
     user_message: str = Field(
         ..., min_length=1, max_length=4000, description="The message from the user."
     )
     conversational_history: List[str] = Field(
         default_factory=list,
         description=(
-            "The history of the conversation where each string is formatted as "
-            "'role: message' (e.g., 'bot: Hello' or 'user: flights under $500')."
+            "Optional initial conversation history where each string is formatted as "
+            "'role: message' (e.g., 'bot: Hello' or 'user: flights under $500'). "
+            "Managed automatically by the backend across turns when session_id is reused."
         ),
     )
     flights_input: List[Flight] = Field(default_factory=list, description="The flights to filter.")
     flights_search_input: FlightParams = Field(..., description="The flights search input.")
+
+    @field_validator("session_id")
+    @classmethod
+    def _validate_session_id(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned or len(cleaned) > 128:
+            raise ValueError("session_id must be a non-empty string up to 128 characters.")
+        return cleaned
 
     @field_validator("user_message")
     @classmethod
@@ -131,9 +151,22 @@ class ConversationalResponse(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     status: Literal["success"] = Field("success", description="Execution status indicator.")
+    session_id: Optional[str] = Field(
+        None,
+        description="Server-managed session identifier to send on subsequent turns.",
+    )
     results: Union[ConversationalOutput, RawTextFallback, Dict[str, Any]] = Field(
         ..., description="Normalized multi-agent workflow output (or graceful plain-text fallback)."
     )
+
+
+class SessionDeleteResponse(BaseModel):
+    """HTTP response payload for DELETE /api/v1/sessions/{session_id}."""
+
+    status: Literal["deleted", "not_found"] = Field(
+        ..., description="Whether an active in-memory session was found and deleted."
+    )
+    session_id: str = Field(..., description="The targeted session identifier.")
 
 
 class RootInfoResponse(BaseModel):
