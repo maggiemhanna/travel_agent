@@ -22,6 +22,10 @@ steps:
       - |
         set -euo pipefail
         pip install --no-cache-dir \
+          google-cloud-aiplatform==1.148.1 \
+          pandas==3.0.6 \
+          tqdm==4.70.1
+        pip install --no-cache-dir \
           -r flights_search_app/requirements.txt \
           -r conversational_app/requirements.txt \
           pytest==9.0.2 \
