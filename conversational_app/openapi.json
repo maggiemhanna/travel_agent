@@ -427,6 +427,31 @@
         "title": "RootInfoResponse",
         "type": "object"
       },
+      "SessionDeleteResponse": {
+        "description": "HTTP response payload for DELETE /api/v1/sessions/{session_id}.",
+        "properties": {
+          "session_id": {
+            "description": "The targeted session identifier.",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "Whether an active in-memory session was found and deleted.",
+            "enum": [
+              "deleted",
+              "not_found"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "session_id"
+        ],
+        "title": "SessionDeleteResponse",
+        "type": "object"
+      },
       "UnreadyResponse": {
         "description": "HTTP 503 readiness failure contract for GET /readyz.",
         "properties": {
@@ -530,7 +555,7 @@
     },
     "/api/v1/run-conversational": {
       "post": {
-        "description": "Triggers the conversational workflow with the provided user input.\nThe response will contain the structured JSON output from the agent.",
+        "description": "Triggers the conversational workflow with the provided user input.\nMaintains multi-turn conversation history server-side in memory keyed by session_id.",
         "operationId": "run_conversational_v1",
         "requestBody": {
           "content": {
@@ -565,6 +590,49 @@
           }
         },
         "summary": "Run Conversational",
+        "tags": [
+          "Agent v1"
+        ]
+      }
+    },
+    "/api/v1/sessions/{session_id}": {
+      "delete": {
+        "description": "Deletes an active in-memory conversation session.",
+        "operationId": "delete_session_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Session",
         "tags": [
           "Agent v1"
         ]
@@ -627,7 +695,7 @@
     "/run-conversational": {
       "post": {
         "deprecated": true,
-        "description": "Triggers the conversational workflow with the provided user input.\nThe response will contain the structured JSON output from the agent.",
+        "description": "Triggers the conversational workflow with the provided user input.\nMaintains multi-turn conversation history server-side in memory keyed by session_id.",
         "operationId": "run_conversational_legacy",
         "requestBody": {
           "content": {
