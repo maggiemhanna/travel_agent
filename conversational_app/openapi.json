@@ -5,7 +5,7 @@
         "description": "Input schema for the Conversational Agent.",
         "properties": {
           "conversational_history": {
-            "description": "The history of the conversation where each string is formatted as 'role: message' (e.g., 'bot: Hello' or 'user: flights under $500').",
+            "description": "Optional initial conversation history where each string is formatted as 'role: message' (e.g., 'bot: Hello' or 'user: flights under $500'). Managed automatically by the backend across turns when session_id is reused.",
             "items": {
               "type": "string"
             },
@@ -23,6 +23,20 @@
           "flights_search_input": {
             "$ref": "#/components/schemas/FlightParams",
             "description": "The flights search input."
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional server-managed session identifier to continue an existing multi-turn conversation. Omit to start a new session.",
+            "title": "Session Id"
           },
           "user_message": {
             "description": "The message from the user.",
@@ -139,6 +153,18 @@
             ],
             "description": "Normalized multi-agent workflow output (or graceful plain-text fallback).",
             "title": "Results"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Server-managed session identifier to send on subsequent turns.",
+            "title": "Session Id"
           },
           "status": {
             "const": "success",
