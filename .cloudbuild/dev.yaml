@@ -215,21 +215,22 @@ steps:
         set -eu
         . /workspace/service_urls.env
 
+        # Note: Google Front End (GFE) reserves /healthz on external *.run.app URLs,
+        # so external smoke checks probe /readyz (and / for backend services) while
+        # Cloud Run's internal liveness probe checks /healthz directly on port 8080.
         echo "Verifying Flights Search Service probes ($${FLIGHTS_SEARCH_URL})..."
-        curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_URL}/healthz"
+        curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_URL}/"
         echo ""
         curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_URL}/readyz"
         echo ""
 
         echo "Verifying Conversational Service probes ($${CONVERSATIONAL_URL})..."
-        curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_URL}/healthz"
+        curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_URL}/"
         echo ""
         curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_URL}/readyz"
         echo ""
 
         echo "Verifying Frontend probes & runtime env-config ($${FRONTEND_URL})..."
-        curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/healthz"
-        echo ""
         curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/readyz"
         echo ""
         curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_URL}/env-config.js"
@@ -237,11 +238,10 @@ steps:
 
         if [ -n "$${FLIGHTS_SEARCH_SECONDARY_URL}" ]; then
           echo "Verifying Warm Secondary Region Services..."
-          curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_SECONDARY_URL}/healthz"
+          curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_SECONDARY_URL}/"
           curl -fsS --retry 5 --retry-delay 3 "$${FLIGHTS_SEARCH_SECONDARY_URL}/readyz"
-          curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_SECONDARY_URL}/healthz"
+          curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_SECONDARY_URL}/"
           curl -fsS --retry 5 --retry-delay 3 "$${CONVERSATIONAL_SECONDARY_URL}/readyz"
-          curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/healthz"
           curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/readyz"
           curl -fsS --retry 5 --retry-delay 3 "$${FRONTEND_SECONDARY_URL}/env-config.js"
           echo ""
