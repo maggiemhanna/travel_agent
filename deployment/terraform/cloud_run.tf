@@ -117,8 +117,9 @@ resource "google_cloud_run_v2_service" "conversational" {
   deletion_protection  = var.environment == "prod"
 
   template {
-    service_account = google_service_account.agent_runtime.email
-    timeout         = "300s"
+    service_account  = google_service_account.agent_runtime.email
+    timeout          = "300s"
+    session_affinity = true
 
     scaling {
       min_instance_count = var.min_instances
@@ -326,8 +327,9 @@ resource "google_cloud_run_v2_service" "conversational_secondary" {
   deletion_protection  = var.environment == "prod"
 
   template {
-    service_account = google_service_account.agent_runtime.email
-    timeout         = "300s"
+    service_account  = google_service_account.agent_runtime.email
+    timeout          = "300s"
+    session_affinity = true
 
     scaling {
       min_instance_count = var.secondary_min_instances
